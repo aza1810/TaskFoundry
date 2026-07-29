@@ -10,8 +10,8 @@ export function ResearchPanel() {
       <div className="panel-head">
         <h2>Research Tree</h2>
         <p>
-          Stock science packs, assign a lab, and unlock the next machine tier. Progress
-          continues offline.
+          Stock science packs and start a project. You can hand-study slowly; labs
+          accelerate progress and keep researching offline.
         </p>
         {state.activeResearch && (
           <p className="panel-stat">
