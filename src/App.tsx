@@ -1,21 +1,19 @@
 import { useState } from 'react'
-import { FactoryPanel } from './components/FactoryPanel'
+import { CraftPanel } from './components/CraftPanel'
+import { FactoryGrid } from './components/FactoryGrid'
 import { HabitsPanel } from './components/HabitsPanel'
 import { HeroStatus } from './components/HeroStatus'
-import { ResearchPanel } from './components/ResearchPanel'
-import { ResourcesBar } from './components/ResourcesBar'
+import { InventoryBar } from './components/InventoryBar'
 import { StepsPanel } from './components/StepsPanel'
-import { YardPanel } from './components/YardPanel'
 import { GameProvider, useGame } from './game/GameContext'
 import type { TabId } from './game/types'
 import './index.css'
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'habits', label: 'Habits' },
+  { id: 'factory', label: 'Factory' },
   { id: 'steps', label: 'Steps' },
-  { id: 'factory', label: 'Craft' },
-  { id: 'yard', label: 'Yard' },
-  { id: 'research', label: 'Research' },
+  { id: 'craft', label: 'Craft' },
+  { id: 'habits', label: 'Habits' },
 ]
 
 function Toast() {
@@ -32,7 +30,7 @@ function Toast() {
 }
 
 function Shell() {
-  const [tab, setTab] = useState<TabId>('habits')
+  const [tab, setTab] = useState<TabId>('factory')
 
   return (
     <div className="app">
@@ -44,7 +42,7 @@ function Shell() {
 
       <div className="shell">
         <HeroStatus />
-        <ResourcesBar />
+        <InventoryBar />
 
         <nav className="tabs" aria-label="Factory stations">
           {TABS.map((t) => (
@@ -60,11 +58,10 @@ function Shell() {
         </nav>
 
         <main className="main" key={tab}>
-          {tab === 'habits' && <HabitsPanel />}
+          {tab === 'factory' && <FactoryGrid />}
           {tab === 'steps' && <StepsPanel />}
-          {tab === 'factory' && <FactoryPanel />}
-          {tab === 'yard' && <YardPanel />}
-          {tab === 'research' && <ResearchPanel />}
+          {tab === 'craft' && <CraftPanel />}
+          {tab === 'habits' && <HabitsPanel />}
         </main>
       </div>
 

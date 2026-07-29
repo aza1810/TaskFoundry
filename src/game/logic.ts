@@ -1,33 +1,30 @@
 import {
-  BUILDING_MAP,
-  BUILDINGS,
   DEFAULT_HABITS,
-  EMPTY_RESOURCES,
+  EMPTY_INVENTORY,
   GAME_VERSION,
+  GRID_H,
+  GRID_W,
   HABIT_REWARDS,
-  RECIPE_MAP,
-  RECIPES,
+  HAND_RECIPES,
+  PLACEABLE_META,
   SAVE_KEY,
-  STEPS_PER_COAL,
-  STEPS_PER_COPPER,
-  STEPS_PER_IRON,
-  TECH_MAP,
-  TECHS,
   canAfford,
   gain,
+  idx,
+  inBounds,
+  rotateDir,
   spend,
   todayKey,
   xpForLevel,
 } from './data'
+import { createEntity, createTiles, getTile } from './grid'
+import { MACHINE_CAP, addToStore, runMineCycles, simTick, takeFromStore } from './sim'
 import type {
-  BuildingId,
+  Dir,
   GameState,
   Habit,
   HabitCategory,
-  RecipeId,
-  ResourceId,
-  Resources,
-  TechId,
+  Placeable,
 } from './types'
 
 export function createInitialState(): GameState {
@@ -36,35 +33,21 @@ export function createInitialState(): GameState {
     playerName: 'Operator',
     level: 1,
     xp: 0,
-    resources: {
-      ...EMPTY_RESOURCES(),
-      ironOre: 12,
-      copperOre: 8,
-      coal: 10,
-      ironPlate: 5,
-    },
-    buildings: {
-      burnerDrill: 0,
-      electricDrill: 0,
-      stoneFurnace: 0,
-      steelFurnace: 0,
-      assembler1: 0,
-      assembler2: 0,
-      lab: 0,
-    },
-    researched: [],
-    researchProgress: {},
-    activeResearch: null,
+    width: GRID_W,
+    height: GRID_H,
+    tiles: createTiles(),
+    entities: {},
+    inventory: EMPTY_INVENTORY(),
     habits: DEFAULT_HABITS(),
     stepsToday: 0,
     stepsLifetime: 0,
     stepsDate: todayKey(),
-    assemblerRecipe: null,
-    furnaceRecipe: 'smeltIron',
-    craftQueue: null,
+    mineCycles: 0,
+    selected: 'drill',
+    placeDir: 'E',
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
-    unlockedToast: null,
+    unlockedToast: 'Place a drill on iron ore. Every step mines once.',
   }
 }
 
@@ -77,8 +60,9 @@ export function loadState(): GameState {
     return {
       ...createInitialState(),
       ...parsed,
-      resources: { ...EMPTY_RESOURCES(), ...parsed.resources },
-      buildings: { ...createInitialState().buildings, ...parsed.buildings },
+      inventory: { ...EMPTY_INVENTORY(), ...parsed.inventory },
+      tiles: parsed.tiles?.length === GRID_W * GRID_H ? parsed.tiles : createTiles(),
+      entities: parsed.entities ?? {},
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
     }
   } catch {
@@ -90,33 +74,6 @@ export function saveState(state: GameState): void {
   localStorage.setItem(SAVE_KEY, JSON.stringify(state))
 }
 
-function hasTech(state: GameState, id?: TechId): boolean {
-  if (!id) return true
-  return state.researched.includes(id)
-}
-
-export function isRecipeUnlocked(state: GameState, recipeId: RecipeId): boolean {
-  const r = RECIPE_MAP[recipeId]
-  if (!r) return false
-  if (r.unlockLevel && state.level < r.unlockLevel) return false
-  return hasTech(state, r.unlockTech)
-}
-
-export function isBuildingUnlocked(state: GameState, id: BuildingId): boolean {
-  const b = BUILDING_MAP[id]
-  if (!b) return false
-  if (b.unlockLevel && state.level < b.unlockLevel) return false
-  return hasTech(state, b.unlockTech)
-}
-
-export function isTechAvailable(state: GameState, id: TechId): boolean {
-  const t = TECH_MAP[id]
-  if (!t) return false
-  if (state.researched.includes(id)) return false
-  if (t.unlockLevel && state.level < t.unlockLevel) return false
-  return (t.requires ?? []).every((req) => state.researched.includes(req))
-}
-
 function addXp(state: GameState, amount: number): GameState {
   let { xp, level } = state
   let toast = state.unlockedToast
@@ -125,7 +82,7 @@ function addXp(state: GameState, amount: number): GameState {
   while (xp >= needed) {
     xp -= needed
     level += 1
-    toast = `Level ${level} — new clearance unlocked`
+    toast = `Level ${level} — clearance upgraded`
     needed = xpForLevel(level)
   }
   return { ...state, xp, level, unlockedToast: toast }
@@ -134,11 +91,10 @@ function addXp(state: GameState, amount: number): GameState {
 function refreshDaily(state: GameState): GameState {
   const today = todayKey()
   if (state.stepsDate === today) {
-    // Still reset habit completed flags if date on habit is stale
-    const habits = state.habits.map((h) => {
-      if (h.lastCompletedDate === today) return { ...h, completedToday: true }
-      return { ...h, completedToday: false }
-    })
+    const habits = state.habits.map((h) => ({
+      ...h,
+      completedToday: h.lastCompletedDate === today,
+    }))
     return { ...state, habits }
   }
 
@@ -146,208 +102,159 @@ function refreshDaily(state: GameState): GameState {
     let streak = 0
     if (h.lastCompletedDate) {
       const last = new Date(h.lastCompletedDate + 'T12:00:00')
-      const diff = Math.floor(
-        (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24),
-      )
+      const diff = Math.floor((Date.now() - last.getTime()) / (1000 * 60 * 60 * 24))
       streak = diff <= 1 ? h.streak : 0
     }
-    return {
-      ...h,
-      completedToday: false,
-      streak,
-    }
+    return { ...h, completedToday: false, streak }
   })
 
-  return {
-    ...state,
-    habits,
-    stepsToday: 0,
-    stepsDate: today,
-  }
-}
-
-function tryConsumeFractional(
-  resources: Resources,
-  inputs: Partial<Resources>,
-): Resources | null {
-  if (!canAfford(resources, inputs)) return null
-  return spend(resources, inputs)
-}
-
-function runAutoCraft(
-  state: GameState,
-  recipeId: RecipeId,
-  speed: number,
-  dt: number,
-): GameState {
-  if (!isRecipeUnlocked(state, recipeId)) return state
-  const recipe = RECIPE_MAP[recipeId]
-  if (!recipe || speed <= 0) return state
-
-  const crafts = (dt * speed) / recipe.seconds
-  if (crafts <= 0) return state
-
-  // Craft as many whole+fractional as resources allow
-  let resources = { ...state.resources }
-  let crafted = 0
-  const maxSteps = Math.min(Math.ceil(crafts), 200)
-  const perCraft = crafts / Math.max(1, maxSteps)
-
-  for (let i = 0; i < maxSteps; i++) {
-    const portion = Math.min(perCraft, crafts - crafted)
-    if (portion <= 0) break
-    const scaledIn: Partial<Resources> = {}
-    for (const [k, v] of Object.entries(recipe.inputs) as [ResourceId, number][]) {
-      scaledIn[k] = v * portion
-    }
-    const next = tryConsumeFractional(resources, scaledIn)
-    if (!next) break
-    resources = gain(next, recipe.outputs, portion)
-    crafted += portion
-  }
-
-  if (crafted <= 0) return state
-  return { ...state, resources }
+  return { ...state, habits, stepsToday: 0, stepsDate: today }
 }
 
 export function tickState(state: GameState, now = Date.now()): GameState {
   let next = refreshDaily(state)
-  const dt = Math.min(60 * 60 * 8, Math.max(0, (now - next.lastTick) / 1000))
+  const dt = Math.min(5, Math.max(0, (now - next.lastTick) / 1000))
   next = { ...next, lastTick: now }
-  if (dt < 0.05) return next
+  if (dt < 0.02) return next
+  return simTick(next, dt)
+}
 
-  // Mining buildings
-  for (const b of BUILDINGS) {
-    const count = next.buildings[b.id] ?? 0
-    if (!count || !b.produces) continue
-    const mult = count * dt
-    // Burner drills consume a trickle of coal
-    if (b.id === 'burnerDrill') {
-      const coalNeed = 0.05 * mult
-      if (next.resources.coal < coalNeed) continue
-      next = {
-        ...next,
-        resources: spend(gain(next.resources, b.produces, mult), { coal: coalNeed }),
-      }
-    } else {
-      next = { ...next, resources: gain(next.resources, b.produces, mult) }
+export function selectTool(state: GameState, tool: GameState['selected']): GameState {
+  return { ...state, selected: tool }
+}
+
+export function rotatePlaceDir(state: GameState): GameState {
+  return { ...state, placeDir: rotateDir(state.placeDir) }
+}
+
+export function setPlaceDir(state: GameState, dir: Dir): GameState {
+  return { ...state, placeDir: dir }
+}
+
+export function placeEntity(state: GameState, x: number, y: number): GameState {
+  if (!inBounds(x, y)) return state
+  const tool = state.selected
+  if (!tool) return state
+
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  const tile = tiles[idx(x, y)]
+
+  if (tool === 'remove') {
+    if (!tile.entityId) return state
+    const ent = state.entities[tile.entityId]
+    if (!ent) return state
+    const entities = { ...state.entities }
+    delete entities[ent.id]
+    tile.entityId = null
+
+    // Refund building + dump store into inventory
+    const invKey = ent.kind as Placeable
+    let inventory = gain(state.inventory, { [invKey]: 1 })
+    inventory = gain(inventory, ent.store as Partial<typeof inventory>)
+    if (ent.cargo) {
+      inventory = gain(inventory, { [ent.cargo.item]: 1 } as Partial<typeof inventory>)
+    }
+    return { ...state, tiles, entities, inventory }
+  }
+
+  if (tile.entityId) return state
+  const meta = PLACEABLE_META[tool]
+  if ((state.inventory[meta.inventoryKey] ?? 0) < 1) {
+    return { ...state, unlockedToast: `No ${meta.label} in inventory — craft one` }
+  }
+
+  if (tool === 'drill' && !tile.ore) {
+    return { ...state, unlockedToast: 'Drills must be placed on an ore patch' }
+  }
+
+  let inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
+  const ent = createEntity(tool, x, y, state.placeDir)
+
+  // Auto-fuel new drills from inventory
+  if (tool === 'drill') {
+    const fuel = Math.min(5, inventory.coal)
+    if (fuel > 0) {
+      inventory = spend(inventory, { coal: fuel })
+      ent.store.coal = fuel
     }
   }
 
-  // Furnaces
-  const furnaceSpeed =
-    (next.buildings.stoneFurnace ?? 0) * BUILDING_MAP.stoneFurnace.craftSpeed +
-    (next.buildings.steelFurnace ?? 0) * BUILDING_MAP.steelFurnace.craftSpeed
-  if (furnaceSpeed > 0 && next.furnaceRecipe) {
-    const recipe = RECIPE_MAP[next.furnaceRecipe]
-    if (recipe && (!recipe.unlockTech || hasTech(next, recipe.unlockTech))) {
-      if (recipe.id === 'smeltIron' || recipe.id === 'smeltCopper' || recipe.id === 'makeSteel') {
-        next = runAutoCraft(next, recipe.id, furnaceSpeed, dt)
-      }
+  tile.entityId = ent.id
+  return {
+    ...state,
+    tiles,
+    entities: { ...state.entities, [ent.id]: ent },
+    inventory,
+  }
+}
+
+export function rotateEntityAt(state: GameState, x: number, y: number): GameState {
+  const tile = getTile(state.tiles, x, y)
+  if (!tile?.entityId) return rotatePlaceDir(state)
+  const ent = state.entities[tile.entityId]
+  if (!ent) return state
+  return {
+    ...state,
+    entities: {
+      ...state.entities,
+      [ent.id]: { ...ent, dir: rotateDir(ent.dir) },
+    },
+  }
+}
+
+/** Feed coal from player inventory into all drills that are empty */
+export function topUpDrillFuel(state: GameState): GameState {
+  let inventory = { ...state.inventory }
+  const entities = { ...state.entities }
+  for (const ent of Object.values(state.entities)) {
+    if (ent.kind !== 'drill') continue
+    const have = ent.store.coal ?? 0
+    if (have >= 2) continue
+    const need = Math.min(5 - Math.floor(have), inventory.coal)
+    if (need <= 0) continue
+    inventory.coal -= need
+    entities[ent.id] = {
+      ...ent,
+      store: { ...ent.store, coal: have + need },
     }
   }
+  return { ...state, inventory, entities }
+}
 
-  // Assemblers
-  const assemblerSpeed =
-    (next.buildings.assembler1 ?? 0) * BUILDING_MAP.assembler1.craftSpeed +
-    (next.buildings.assembler2 ?? 0) * BUILDING_MAP.assembler2.craftSpeed
-  if (assemblerSpeed > 0 && next.assemblerRecipe) {
-    const recipe = RECIPE_MAP[next.assemblerRecipe]
-    if (
-      recipe &&
-      recipe.id !== 'smeltIron' &&
-      recipe.id !== 'smeltCopper' &&
-      recipe.id !== 'makeSteel'
-    ) {
-      next = runAutoCraft(next, recipe.id, assemblerSpeed, dt)
+/**
+ * Before mining, allow drills to sip 1 coal from player inventory if empty
+ * so step cycles aren't soft-locked.
+ */
+function ensureDrillFuel(state: GameState): GameState {
+  let inventory = { ...state.inventory }
+  const entities: typeof state.entities = { ...state.entities }
+  for (const ent of Object.values(state.entities)) {
+    if (ent.kind !== 'drill') continue
+    if ((ent.store.coal ?? 0) >= 0.25) continue
+    if (inventory.coal < 1) continue
+    inventory.coal -= 1
+    entities[ent.id] = {
+      ...ent,
+      store: { ...ent.store, coal: (ent.store.coal ?? 0) + 1 },
     }
   }
+  return { ...state, inventory, entities }
+}
 
-  // Research: hand-study always crawls; labs accelerate
-  const researching = next.activeResearch
-  if (researching && !next.researched.includes(researching)) {
-    const tech = TECH_MAP[researching]
-    if (tech) {
-      const labCount = next.buildings.lab ?? 0
-      const progress = next.researchProgress[researching] ?? 0
-      const redCost = tech.cost.redScience ?? 0
-      const greenCost = tech.cost.greenScience ?? 0
-      const totalNeeded = Math.max(1, redCost + greenCost)
-      const resources = { ...next.resources }
-      let gained = 0
-      const rate = (0.08 + labCount * 0.15) * dt
-      const redShare = redCost > 0 ? redCost / totalNeeded : 0
-      const greenShare = greenCost > 0 ? greenCost / totalNeeded : 0
+export function logSteps(state: GameState, amount: number): GameState {
+  let next = refreshDaily(state)
+  const add = Math.max(0, Math.floor(amount))
+  if (add <= 0) return next
 
-      if (redCost > 0) {
-        const redUse = Math.min(resources.redScience, rate * (redShare || 1))
-        resources.redScience -= redUse
-        gained += redUse
-      }
-      if (greenCost > 0) {
-        const greenUse = Math.min(resources.greenScience, rate * (greenShare || 1))
-        resources.greenScience -= greenUse
-        gained += greenUse
-      }
-
-      const researchProgress = { ...next.researchProgress }
-      let researched = next.researched
-      let activeResearch: TechId | null = researching
-      let toast = next.unlockedToast
-      const newProgress = progress + gained
-
-      if (newProgress >= totalNeeded) {
-        researched = [...researched, researching]
-        delete researchProgress[researching]
-        activeResearch = null
-        toast = `Researched: ${tech.name}`
-        next = addXp(
-          {
-            ...next,
-            resources,
-            researched,
-            activeResearch,
-            researchProgress,
-            unlockedToast: toast,
-          },
-          40,
-        )
-      } else {
-        researchProgress[researching] = newProgress
-        next = {
-          ...next,
-          resources,
-          researched,
-          activeResearch,
-          researchProgress,
-          unlockedToast: toast,
-        }
-      }
-    }
+  next = {
+    ...next,
+    stepsToday: next.stepsToday + add,
+    stepsLifetime: next.stepsLifetime + add,
   }
-
-  // Manual craft queue
-  if (next.craftQueue) {
-    const recipe = RECIPE_MAP[next.craftQueue.recipeId]
-    if (recipe) {
-      let progress = next.craftQueue.progress + dt
-      if (progress >= recipe.seconds) {
-        if (canAfford(next.resources, recipe.inputs)) {
-          next = {
-            ...next,
-            resources: gain(spend(next.resources, recipe.inputs), recipe.outputs),
-            craftQueue: null,
-          }
-          next = addXp(next, 3)
-        } else {
-          next = { ...next, craftQueue: null }
-        }
-      } else {
-        next = { ...next, craftQueue: { ...next.craftQueue, progress } }
-      }
-    }
-  }
-
+  next = ensureDrillFuel(next)
+  // Every step = one mining cycle for each drill
+  next = runMineCycles(next, add)
+  next = addXp(next, Math.floor(add / 400))
   return next
 }
 
@@ -359,27 +266,20 @@ export function completeHabit(state: GameState, habitId: string): GameState {
   const reward = HABIT_REWARDS[habit.category]
   const streak = habit.streak + 1
   const streakMult = 1 + Math.min(0.5, (streak - 1) * 0.05)
-  const advanced = next.researched.includes('advancedMaterial') ? 1.25 : 1
 
   const habits = next.habits.map((h) =>
     h.id === habitId
-      ? {
-          ...h,
-          completedToday: true,
-          streak,
-          lastCompletedDate: todayKey(),
-        }
+      ? { ...h, completedToday: true, streak, lastCompletedDate: todayKey() }
       : h,
   )
 
   next = {
     ...next,
     habits,
-    resources: gain(next.resources, reward.resources, streakMult),
+    inventory: gain(next.inventory, reward.items, streakMult),
     totalHabitsCompleted: next.totalHabitsCompleted + 1,
   }
-  next = addXp(next, Math.round(reward.xp * streakMult * advanced))
-  return next
+  return addXp(next, Math.round(reward.xp * streakMult))
 }
 
 export function addHabit(
@@ -403,68 +303,39 @@ export function removeHabit(state: GameState, habitId: string): GameState {
   return { ...state, habits: state.habits.filter((h) => h.id !== habitId) }
 }
 
-export function logSteps(state: GameState, amount: number): GameState {
-  let next = refreshDaily(state)
-  const add = Math.max(0, Math.floor(amount))
-  if (add <= 0) return next
-
-  const before = next.stepsToday
-  const after = before + add
-  const iron = Math.floor(after / STEPS_PER_IRON) - Math.floor(before / STEPS_PER_IRON)
-  const copper =
-    Math.floor(after / STEPS_PER_COPPER) - Math.floor(before / STEPS_PER_COPPER)
-  const coal = Math.floor(after / STEPS_PER_COAL) - Math.floor(before / STEPS_PER_COAL)
-
-  next = {
-    ...next,
-    stepsToday: after,
-    stepsLifetime: next.stepsLifetime + add,
-    resources: gain(next.resources, {
-      ironOre: iron,
-      copperOre: copper,
-      coal,
-    }),
+export function craftRecipe(state: GameState, recipeId: string): GameState {
+  const recipe = HAND_RECIPES.find((r) => r.id === recipeId)
+  if (!recipe) return state
+  if (!canAfford(state.inventory, recipe.inputs)) return state
+  let next = {
+    ...state,
+    inventory: gain(spend(state.inventory, recipe.inputs), recipe.outputs),
   }
-  next = addXp(next, Math.floor(add / 500) + (iron + copper + coal > 0 ? 2 : 0))
+  next = addXp(next, 2)
   return next
 }
 
-export function startManualCraft(state: GameState, recipeId: RecipeId): GameState {
-  if (!isRecipeUnlocked(state, recipeId)) return state
-  if (state.craftQueue) return state
-  const recipe = RECIPE_MAP[recipeId]
-  if (!recipe || !canAfford(state.resources, recipe.inputs)) return state
+/** Pull all items from a chest into player inventory */
+export function collectChest(state: GameState, x: number, y: number): GameState {
+  const tile = getTile(state.tiles, x, y)
+  if (!tile?.entityId) return state
+  const ent = state.entities[tile.entityId]
+  if (!ent || ent.kind !== 'chest') return state
   return {
     ...state,
-    craftQueue: { recipeId, progress: 0 },
-  }
-}
-
-export function buyBuilding(state: GameState, id: BuildingId): GameState {
-  if (!isBuildingUnlocked(state, id)) return state
-  const def = BUILDING_MAP[id]
-  if (!canAfford(state.resources, def.cost)) return state
-  return {
-    ...state,
-    resources: spend(state.resources, def.cost),
-    buildings: {
-      ...state.buildings,
-      [id]: (state.buildings[id] ?? 0) + 1,
+    inventory: gain(state.inventory, ent.store as Partial<typeof state.inventory>),
+    entities: {
+      ...state.entities,
+      [ent.id]: { ...ent, store: {} },
     },
+    unlockedToast: 'Collected chest contents',
   }
 }
 
-export function setFurnaceRecipe(state: GameState, recipeId: RecipeId): GameState {
-  return { ...state, furnaceRecipe: recipeId }
-}
-
-export function setAssemblerRecipe(state: GameState, recipeId: RecipeId | null): GameState {
-  return { ...state, assemblerRecipe: recipeId }
-}
-
-export function startResearch(state: GameState, id: TechId): GameState {
-  if (!isTechAvailable(state, id)) return state
-  return { ...state, activeResearch: id }
+/** Manually load coal into drills from inventory */
+export function fuelAllDrills(state: GameState): GameState {
+  const next = topUpDrillFuel(state)
+  return { ...next, unlockedToast: 'Fueled burner drills from inventory' }
 }
 
 export function clearToast(state: GameState): GameState {
@@ -476,16 +347,8 @@ export function resetGame(): GameState {
   return createInitialState()
 }
 
-export function productionRates(state: GameState): Partial<Resources> {
-  const rates: Partial<Resources> = {}
-  for (const b of BUILDINGS) {
-    const count = state.buildings[b.id] ?? 0
-    if (!count || !b.produces) continue
-    for (const [k, v] of Object.entries(b.produces) as [ResourceId, number][]) {
-      rates[k] = (rates[k] ?? 0) + v * count
-    }
-  }
-  return rates
+export function renamePlayer(state: GameState, name: string): GameState {
+  return { ...state, playerName: name.slice(0, 24) || state.playerName }
 }
 
-export { RECIPES, TECHS, BUILDINGS }
+export { HAND_RECIPES, MACHINE_CAP, addToStore, takeFromStore }

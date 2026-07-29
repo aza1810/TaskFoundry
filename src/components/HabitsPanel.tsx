@@ -7,14 +7,13 @@ const CATEGORIES: { id: HabitCategory; label: string }[] = [
   { id: 'mining', label: 'Mining' },
   { id: 'smelting', label: 'Smelting' },
   { id: 'assembly', label: 'Assembly' },
-  { id: 'research', label: 'Research' },
   { id: 'logistics', label: 'Logistics' },
 ]
 
 export function HabitsPanel() {
   const { state, completeHabit, addHabit, removeHabit } = useGame()
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<HabitCategory>('assembly')
+  const [category, setCategory] = useState<HabitCategory>('logistics')
   const done = state.habits.filter((h) => h.completedToday).length
 
   function onAdd(e: FormEvent) {
@@ -28,8 +27,8 @@ export function HabitsPanel() {
       <div className="panel-head">
         <h2>Habit Line</h2>
         <p>
-          Check items off the line. Each category feeds a different part of the factory.
-          Streaks raise throughput.
+          Daily checks stock your inventory — ore, plates, belts, inserters — so you can
+          expand the floor.
         </p>
         <p className="panel-stat">
           Today {done}/{state.habits.length} · Lifetime {state.totalHabitsCompleted}
@@ -56,9 +55,7 @@ export function HabitsPanel() {
               <div className="habit-body">
                 <div className="habit-title-row">
                   <span className="habit-title">{habit.title}</span>
-                  <span className={`chip chip-${habit.category}`}>
-                    {habit.category}
-                  </span>
+                  <span className={`chip chip-${habit.category}`}>{habit.category}</span>
                 </div>
                 <p className="habit-meta">
                   Streak {habit.streak} · +{reward.xp} XP

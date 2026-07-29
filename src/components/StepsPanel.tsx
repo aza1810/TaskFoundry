@@ -1,28 +1,21 @@
 import { useState } from 'react'
-import {
-  STEPS_PER_COAL,
-  STEPS_PER_COPPER,
-  STEPS_PER_IRON,
-  formatNum,
-} from '../game/data'
+import { formatNum } from '../game/data'
 import { useGame } from '../game/GameContext'
 
-const PRESETS = [500, 1000, 2500, 5000, 10000]
+const PRESETS = [1, 10, 50, 100, 500, 1000]
 
 export function StepsPanel() {
   const { state, logSteps } = useGame()
-  const [custom, setCustom] = useState('2000')
-  const goal = 8000
-  const pct = Math.min(100, (state.stepsToday / goal) * 100)
-  const toNextIron = STEPS_PER_IRON - (state.stepsToday % STEPS_PER_IRON)
+  const [custom, setCustom] = useState('100')
+  const drills = Object.values(state.entities).filter((e) => e.kind === 'drill').length
 
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Step Mining</h2>
+        <h2>Step Cycles</h2>
         <p>
-          Feet are your first drills. Log steps to pull iron, copper, and coal from the
-          day.
+          Every step fires <strong>one mining cycle on every burner drill</strong>. Walk
+          more, pull more ore — then let belts and inserters move it.
         </p>
       </div>
 
@@ -32,33 +25,23 @@ export function StepsPanel() {
           <span className="steps-label">steps today</span>
         </div>
         <div className="steps-goal">
-          <div className="steps-track">
-            <div className="steps-fill" style={{ width: `${pct}%` }} />
-          </div>
           <p>
-            Daily goal {goal.toLocaleString()} · Lifetime{' '}
-            {formatNum(state.stepsLifetime)}
+            Drills on floor: <strong>{drills}</strong>
+          </p>
+          <p>
+            Lifetime steps {formatNum(state.stepsLifetime)} · Mine cycles{' '}
+            {formatNum(state.mineCycles)}
+          </p>
+          <p className="hint">
+            Tip: fuel drills with coal (toolbar or inserter from a coal line).
           </p>
         </div>
-      </div>
-
-      <div className="conversion">
-        <p>
-          <strong>{STEPS_PER_IRON}</strong> steps → 1 iron ore
-        </p>
-        <p>
-          <strong>{STEPS_PER_COPPER}</strong> steps → 1 copper ore
-        </p>
-        <p>
-          <strong>{STEPS_PER_COAL}</strong> steps → 1 coal
-        </p>
-        <p className="hint">{toNextIron} steps to next iron chunk</p>
       </div>
 
       <div className="step-actions">
         {PRESETS.map((n) => (
           <button key={n} type="button" className="primary-btn" onClick={() => logSteps(n)}>
-            +{n.toLocaleString()}
+            +{n} {n === 1 ? 'step' : 'steps'}
           </button>
         ))}
       </div>
@@ -79,7 +62,7 @@ export function StepsPanel() {
           aria-label="Custom step count"
         />
         <button type="submit" className="primary-btn">
-          Log steps
+          Log steps / mine cycles
         </button>
       </form>
     </section>

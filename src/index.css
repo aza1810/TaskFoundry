@@ -726,6 +726,210 @@ button {
   font-size: 1.1rem;
 }
 
+/* —— Grid factory —— */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.35rem 0 1rem;
+}
+
+.tool {
+  display: grid;
+  gap: 0.1rem;
+  text-align: left;
+  border: 1px solid rgba(26, 22, 18, 0.14);
+  background: #fffdf8;
+  color: inherit;
+  padding: 0.45rem 0.65rem;
+  border-radius: 2px;
+}
+
+.tool.is-active {
+  border-color: var(--belt);
+  background: rgba(240, 160, 32, 0.18);
+  box-shadow: inset 0 -2px 0 var(--belt);
+}
+
+.tool-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.tool-meta {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--steel);
+}
+
+.factory-panel {
+  overflow: hidden;
+}
+
+.factory-grid {
+  display: grid;
+  gap: 2px;
+  margin-top: 1rem;
+  padding: 0.45rem;
+  background: #2a2620;
+  border: 2px solid var(--oil);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 0;
+  border: none;
+  padding: 0;
+  background: #3d3830;
+  color: var(--concrete);
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.cell:hover {
+  outline: 1px solid var(--belt);
+  z-index: 1;
+}
+
+.cell.ore-iron {
+  background: linear-gradient(145deg, #5a4a38, #3d3830 60%);
+}
+
+.cell.ore-copper {
+  background: linear-gradient(145deg, #6a4020, #3d3830 60%);
+}
+
+.cell.ore-coal {
+  background: linear-gradient(145deg, #1c1a18, #3d3830 55%);
+}
+
+.ore-speckle {
+  position: absolute;
+  inset: 30% 30%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.ent {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(0.65rem, 2.2vw, 1rem);
+  line-height: 1;
+  z-index: 2;
+}
+
+.ent-belt {
+  color: var(--belt);
+  font-weight: 800;
+}
+
+.ent-drill {
+  color: #e8dcc8;
+}
+
+.ent-inserter {
+  color: #7eb6ff;
+}
+
+.ent-furnace {
+  color: #ff8a4a;
+}
+
+.ent-chest {
+  color: #b8c4d0;
+}
+
+.ent-dir {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 0.55rem;
+  opacity: 0.85;
+  z-index: 3;
+  color: var(--belt);
+}
+
+.cargo-dot {
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  border-radius: 1px;
+  z-index: 4;
+  left: calc(10% + var(--p, 0) * 55%);
+  top: 36%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: left 0.15s linear;
+}
+
+.cell.has-belt {
+  background: #4a3a18;
+}
+
+.cell.has-drill {
+  background: #4a4030;
+}
+
+.cell.has-inserter {
+  background: #2a3548;
+}
+
+.cell.has-furnace {
+  background: #4a3020;
+}
+
+.cell.has-chest {
+  background: #343a42;
+}
+
+.cell-store {
+  position: absolute;
+  left: 1px;
+  bottom: 1px;
+  right: 1px;
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  line-height: 1.1;
+  color: #f5efe6;
+  opacity: 0.9;
+  z-index: 3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.smelt-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--belt);
+  z-index: 4;
+}
+
+.grid-help {
+  margin: 0.65rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--steel);
+}
+
+.ghost-dir {
+  color: var(--copper);
+}
+
+.steps-goal .hint {
+  color: var(--copper);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
 @media (min-width: 800px) {
   .hero {
     grid-template-columns: 1.2fr 1fr;
@@ -736,16 +940,19 @@ button {
     grid-template-columns: auto 1fr;
     align-items: end;
   }
+
+  .factory-grid {
+    gap: 3px;
+    padding: 0.55rem;
+  }
 }
 
 @media (max-width: 600px) {
-  .building,
-  .tech {
-    grid-template-columns: 1fr;
+  .cell-store {
+    display: none;
   }
 
-  .building .primary-btn,
-  .tech .primary-btn {
-    width: 100%;
+  .tool-name {
+    font-size: 0.78rem;
   }
 }
