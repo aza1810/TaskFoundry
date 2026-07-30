@@ -78,6 +78,7 @@ function takeAny(
         return id
       }
     }
+    return null
   }
   for (const [id, n] of Object.entries(store) as [ItemId, number][]) {
     if (n > 0) {
