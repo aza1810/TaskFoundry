@@ -104,7 +104,12 @@ export function FactoryGrid() {
                 (ent?.kind === 'furnace' || ent?.kind === 'assembler') &&
                 Boolean(ent.smelting)
               const active =
-                ent?.kind === 'drill' && (ent.store.coal ?? 0) > 0 && Boolean(tile.ore)
+                (ent?.kind === 'drill' &&
+                  (ent.store.coal ?? 0) > 0 &&
+                  Boolean(tile.ore)) ||
+                (ent?.kind === 'electricDrill' && Boolean(tile.ore))
+              const movingBelt =
+                ent?.kind === 'belt' || ent?.kind === 'fastBelt' || ent?.kind === 'splitter'
 
               return (
                 <button
@@ -148,7 +153,7 @@ export function FactoryGrid() {
                         dir={ent.dir}
                         lit={lit}
                         active={active || lit}
-                        moving={ent.kind === 'belt'}
+                        moving={movingBelt}
                         filled={filled}
                       />
                     </span>
@@ -167,6 +172,7 @@ export function FactoryGrid() {
                   )}
 
                   {(ent?.kind === 'drill' ||
+                    ent?.kind === 'electricDrill' ||
                     ent?.kind === 'furnace' ||
                     ent?.kind === 'chest' ||
                     ent?.kind === 'assembler') &&

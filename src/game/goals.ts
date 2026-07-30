@@ -9,8 +9,16 @@ export interface GoalDef {
   check: (s: GameState) => boolean
 }
 
-function countKind(s: GameState, kind: string): number {
-  return Object.values(s.entities).filter((e) => e.kind === kind).length
+function countDrills(s: GameState): number {
+  return Object.values(s.entities).filter(
+    (e) => e.kind === 'drill' || e.kind === 'electricDrill',
+  ).length
+}
+
+function countBelts(s: GameState): number {
+  return Object.values(s.entities).filter(
+    (e) => e.kind === 'belt' || e.kind === 'fastBelt',
+  ).length
 }
 
 function chestItems(s: GameState): number {
@@ -29,7 +37,7 @@ export const GOALS: GoalDef[] = [
     detail: 'Place a burner drill on an ore patch.',
     reward: { belt: 6, coal: 8 },
     rewardLabel: '6 belts + 8 coal',
-    check: (s) => countKind(s, 'drill') >= 1,
+    check: (s) => countDrills(s) >= 1,
   },
   {
     id: 'mine-cycles',
@@ -45,7 +53,7 @@ export const GOALS: GoalDef[] = [
     detail: 'Place at least 5 transport belts.',
     reward: { furnace: 1, coal: 10 },
     rewardLabel: '1 furnace + 10 coal',
-    check: (s) => countKind(s, 'belt') >= 5,
+    check: (s) => countBelts(s) >= 5,
   },
   {
     id: 'smelt-ten',
@@ -87,6 +95,14 @@ export const GOALS: GoalDef[] = [
     rewardLabel: 'drill + assembler + furnace',
     check: (s) => s.stepsLifetime >= 1000,
   },
+  {
+    id: 'first-research',
+    title: 'Open the lab',
+    detail: 'Complete any research project.',
+    reward: { ironPlate: 20, gear: 10 },
+    rewardLabel: '20 plates + 10 gears',
+    check: (s) => s.researched.length >= 1,
+  },
 ]
 
 export const TIPS = [
@@ -95,6 +111,8 @@ export const TIPS = [
   'Inserters pull from behind and push forward. Yellow arm = facing.',
   'Furnaces need ore + coal. Use a second inserter to pull plates out.',
   'Assemblers turn iron plates into gears while you walk.',
+  'Research fast belts, electric drills, and splitters when you have plates to spare.',
+  'Starter line auto-builds a basic drill → furnace → chest setup.',
   'Habits restock belts and fuel so the factory keeps growing.',
 ]
 

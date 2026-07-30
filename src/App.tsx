@@ -5,6 +5,7 @@ import { GoalsBar } from './components/GoalsBar'
 import { HabitsPanel } from './components/HabitsPanel'
 import { HeroStatus } from './components/HeroStatus'
 import { InventoryBar } from './components/InventoryBar'
+import { ResearchPanel } from './components/ResearchPanel'
 import { StepsPanel } from './components/StepsPanel'
 import { GameProvider, useGame } from './game/GameContext'
 import type { TabId } from './game/types'
@@ -14,6 +15,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'factory', label: 'Factory' },
   { id: 'steps', label: 'Steps' },
   { id: 'craft', label: 'Craft' },
+  { id: 'research', label: 'Research' },
   { id: 'habits', label: 'Habits' },
 ]
 
@@ -63,6 +65,7 @@ function Shell() {
           {tab === 'factory' && <FactoryGrid />}
           {tab === 'steps' && <StepsPanel />}
           {tab === 'craft' && <CraftPanel />}
+          {tab === 'research' && <ResearchPanel />}
           {tab === 'habits' && <HabitsPanel />}
         </main>
       </div>

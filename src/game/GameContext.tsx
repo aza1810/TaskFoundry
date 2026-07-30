@@ -15,6 +15,8 @@ import {
   completeHabit as completeHabitLogic,
   craftRecipe as craftRecipeLogic,
   cancelCraft as cancelCraftLogic,
+  buildStarterLine as buildStarterLineLogic,
+  researchTech as researchTechLogic,
   fuelAllDrills as fuelAllDrillsLogic,
   loadState,
   logSteps as logStepsLogic,
@@ -28,7 +30,7 @@ import {
   selectTool as selectToolLogic,
   tickState,
 } from './logic'
-import type { Dir, GameState, HabitCategory, Placeable } from './types'
+import type { Dir, GameState, HabitCategory, Placeable, TechId } from './types'
 
 type Action =
   | { type: 'TICK'; now: number }
@@ -43,6 +45,8 @@ type Action =
   | { type: 'REMOVE_HABIT'; id: string }
   | { type: 'CRAFT'; recipeId: string }
   | { type: 'CANCEL_CRAFT'; jobId: string }
+  | { type: 'RESEARCH'; id: TechId }
+  | { type: 'STARTER' }
   | { type: 'FUEL' }
   | { type: 'CLEAR_TOAST' }
   | { type: 'RESET' }
@@ -74,6 +78,10 @@ function reducer(state: GameState, action: Action): GameState {
       return craftRecipeLogic(state, action.recipeId)
     case 'CANCEL_CRAFT':
       return cancelCraftLogic(state, action.jobId)
+    case 'RESEARCH':
+      return researchTechLogic(state, action.id)
+    case 'STARTER':
+      return buildStarterLineLogic(state)
     case 'FUEL':
       return fuelAllDrillsLogic(state)
     case 'CLEAR_TOAST':
@@ -100,6 +108,8 @@ interface GameContextValue {
   removeHabit: (id: string) => void
   craft: (recipeId: string) => void
   cancelCraft: (jobId: string) => void
+  research: (id: TechId) => void
+  buildStarter: () => void
   fuelDrills: () => void
   clearToast: () => void
   reset: () => void
@@ -197,6 +207,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     (jobId: string) => dispatch({ type: 'CANCEL_CRAFT', jobId }),
     [],
   )
+  const research = useCallback(
+    (id: TechId) => dispatch({ type: 'RESEARCH', id }),
+    [],
+  )
+  const buildStarter = useCallback(() => dispatch({ type: 'STARTER' }), [])
   const fuelDrills = useCallback(() => dispatch({ type: 'FUEL' }), [])
   const clearToast = useCallback(() => dispatch({ type: 'CLEAR_TOAST' }), [])
   const reset = useCallback(() => {
@@ -221,6 +236,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       removeHabit,
       craft,
       cancelCraft,
+      research,
+      buildStarter,
       fuelDrills,
       clearToast,
       reset,
@@ -241,6 +258,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       removeHabit,
       craft,
       cancelCraft,
+      research,
+      buildStarter,
       fuelDrills,
       clearToast,
       reset,

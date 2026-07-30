@@ -6,11 +6,14 @@ export type ItemId =
   | 'copperPlate'
   | 'gear'
   | 'belt'
+  | 'fastBelt'
   | 'inserter'
   | 'drill'
+  | 'electricDrill'
   | 'furnace'
   | 'chest'
   | 'assembler'
+  | 'splitter'
 
 export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
@@ -18,11 +21,16 @@ export type Dir = 'N' | 'E' | 'S' | 'W'
 
 export type EntityKind =
   | 'drill'
+  | 'electricDrill'
   | 'belt'
+  | 'fastBelt'
   | 'inserter'
   | 'furnace'
   | 'chest'
   | 'assembler'
+  | 'splitter'
+
+export type TechId = 'logistics2' | 'electricMining' | 'splitters'
 
 export type HabitCategory = 'mining' | 'smelting' | 'assembly' | 'logistics'
 
@@ -50,6 +58,8 @@ export interface Entity {
   progress: number
   smelting: OreId | null
   cargo: BeltCargo | null
+  /** Splitter output toggle 0|1 */
+  toggle?: number
 }
 
 export interface Tile {
@@ -66,24 +76,33 @@ export interface Inventory {
   copperPlate: number
   gear: number
   belt: number
+  fastBelt: number
   inserter: number
   drill: number
+  electricDrill: number
   furnace: number
   chest: number
   assembler: number
+  splitter: number
 }
 
 export type Placeable = Extract<
   EntityKind,
-  'drill' | 'belt' | 'inserter' | 'furnace' | 'chest' | 'assembler'
+  | 'drill'
+  | 'electricDrill'
+  | 'belt'
+  | 'fastBelt'
+  | 'inserter'
+  | 'furnace'
+  | 'chest'
+  | 'assembler'
+  | 'splitter'
 >
 
 export interface CraftJob {
   id: string
   recipeId: string
-  /** Elapsed seconds */
   elapsed: number
-  /** Total seconds required */
   duration: number
 }
 
@@ -117,8 +136,8 @@ export interface GameState {
   stats: FactoryStats
   completedGoals: string[]
   tipIndex: number
-  /** Hand-crafting bench queue (inputs already spent) */
   craftQueue: CraftJob[]
+  researched: TechId[]
 }
 
-export type TabId = 'factory' | 'habits' | 'steps' | 'craft'
+export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research'

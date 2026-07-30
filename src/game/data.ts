@@ -8,11 +8,15 @@ import type {
   Placeable,
 } from './types'
 
-export const SAVE_KEY = 'habitworks-grid-v4'
-export const GAME_VERSION = 4
+export const SAVE_KEY = 'habitworks-grid-v5'
+export const GAME_VERSION = 5
 export const GRID_W = 18
 export const GRID_H = 12
 export const MAX_CRAFT_QUEUE = 8
+/** Factory keeps running while away (seconds) */
+export const OFFLINE_CAP_SECONDS = 15 * 60
+export const FAST_BELT_MULT = 2.2
+export const ELECTRIC_DRILL_YIELD = 2
 
 export const DIRS: Dir[] = ['N', 'E', 'S', 'W']
 
@@ -41,11 +45,14 @@ export const ITEM_META: Record<
   copperPlate: { label: 'Copper Plate', short: 'Cu□', color: '#E8913A' },
   gear: { label: 'Iron Gear', short: '⚙', color: '#9AA3AD' },
   belt: { label: 'Transport Belt', short: '═', color: '#F0A020' },
+  fastBelt: { label: 'Fast Belt', short: '≡', color: '#E05050' },
   inserter: { label: 'Inserter', short: '↕', color: '#3D8BFD' },
   drill: { label: 'Burner Drill', short: '⛏', color: '#6B5535' },
+  electricDrill: { label: 'Electric Drill', short: '⚡', color: '#3D9E5F' },
   furnace: { label: 'Stone Furnace', short: '▲', color: '#8A4B1A' },
   chest: { label: 'Iron Chest', short: '▣', color: '#5C6B7A' },
   assembler: { label: 'Assembling Machine', short: '⧉', color: '#4a6a8a' },
+  splitter: { label: 'Splitter', short: '⇔', color: '#c4a035' },
 }
 
 export const PLACEABLE_META: Record<
@@ -55,12 +62,22 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: 'Place on ore. Each step = one mine cycle.',
+    hint: 'Place on ore. Each step = one mine cycle. Needs coal.',
+  },
+  electricDrill: {
+    label: 'Electric Drill',
+    inventoryKey: 'electricDrill',
+    hint: 'No coal. Mines 2 ore per step cycle.',
   },
   belt: {
     label: 'Transport Belt',
     inventoryKey: 'belt',
     hint: 'Moves items in the facing direction.',
+  },
+  fastBelt: {
+    label: 'Fast Belt',
+    inventoryKey: 'fastBelt',
+    hint: 'About 2× yellow belt speed.',
   },
   inserter: {
     label: 'Inserter',
@@ -82,15 +99,23 @@ export const PLACEABLE_META: Record<
     inventoryKey: 'assembler',
     hint: 'Crafts gears from iron plates automatically.',
   },
+  splitter: {
+    label: 'Splitter',
+    inventoryKey: 'splitter',
+    hint: 'Alternates items forward and to the right.',
+  },
 }
 
 export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
   belt: { ironPlate: 1 },
+  fastBelt: { ironPlate: 2, gear: 1 },
   inserter: { ironPlate: 1, gear: 1 },
   drill: { ironPlate: 3, gear: 2, coal: 2 },
+  electricDrill: { ironPlate: 5, gear: 3, copperPlate: 4 },
   furnace: { ironPlate: 5 },
   chest: { ironPlate: 4 },
   assembler: { ironPlate: 6, gear: 4, copperPlate: 2 },
+  splitter: { ironPlate: 4, gear: 4, copperPlate: 2 },
 }
 
 export type HandRecipe = {
@@ -98,12 +123,11 @@ export type HandRecipe = {
   name: string
   inputs: Partial<Inventory>
   outputs: Partial<Inventory>
-  /** Seconds at the hand crafting bench */
   handSeconds: number
-  /** Comparable machine time, if any */
   machineSeconds?: number
   machineLabel?: string
   category: 'smelt' | 'part' | 'building'
+  requiresTech?: import('./types').TechId
 }
 
 export const HAND_RECIPES: HandRecipe[] = [
@@ -185,6 +209,33 @@ export const HAND_RECIPES: HandRecipe[] = [
     handSeconds: 16,
     category: 'building',
   },
+  {
+    id: 'craftFastBelt',
+    name: 'Craft Fast Belt',
+    inputs: { ironPlate: 2, gear: 1 },
+    outputs: { fastBelt: 1 },
+    handSeconds: 3.5,
+    category: 'building',
+    requiresTech: 'logistics2',
+  },
+  {
+    id: 'craftElectricDrill',
+    name: 'Craft Electric Drill',
+    inputs: { ironPlate: 5, gear: 3, copperPlate: 4 },
+    outputs: { electricDrill: 1 },
+    handSeconds: 14,
+    category: 'building',
+    requiresTech: 'electricMining',
+  },
+  {
+    id: 'craftSplitter',
+    name: 'Craft Splitter',
+    inputs: { ironPlate: 4, gear: 4, copperPlate: 2 },
+    outputs: { splitter: 1 },
+    handSeconds: 10,
+    category: 'building',
+    requiresTech: 'splitters',
+  },
 ]
 
 export const RECIPE_MAP = Object.fromEntries(
@@ -203,6 +254,7 @@ export const FURNACE_SECONDS = 2.4
 export const ASSEMBLER_SECONDS = 1.6
 export const ASSEMBLER_PLATES_PER_GEAR = 2
 export const BELT_SPEED = 1.8 // tiles per second
+export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT
 export const INSERTER_COOLDOWN = 0.45
 
 export const EMPTY_INVENTORY = (): Inventory => ({
@@ -213,11 +265,14 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   copperPlate: 2,
   gear: 4,
   belt: 16,
+  fastBelt: 0,
   inserter: 4,
   drill: 1,
+  electricDrill: 0,
   furnace: 1,
   chest: 1,
   assembler: 0,
+  splitter: 0,
 })
 
 export const DEFAULT_HABITS = (): Habit[] => [
@@ -335,12 +390,25 @@ export function storeTotal(store: Partial<Record<ItemId, number>>): number {
 }
 
 export function entityGlyph(kind: EntityKind, dir: Dir): string {
-  if (kind === 'belt') {
+  if (kind === 'belt' || kind === 'fastBelt') {
     return dir === 'N' || dir === 'S' ? '║' : '═'
   }
   if (kind === 'inserter') return '↕'
-  if (kind === 'drill') return '⛏'
+  if (kind === 'drill' || kind === 'electricDrill') return '⛏'
   if (kind === 'furnace') return '▲'
   if (kind === 'assembler') return '⧉'
+  if (kind === 'splitter') return '⇔'
   return '▣'
+}
+
+export function isBeltKind(kind: EntityKind): boolean {
+  return kind === 'belt' || kind === 'fastBelt'
+}
+
+export function isDrillKind(kind: EntityKind): boolean {
+  return kind === 'drill' || kind === 'electricDrill'
+}
+
+export function beltSpeedFor(kind: EntityKind): number {
+  return kind === 'fastBelt' ? FAST_BELT_SPEED : BELT_SPEED
 }

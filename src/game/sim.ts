@@ -1,18 +1,23 @@
 import {
   ASSEMBLER_PLATES_PER_GEAR,
   ASSEMBLER_SECONDS,
-  BELT_SPEED,
   DIR_DELTA,
+  ELECTRIC_DRILL_YIELD,
   FURNACE_COAL_PER_SMELT,
   FURNACE_INPUT_ORES,
   FURNACE_SECONDS,
   INSERTER_COOLDOWN,
   OPPOSITE,
   SMELT_MAP,
+  beltSpeedFor,
   idx,
+  isBeltKind,
+  isDrillKind,
+  rotateDir,
 } from './data'
 import { getTile } from './grid'
 import type {
+  Dir,
   Entity,
   FactoryStats,
   GameState,
@@ -22,6 +27,7 @@ import type {
 
 const MACHINE_CAP: Record<string, number> = {
   drill: 5,
+  electricDrill: 8,
   furnace: 12,
   chest: 50,
   assembler: 12,
@@ -104,14 +110,16 @@ function neighbor(
 }
 
 function tryAcceptItem(entity: Entity, item: ItemId): boolean {
-  if (entity.kind === 'belt') {
+  if (isBeltKind(entity.kind) || entity.kind === 'splitter') {
     if (entity.cargo) return false
     entity.cargo = { item, progress: 0 }
     return true
   }
-  if (entity.kind === 'chest' || entity.kind === 'drill') {
-    const except = entity.kind === 'drill' ? (['coal'] as ItemId[]) : undefined
-    return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind], except) > 0
+  if (isDrillKind(entity.kind)) {
+    return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind], ['coal']) > 0
+  }
+  if (entity.kind === 'chest') {
+    return addToStore(entity.store, item, 1, MACHINE_CAP.chest) > 0
   }
   if (entity.kind === 'furnace') {
     if (item === 'coal' || item === 'ironOre' || item === 'copperOre') {
@@ -132,13 +140,13 @@ function tryExtractItem(
   entity: Entity,
   prefer?: ItemId[],
 ): ItemId | null {
-  if (entity.kind === 'belt') {
+  if (isBeltKind(entity.kind) || entity.kind === 'splitter') {
     if (!entity.cargo || entity.cargo.progress < 0.55) return null
     const item = entity.cargo.item
     entity.cargo = null
     return item
   }
-  if (entity.kind === 'chest' || entity.kind === 'drill') {
+  if (isDrillKind(entity.kind) || entity.kind === 'chest') {
     return takeAny(entity.store, prefer)
   }
   if (entity.kind === 'furnace') {
@@ -151,7 +159,7 @@ function tryExtractItem(
 }
 
 function peekExtractable(entity: Entity): boolean {
-  if (entity.kind === 'belt') {
+  if (isBeltKind(entity.kind) || entity.kind === 'splitter') {
     return Boolean(entity.cargo && entity.cargo.progress >= 0.55)
   }
   return Object.values(entity.store).some((n) => (n ?? 0) > 0)
@@ -167,7 +175,12 @@ function tryDrillEject(
   if (!front.entity) return false
   const dest = entities[front.entity.id]
   if (!dest) return false
-  if (dest.kind !== 'belt' && dest.kind !== 'chest' && dest.kind !== 'furnace') {
+  if (
+    !isBeltKind(dest.kind) &&
+    dest.kind !== 'chest' &&
+    dest.kind !== 'furnace' &&
+    dest.kind !== 'splitter'
+  ) {
     return false
   }
 
@@ -200,33 +213,43 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
   for (let c = 0; c < cycles; c++) {
     for (const id of Object.keys(entities)) {
       const e = entities[id]
-      if (e.kind !== 'drill') continue
+      if (!isDrillKind(e.kind)) continue
 
       const tile = tiles[idx(e.x, e.y)]
       if (!tile?.ore || (tile.amount !== null && tile.amount <= 0)) {
         if (tile && tile.amount !== null && tile.amount <= 0) tile.ore = null
         continue
       }
-      if ((e.store.coal ?? 0) < 0.25) continue
 
-      // Free buffer space by ejecting first
+      const electric = e.kind === 'electricDrill'
+      if (!electric && (e.store.coal ?? 0) < 0.25) continue
+
       tryDrillEject(view, entities, e)
 
-      const put = addToStore(e.store, tile.ore, 1, MACHINE_CAP.drill, ['coal'])
+      const yieldAmt = electric ? ELECTRIC_DRILL_YIELD : 1
+      const put = addToStore(
+        e.store,
+        tile.ore,
+        yieldAmt,
+        MACHINE_CAP[e.kind] ?? 5,
+        ['coal'],
+      )
       if (put <= 0) continue
 
-      e.store.coal = (e.store.coal ?? 0) - 0.25
-      if (e.store.coal <= 0.001) delete e.store.coal
+      if (!electric) {
+        e.store.coal = (e.store.coal ?? 0) - 0.25
+        if (e.store.coal <= 0.001) delete e.store.coal
+      }
 
       if (tile.amount !== null) {
-        tile.amount -= 1
+        tile.amount -= put
         if (tile.amount <= 0) {
           tile.amount = 0
           tile.ore = null
         }
       }
-      mined += 1
-      stats.oreMined += 1
+      mined += put
+      stats.oreMined += put
       tryDrillEject(view, entities, e)
     }
   }
@@ -257,7 +280,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Drill auto-eject ---
   for (const e of Object.values(entities)) {
-    if (e.kind !== 'drill') continue
+    if (!isDrillKind(e.kind)) continue
     if (tryDrillEject(state, entities, e)) moved += 1
   }
 
@@ -312,10 +335,9 @@ export function simTick(state: GameState, dt: number): GameState {
     }
   }
 
-  // --- Belts ---
-  const beltOrder = Object.values(entities).filter((e) => e.kind === 'belt')
+  // --- Belts + splitters ---
+  const beltOrder = Object.values(entities).filter((e) => isBeltKind(e.kind))
   beltOrder.sort((a, b) => {
-    // Downstream-first by direction
     const da = DIR_DELTA[a.dir]
     const db = DIR_DELTA[b.dir]
     return db.dx + db.dy * 50 + b.x + b.y * 100 - (da.dx + da.dy * 50 + a.x + a.y * 100)
@@ -323,29 +345,43 @@ export function simTick(state: GameState, dt: number): GameState {
 
   for (const e of beltOrder) {
     if (!e.cargo) continue
-    e.cargo.progress = Math.min(1, e.cargo.progress + BELT_SPEED * dt)
+    e.cargo.progress = Math.min(1, e.cargo.progress + beltSpeedFor(e.kind) * dt)
     if (e.cargo.progress < 1) continue
 
     const next = neighbor(state, e.x, e.y, e.dir)
     if (!next.entity) continue
     const dest = entities[next.entity.id]
 
-    if (dest.kind === 'belt') {
-      if (!dest.cargo) {
-        dest.cargo = { item: e.cargo.item, progress: 0 }
+    if (tryAcceptItem(dest, e.cargo.item)) {
+      e.cargo = null
+      moved += 1
+    }
+  }
+
+  // Splitters: alternate forward vs right output
+  for (const e of Object.values(entities)) {
+    if (e.kind !== 'splitter' || !e.cargo) continue
+    e.cargo.progress = Math.min(1, e.cargo.progress + beltSpeedFor('belt') * dt)
+    if (e.cargo.progress < 1) continue
+
+    const toggle = e.toggle ?? 0
+    const outDir: Dir = toggle === 0 ? e.dir : rotateDir(e.dir, true)
+    const next = neighbor(state, e.x, e.y, outDir)
+    if (!next.entity) {
+      // try the other side if blocked
+      const alt: Dir = toggle === 0 ? rotateDir(e.dir, true) : e.dir
+      const altN = neighbor(state, e.x, e.y, alt)
+      if (altN.entity && tryAcceptItem(entities[altN.entity.id], e.cargo.item)) {
         e.cargo = null
+        e.toggle = 1 - toggle
         moved += 1
       }
-    } else if (
-      dest.kind === 'chest' ||
-      dest.kind === 'furnace' ||
-      dest.kind === 'drill' ||
-      dest.kind === 'assembler'
-    ) {
-      if (tryAcceptItem(dest, e.cargo.item)) {
-        e.cargo = null
-        moved += 1
-      }
+      continue
+    }
+    if (tryAcceptItem(entities[next.entity.id], e.cargo.item)) {
+      e.cargo = null
+      e.toggle = 1 - toggle
+      moved += 1
     }
   }
 
@@ -367,7 +403,7 @@ export function simTick(state: GameState, dt: number): GameState {
     if (dest.kind === 'assembler') prefer = ['ironPlate']
     if (src.kind === 'furnace') prefer = ['ironPlate', 'copperPlate']
     if (src.kind === 'assembler') prefer = ['gear']
-    if (src.kind === 'drill') prefer = ['ironOre', 'copperOre', 'coal']
+    if (isDrillKind(src.kind)) prefer = ['ironOre', 'copperOre', 'coal']
 
     if (!peekExtractable(src)) continue
     const item = tryExtractItem(src, prefer)

@@ -7,6 +7,7 @@ import {
   HABIT_REWARDS,
   HAND_RECIPES,
   MAX_CRAFT_QUEUE,
+  OFFLINE_CAP_SECONDS,
   PLACEABLE_META,
   RECIPE_MAP,
   SAVE_KEY,
@@ -14,6 +15,7 @@ import {
   gain,
   idx,
   inBounds,
+  isBeltKind,
   rotateDir,
   spend,
   todayKey,
@@ -21,6 +23,7 @@ import {
 } from './data'
 import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
+import { TECHS } from './research'
 import { runMineCycles, simTick } from './sim'
 import type {
   CraftJob,
@@ -29,6 +32,7 @@ import type {
   Habit,
   HabitCategory,
   Placeable,
+  TechId,
 } from './types'
 
 export function createInitialState(): GameState {
@@ -56,6 +60,7 @@ export function createInitialState(): GameState {
     completedGoals: [],
     tipIndex: 0,
     craftQueue: [],
+    researched: [],
   }
 }
 
@@ -75,6 +80,7 @@ export function loadState(): GameState {
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
       completedGoals: parsed.completedGoals ?? [],
       craftQueue: parsed.craftQueue ?? [],
+      researched: parsed.researched ?? [],
     }
   } catch {
     return createInitialState()
@@ -169,12 +175,9 @@ function applyCraftOutputs(state: GameState, recipeId: string): GameState {
     }
   }
   next = addXp(next, 2)
-  const outLabel = Object.entries(recipe.outputs)
-    .map(([k, n]) => `${n} ${k}`)
-    .join(', ')
   next = {
     ...next,
-    unlockedToast: `Crafted ${recipe.name.replace(/^Hand-/, '')} (+${outLabel})`,
+    unlockedToast: `Finished: ${recipe.name}`,
   }
   return next
 }
@@ -206,11 +209,27 @@ export function tickHandCraft(state: GameState, dt: number): GameState {
 
 export function tickState(state: GameState, now = Date.now()): GameState {
   let next = refreshDaily(state)
-  const dt = Math.min(5, Math.max(0, (now - next.lastTick) / 1000))
+  const rawDt = Math.max(0, (now - next.lastTick) / 1000)
+  const dt = Math.min(OFFLINE_CAP_SECONDS, rawDt)
   next = { ...next, lastTick: now }
   if (dt < 0.02) return claimGoals(next)
-  next = simTick(next, dt)
-  next = tickHandCraft(next, dt)
+
+  // Chunk large offline catches so belts don't skip weirdly
+  let left = dt
+  while (left > 0) {
+    const step = Math.min(0.5, left)
+    next = simTick(next, step)
+    next = tickHandCraft(next, step)
+    left -= step
+  }
+
+  if (rawDt > 30) {
+    const mins = Math.floor(Math.min(rawDt, OFFLINE_CAP_SECONDS) / 60)
+    next = {
+      ...next,
+      unlockedToast: `Factory ran ~${mins || '<1'} min while you were away`,
+    }
+  }
   return claimGoals(next)
 }
 
@@ -257,13 +276,13 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     return { ...state, unlockedToast: `No ${meta.label} in inventory — craft one` }
   }
 
-  if (tool === 'drill' && !tile.ore) {
+  if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) {
     return { ...state, unlockedToast: 'Drills must be placed on an ore patch' }
   }
 
   let placeDir = state.placeDir
   // Belts inherit direction from a neighbor pointing into this cell
-  if (tool === 'belt') {
+  if (isBeltKind(tool)) {
     for (const dir of ['N', 'E', 'S', 'W'] as Dir[]) {
       const { dx, dy } =
         dir === 'N'
@@ -278,7 +297,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
       if (!inBounds(nx, ny)) continue
       const nTile = state.tiles[idx(nx, ny)]
       const nEnt = nTile.entityId ? state.entities[nTile.entityId] : null
-      if (nEnt?.kind === 'belt' && nEnt.dir === dir) {
+      if (nEnt && isBeltKind(nEnt.kind) && nEnt.dir === dir) {
         placeDir = dir
         break
       }
@@ -294,6 +313,9 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
       inventory = spend(inventory, { coal: fuel })
       ent.store.coal = fuel
     }
+  }
+  if (tool === 'splitter') {
+    ent.toggle = 0
   }
 
   tile.entityId = ent.id
@@ -429,6 +451,12 @@ export function removeHabit(state: GameState, habitId: string): GameState {
 export function craftRecipe(state: GameState, recipeId: string): GameState {
   const recipe = RECIPE_MAP[recipeId]
   if (!recipe) return state
+  if (recipe.requiresTech && !state.researched.includes(recipe.requiresTech)) {
+    return {
+      ...state,
+      unlockedToast: `Research required before crafting ${recipe.name}`,
+    }
+  }
   if (state.craftQueue.length >= MAX_CRAFT_QUEUE) {
     return {
       ...state,
@@ -508,6 +536,101 @@ export function resetGame(): GameState {
 
 export function renamePlayer(state: GameState, name: string): GameState {
   return { ...state, playerName: name.slice(0, 24) || state.playerName }
+}
+
+export function researchTech(state: GameState, techId: TechId): GameState {
+  const tech = TECHS.find((t) => t.id === techId)
+  if (!tech) return state
+  if (state.researched.includes(techId)) {
+    return { ...state, unlockedToast: `${tech.name} already researched` }
+  }
+  if (!canAfford(state.inventory, tech.cost)) {
+    return { ...state, unlockedToast: `Need more materials for ${tech.name}` }
+  }
+  return addXp(
+    {
+      ...state,
+      inventory: spend(state.inventory, tech.cost),
+      researched: [...state.researched, techId],
+      unlockedToast: `Researched ${tech.name} — ${tech.unlocks}`,
+    },
+    35,
+  )
+}
+
+/** Drop a small starter smelting line near the first clear iron patch */
+export function buildStarterLine(state: GameState): GameState {
+  // Layout facing east:
+  // [drill>][belt>][belt>][inserter>][furnace]
+  //                              [inserter v]
+  //                              [chest]
+  let origin: { x: number; y: number } | null = null
+  for (let y = 0; y < state.height - 2 && !origin; y++) {
+    for (let x = 0; x < state.width - 4; x++) {
+      if (state.tiles[idx(x, y)].ore !== 'ironOre') continue
+      const cells = [
+        [x, y],
+        [x + 1, y],
+        [x + 2, y],
+        [x + 3, y],
+        [x + 4, y],
+        [x + 4, y + 1],
+        [x + 4, y + 2],
+      ]
+      if (cells.every(([cx, cy]) => !state.tiles[idx(cx, cy)].entityId)) {
+        origin = { x, y }
+        break
+      }
+    }
+  }
+  if (!origin) {
+    return { ...state, unlockedToast: 'No clear iron patch for a starter line' }
+  }
+
+  const need = { drill: 1, belt: 2, inserter: 2, furnace: 1, chest: 1, coal: 5 }
+  if (!canAfford(state.inventory, need)) {
+    return {
+      ...state,
+      unlockedToast: 'Need 1 drill, 2 belts, 2 inserters, 1 furnace, 1 chest, 5 coal',
+    }
+  }
+
+  let inventory = { ...state.inventory }
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  const entities = { ...state.entities }
+
+  const put = (kind: Placeable, x: number, y: number, dir: Dir) => {
+    inventory = spend(inventory, { [kind]: 1 })
+    const ent = createEntity(kind, x, y, dir)
+    if (kind === 'drill') {
+      const fuel = Math.min(5, inventory.coal)
+      if (fuel > 0) {
+        inventory = spend(inventory, { coal: fuel })
+        ent.store.coal = fuel
+      }
+    }
+    tiles[idx(x, y)].entityId = ent.id
+    entities[ent.id] = ent
+  }
+
+  const { x, y } = origin
+  put('drill', x, y, 'E')
+  put('belt', x + 1, y, 'E')
+  put('belt', x + 2, y, 'E')
+  put('inserter', x + 3, y, 'E') // behind belt, front furnace
+  put('furnace', x + 4, y, 'E')
+  put('inserter', x + 4, y + 1, 'S') // behind furnace, front chest
+  put('chest', x + 4, y + 2, 'S')
+
+  return claimGoals({
+    ...state,
+    inventory,
+    tiles,
+    entities,
+    placeDir: 'E',
+    selected: 'belt',
+    unlockedToast: 'Starter smelting line planted — log steps to feed it',
+  })
 }
 
 export { HAND_RECIPES }

@@ -11,8 +11,11 @@ const INV_ORDER: ItemId[] = [
   'copperPlate',
   'gear',
   'drill',
+  'electricDrill',
   'belt',
+  'fastBelt',
   'inserter',
+  'splitter',
   'furnace',
   'chest',
   'assembler',
@@ -20,15 +23,18 @@ const INV_ORDER: ItemId[] = [
 
 const TOOLS: (Placeable | 'remove')[] = [
   'drill',
+  'electricDrill',
   'belt',
+  'fastBelt',
   'inserter',
+  'splitter',
   'furnace',
   'chest',
   'assembler',
   'remove',
 ]
 
-const HOTKEYS: Record<string, string> = {
+const HOTKEYS: Partial<Record<Placeable | 'remove', string>> = {
   drill: '1',
   belt: '2',
   inserter: '3',
@@ -39,19 +45,15 @@ const HOTKEYS: Record<string, string> = {
 }
 
 export function InventoryBar() {
-  const { state, selectTool, rotateDir, fuelDrills, selected, placeDir } = useGame()
+  const { state, selectTool, rotateDir, fuelDrills, buildStarter, selected, placeDir } =
+    useGame()
 
   return (
     <div className="inv-wrap">
       <div className="resources" aria-label="Inventory">
         {INV_ORDER.map((id) => {
           const amount = state.inventory[id]
-          if (
-            amount <= 0 &&
-            !['ironOre', 'coal', 'ironPlate', 'belt', 'drill', 'assembler'].includes(id)
-          ) {
-            return null
-          }
+          if (amount <= 0) return null
           const meta = ITEM_META[id]
           return (
             <div key={id} className="resource resource-tex" title={meta.label}>
@@ -69,6 +71,20 @@ export function InventoryBar() {
 
       <div className="toolbar" role="toolbar" aria-label="Build tools">
         {TOOLS.map((tool) => {
+          const unlocked =
+            tool === 'remove' ||
+            tool === 'drill' ||
+            tool === 'belt' ||
+            tool === 'inserter' ||
+            tool === 'furnace' ||
+            tool === 'chest' ||
+            tool === 'assembler' ||
+            (tool === 'fastBelt' && state.researched.includes('logistics2')) ||
+            (tool === 'electricDrill' && state.researched.includes('electricMining')) ||
+            (tool === 'splitter' && state.researched.includes('splitters'))
+          if (!unlocked) {
+            if ((state.inventory[tool as Placeable] ?? 0) <= 0) return null
+          }
           const label = tool === 'remove' ? 'Remove' : PLACEABLE_META[tool].label
           const count =
             tool === 'remove' ? null : state.inventory[PLACEABLE_META[tool].inventoryKey]
@@ -84,7 +100,8 @@ export function InventoryBar() {
               <span className="tool-text">
                 <span className="tool-name">{label}</span>
                 <span className="tool-meta">
-                  [{HOTKEYS[tool]}]{count !== null ? ` · ${count}` : ''}
+                  {HOTKEYS[tool] ? `[${HOTKEYS[tool]}] · ` : ''}
+                  {count !== null ? count : ''}
                 </span>
               </span>
             </button>
@@ -104,6 +121,13 @@ export function InventoryBar() {
           <span className="tool-text">
             <span className="tool-name">Fuel drills</span>
             <span className="tool-meta">coal</span>
+          </span>
+        </button>
+        <button type="button" className="tool" onClick={buildStarter}>
+          <span className="tool-rotate-glyph">+</span>
+          <span className="tool-text">
+            <span className="tool-name">Starter line</span>
+            <span className="tool-meta">auto-build</span>
           </span>
         </button>
       </div>

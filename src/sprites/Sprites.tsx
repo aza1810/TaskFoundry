@@ -64,22 +64,25 @@ export function OreTexture({ ore, amount }: { ore: OreId; amount: number | null 
   )
 }
 
-export function BeltSprite({ dir, moving }: { dir: Dir; moving?: boolean }) {
+export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; fast?: boolean }) {
+  const a = fast ? '#E05050' : '#c47a12'
+  const b = fast ? '#f08080' : '#f0a020'
+  const c = fast ? '#8a2020' : '#8a5a10'
   return (
     <svg
-      className={`sprite sprite-belt ${moving ? 'is-moving' : ''}`}
+      className={`sprite sprite-belt ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
       viewBox="0 0 64 64"
       style={{ transform: `rotate(${ROT[dir]}deg)` }}
       aria-hidden
     >
       <rect x="2" y="14" width="60" height="36" rx="2" fill="#1a1612" />
-      <rect x="4" y="16" width="56" height="32" fill="#c47a12" />
+      <rect x="4" y="16" width="56" height="32" fill={a} />
       <g className="belt-stripes">
-        <rect x="0" y="18" width="10" height="28" fill="#f0a020" />
-        <rect x="14" y="18" width="10" height="28" fill="#8a5a10" />
-        <rect x="28" y="18" width="10" height="28" fill="#f0a020" />
-        <rect x="42" y="18" width="10" height="28" fill="#8a5a10" />
-        <rect x="56" y="18" width="10" height="28" fill="#f0a020" />
+        <rect x="0" y="18" width="10" height="28" fill={b} />
+        <rect x="14" y="18" width="10" height="28" fill={c} />
+        <rect x="28" y="18" width="10" height="28" fill={b} />
+        <rect x="42" y="18" width="10" height="28" fill={c} />
+        <rect x="56" y="18" width="10" height="28" fill={b} />
       </g>
       <rect x="4" y="16" width="56" height="4" fill="#5c3a08" opacity="0.5" />
       <rect x="4" y="44" width="56" height="4" fill="#5c3a08" opacity="0.5" />
@@ -88,16 +91,18 @@ export function BeltSprite({ dir, moving }: { dir: Dir; moving?: boolean }) {
   )
 }
 
-export function DrillSprite({ dir, active }: { dir: Dir; active?: boolean }) {
+export function DrillSprite({ dir, active, electric }: { dir: Dir; active?: boolean; electric?: boolean }) {
+  const body = electric ? '#3d7a52' : '#5a554c'
+  const accent = electric ? '#7dff9a' : '#c47a12'
   return (
     <svg
       className={`sprite sprite-drill ${active ? 'is-active' : ''}`}
       viewBox="0 0 64 64"
       aria-hidden
     >
-      <rect x="8" y="18" width="48" height="36" rx="3" fill="#5a554c" stroke="#2a2620" strokeWidth="2" />
+      <rect x="8" y="18" width="48" height="36" rx="3" fill={body} stroke="#2a2620" strokeWidth="2" />
       <rect x="12" y="22" width="20" height="14" fill="#3d3830" />
-      <rect x="34" y="22" width="18" height="28" fill="#6b655c" stroke="#2a2620" strokeWidth="1" />
+      <rect x="34" y="22" width="18" height="28" fill={electric ? '#4a9a6a' : '#6b655c'} stroke="#2a2620" strokeWidth="1" />
       <circle
         className="drill-bit"
         cx="22"
@@ -108,12 +113,30 @@ export function DrillSprite({ dir, active }: { dir: Dir; active?: boolean }) {
         strokeWidth="2"
       />
       <circle cx="22" cy="48" r="3" fill="#1a1612" />
-      {/* output chute facing dir */}
       <g style={{ transform: `rotate(${ROT[dir]}deg)`, transformOrigin: '32px 32px' }}>
-        <rect x="44" y="28" width="14" height="8" fill="#c47a12" stroke="#1a1612" strokeWidth="1" />
+        <rect x="44" y="28" width="14" height="8" fill={accent} stroke="#1a1612" strokeWidth="1" />
       </g>
       <rect x="14" y="12" width="12" height="8" fill="#3d3830" stroke="#1a1612" strokeWidth="1" />
-      {active && <circle cx="50" cy="14" r="3" fill="#f0a020" className="drill-lamp" />}
+      {active && <circle cx="50" cy="14" r="3" fill={accent} className="drill-lamp" />}
+      {electric && <path d="M28 8 L32 16 L29 16 L34 26 L30 18 L33 18 Z" fill="#f0e060" />}
+    </svg>
+  )
+}
+
+export function SplitterSprite({ dir }: { dir: Dir }) {
+  return (
+    <svg
+      className="sprite sprite-splitter"
+      viewBox="0 0 64 64"
+      style={{ transform: `rotate(${ROT[dir]}deg)` }}
+      aria-hidden
+    >
+      <rect x="4" y="16" width="56" height="32" fill="#c4a035" stroke="#1a1612" strokeWidth="2" />
+      <rect x="8" y="20" width="20" height="24" fill="#8a7020" />
+      <rect x="36" y="20" width="20" height="24" fill="#8a7020" />
+      <polygon points="18,32 12,26 12,38" fill="#1a1612" />
+      <polygon points="46,32 40,26 40,38" fill="#1a1612" />
+      <rect x="28" y="22" width="8" height="20" fill="#e8c84a" />
     </svg>
   )
 }
@@ -217,6 +240,9 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   furnace: { fill: '#8A4B1A', edge: '#4a2810' },
   chest: { fill: '#5C6B7A', edge: '#2a3540' },
   assembler: { fill: '#4a6a8a', edge: '#2a4058' },
+  fastBelt: { fill: '#E05050', edge: '#8a2020' },
+  electricDrill: { fill: '#3D9E5F', edge: '#1a5030' },
+  splitter: { fill: '#c4a035', edge: '#6a5010' },
 }
 
 export function ItemSprite({ item }: { item: ItemId }) {
@@ -276,8 +302,12 @@ export function EntitySprite({
   switch (kind) {
     case 'belt':
       return <BeltSprite dir={dir} moving={moving} />
+    case 'fastBelt':
+      return <BeltSprite dir={dir} moving={moving} fast />
     case 'drill':
       return <DrillSprite dir={dir} active={active} />
+    case 'electricDrill':
+      return <DrillSprite dir={dir} active={active} electric />
     case 'inserter':
       return <InserterSprite dir={dir} />
     case 'furnace':
@@ -286,6 +316,8 @@ export function EntitySprite({
       return <ChestSprite filled={filled} />
     case 'assembler':
       return <AssemblerSprite active={active || lit} />
+    case 'splitter':
+      return <SplitterSprite dir={dir} />
   }
 }
 

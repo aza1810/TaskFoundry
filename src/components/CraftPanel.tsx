@@ -100,7 +100,11 @@ export function CraftPanel() {
           <h3>{cat.title}</h3>
           <div className="recipe-grid">
             {HAND_RECIPES.filter((r) => r.category === cat.id).map((recipe) => {
-              const ok = canAfford(state.inventory, recipe.inputs) && !queueFull
+              const locked =
+                Boolean(recipe.requiresTech) &&
+                !state.researched.includes(recipe.requiresTech!)
+              const ok =
+                !locked && canAfford(state.inventory, recipe.inputs) && !queueFull
               const speedNote =
                 recipe.machineSeconds && recipe.machineLabel
                   ? `Hand ${formatDuration(recipe.handSeconds)} · ${recipe.machineLabel} ${formatDuration(recipe.machineSeconds)}`
@@ -114,22 +118,28 @@ export function CraftPanel() {
                   onClick={() => craft(recipe.id)}
                 >
                   <span className="recipe-name">{recipe.name}</span>
-                  <span className="cost-line">
-                    {(Object.entries(recipe.inputs) as [ItemId, number][]).map(
-                      ([id, n]) => (
-                        <span key={id}>
-                          {formatNum(n)} {ITEM_META[id].short}
-                        </span>
-                      ),
-                    )}
-                  </span>
-                  <span className="recipe-out">
-                    →{' '}
-                    {(Object.entries(recipe.outputs) as [ItemId, number][])
-                      .map(([id, n]) => `${formatNum(n)} ${ITEM_META[id].label}`)
-                      .join(', ')}
-                  </span>
-                  <span className="recipe-time">{speedNote}</span>
+                  {locked ? (
+                    <span className="recipe-lock">Research required</span>
+                  ) : (
+                    <>
+                      <span className="cost-line">
+                        {(Object.entries(recipe.inputs) as [ItemId, number][]).map(
+                          ([id, n]) => (
+                            <span key={id}>
+                              {formatNum(n)} {ITEM_META[id].short}
+                            </span>
+                          ),
+                        )}
+                      </span>
+                      <span className="recipe-out">
+                        →{' '}
+                        {(Object.entries(recipe.outputs) as [ItemId, number][])
+                          .map(([id, n]) => `${formatNum(n)} ${ITEM_META[id].label}`)
+                          .join(', ')}
+                      </span>
+                      <span className="recipe-time">{speedNote}</span>
+                    </>
+                  )}
                 </button>
               )
             })}
