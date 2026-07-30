@@ -1,6 +1,8 @@
 const ACCOUNTS_KEY = 'task-foundry-accounts'
 const SESSION_KEY = 'task-foundry-session'
 
+export type AuthProvider = 'local' | 'google'
+
 export interface AccountRecord {
   id: string
   username: string
@@ -8,6 +10,10 @@ export interface AccountRecord {
   salt: string
   passwordHash: string
   createdAt: number
+  provider?: AuthProvider
+  googleSub?: string
+  email?: string
+  picture?: string
 }
 
 export interface Session {
@@ -15,6 +21,8 @@ export interface Session {
   username: string
   displayName: string
   isGuest: boolean
+  provider?: AuthProvider
+  picture?: string
 }
 
 function readAccounts(): AccountRecord[] {
@@ -102,6 +110,7 @@ export async function createAccount(
     salt,
     passwordHash,
     createdAt: Date.now(),
+    provider: 'local',
   }
   writeAccounts([...accounts, account])
 
@@ -110,6 +119,7 @@ export async function createAccount(
     username: account.username,
     displayName: account.displayName,
     isGuest: false,
+    provider: 'local',
   }
   persistSession(session)
   return { ok: true, session }
@@ -122,6 +132,9 @@ export async function signIn(
   const username = usernameRaw.trim().toLowerCase()
   const account = readAccounts().find((a) => a.username === username)
   if (!account) return { ok: false, error: 'Account not found' }
+  if (account.provider === 'google') {
+    return { ok: false, error: 'This account uses Google Sign-In' }
+  }
   const hash = await hashPassword(password, account.salt)
   if (hash !== account.passwordHash) return { ok: false, error: 'Wrong password' }
 
@@ -130,7 +143,80 @@ export async function signIn(
     username: account.username,
     displayName: account.displayName,
     isGuest: false,
+    provider: account.provider ?? 'local',
+    picture: account.picture,
   }
+  persistSession(session)
+  return { ok: true, session }
+}
+
+function sessionFromAccount(account: AccountRecord): Session {
+  return {
+    accountId: account.id,
+    username: account.username,
+    displayName: account.displayName,
+    isGuest: false,
+    provider: account.provider ?? 'local',
+    picture: account.picture,
+  }
+}
+
+/** Sign in / link a Google Identity Services ID token (JWT). */
+export function signInWithGoogle(
+  payload: {
+    sub: string
+    email?: string
+    name?: string
+    picture?: string
+    aud?: string
+  },
+  expectedClientId: string,
+): { ok: true; session: Session } | { ok: false; error: string } {
+  if (!payload.sub) return { ok: false, error: 'Invalid Google credential' }
+  if (expectedClientId && payload.aud && payload.aud !== expectedClientId) {
+    return { ok: false, error: 'Google credential does not match this app' }
+  }
+
+  const accounts = readAccounts()
+  const existing = accounts.find((a) => a.googleSub === payload.sub)
+  if (existing) {
+    const updated: AccountRecord = {
+      ...existing,
+      displayName: payload.name?.trim().slice(0, 24) || existing.displayName,
+      email: payload.email ?? existing.email,
+      picture: payload.picture ?? existing.picture,
+      provider: 'google',
+    }
+    writeAccounts(accounts.map((a) => (a.id === existing.id ? updated : a)))
+    const session = sessionFromAccount(updated)
+    persistSession(session)
+    return { ok: true, session }
+  }
+
+  const email = payload.email?.trim().toLowerCase()
+  const baseUser =
+    email?.split('@')[0]?.replace(/[^a-z0-9_]/g, '_').slice(0, 18) ||
+    `google_${payload.sub.slice(0, 8)}`
+  let username = baseUser
+  let n = 1
+  while (accounts.some((a) => a.username === username)) {
+    username = `${baseUser}_${n++}`.slice(0, 24)
+  }
+
+  const account: AccountRecord = {
+    id: `google-${payload.sub}`,
+    username,
+    displayName: (payload.name ?? username).trim().slice(0, 24) || username,
+    salt: '',
+    passwordHash: '',
+    createdAt: Date.now(),
+    provider: 'google',
+    googleSub: payload.sub,
+    email,
+    picture: payload.picture,
+  }
+  writeAccounts([...accounts, account])
+  const session = sessionFromAccount(account)
   persistSession(session)
   return { ok: true, session }
 }

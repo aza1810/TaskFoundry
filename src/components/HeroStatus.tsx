@@ -20,7 +20,11 @@ export function HeroStatus() {
         <p className="tagline">{APP_TAGLINE}</p>
         {session && (
           <p className="auth-session">
-            {session.isGuest ? 'Guest' : `@${session.username}`}
+            {session.isGuest
+              ? 'Guest'
+              : session.provider === 'google'
+                ? `Google · ${session.displayName}`
+                : `@${session.username}`}
           </p>
         )}
       </div>

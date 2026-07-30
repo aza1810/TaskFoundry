@@ -11,9 +11,15 @@ import {
   createAccount,
   loadSession,
   signIn,
+  signInWithGoogle,
   signOut as signOutAuth,
   type Session,
 } from './auth'
+import {
+  decodeGoogleCredential,
+  getGoogleClientId,
+  loadGoogleIdentityScript,
+} from './google'
 
 interface AuthContextValue {
   session: Session | null
@@ -23,6 +29,7 @@ interface AuthContextValue {
     password: string,
     displayName?: string,
   ) => Promise<string | null>
+  signInGoogleCredential: (credential: string) => Promise<string | null>
   guest: () => void
   signOut: () => void
 }
@@ -49,6 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const signInGoogleCredential = useCallback(async (credential: string) => {
+    const clientId = getGoogleClientId()
+    if (!clientId) return 'Add a Google Client ID to enable Sign in with Google'
+    try {
+      await loadGoogleIdentityScript()
+    } catch {
+      return 'Could not load Google Sign-In'
+    }
+    const payload = decodeGoogleCredential(credential)
+    if (!payload) return 'Invalid Google credential'
+    const result = signInWithGoogle(payload, clientId)
+    if (!result.ok) return result.error
+    setSession(result.session)
+    return null
+  }, [])
+
   const guest = useCallback(() => {
     setSession(continueAsGuest())
   }, [])
@@ -63,10 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       signIn: doSignIn,
       register: doRegister,
+      signInGoogleCredential,
       guest,
       signOut,
     }),
-    [session, doSignIn, doRegister, guest, signOut],
+    [session, doSignIn, doRegister, signInGoogleCredential, guest, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
