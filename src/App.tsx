@@ -2,9 +2,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { saveKeyForAccount } from './auth/auth'
 import { AuthScreen } from './components/AuthScreen'
-import { BuildToolbar } from './components/BuildToolbar'
 import { CraftPanel } from './components/CraftPanel'
-import { FactoryGrid } from './components/FactoryGrid'
+import { FactoryFloor } from './components/FactoryFloor'
 import { GoalsBar } from './components/GoalsBar'
 import { HabitsPanel } from './components/HabitsPanel'
 import { InventoryPanel } from './components/InventoryPanel'
@@ -102,7 +101,11 @@ function Shell() {
   )
 
   return (
-    <div className={`app app-sections ${coaching ? 'is-coaching' : ''}`}>
+    <div
+      className={`app app-sections ${coaching ? 'is-coaching' : ''} ${
+        tab === 'factory' ? 'is-floor-tab' : ''
+      }`}
+    >
       <div className="atmosphere" aria-hidden>
         <div className="belt-strip" />
         <div className="haze" />
@@ -114,10 +117,9 @@ function Shell() {
 
         <main className="main" key={tab}>
           {tab === 'factory' && (
-            <div className="section-floor">
+            <div className="section-floor is-game">
               <ObjectiveChip onOpenTasks={() => setTabSafe('habits')} />
-              <BuildToolbar highlight={highlight} />
-              <FactoryGrid highlightOre={highlight === 'ore'} />
+              <FactoryFloor highlight={highlight} />
             </div>
           )}
           {tab === 'inventory' && <InventoryPanel />}

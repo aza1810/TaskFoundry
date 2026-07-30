@@ -35,7 +35,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'placeDrill',
     title: 'Sink a drill on iron',
-    body: 'Burner Drill is selected. Tap a brown iron-ore tile on the Floor. Ore patches glow while you place.',
+    body: 'Build → Drill is selected. Tap a glowing brown iron-ore tile. Pinch to zoom; Hand mode pans the map.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place a burner drill on iron ore',
@@ -56,7 +56,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'belts',
     title: 'Lay a short belt line',
-    body: 'Select Belt and paint at least 3 tiles away from your drill (drag to paint). Point the drill arrow at the belt so ore drops onto it.',
+    body: 'Open Belts, pick Belt, then drag to paint a line from your drill. Use the yellow rotate button so the drill faces the belt.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place 3 or more belts',
