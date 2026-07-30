@@ -189,6 +189,110 @@ button {
   gap: 0.75rem;
 }
 
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  background:
+    linear-gradient(180deg, rgba(245, 239, 230, 0.95), rgba(232, 223, 210, 0.9)),
+    var(--panel-solid);
+  border: 1px solid rgba(26, 22, 18, 0.12);
+  border-left: 4px solid var(--belt);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.status-cell {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.status-cell dt {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--steel-light);
+}
+
+.status-cell dd {
+  margin: 0;
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.status-value {
+  font-size: clamp(1.25rem, 3.5vw, 1.7rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--oil);
+  font-variant-numeric: tabular-nums;
+}
+
+.status-sub {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--copper);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-name-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  font-size: clamp(1.15rem, 3vw, 1.45rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--oil);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-name-btn:hover {
+  color: var(--copper);
+}
+
+.status-name-form {
+  gap: 0.35rem;
+}
+
+.status-name-form input {
+  min-width: 0;
+  width: 100%;
+  max-width: 10rem;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 520px) {
+  .status-strip {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+
+  .status-cell:not(:last-child) {
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid rgba(26, 22, 18, 0.1);
+  }
+}
+
 .name-btn,
 .name-form {
   display: flex;

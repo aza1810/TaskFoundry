@@ -5,6 +5,10 @@ import { SKILL_IDS } from '../game/skills'
 import { useGame } from '../game/GameContext'
 import { SkillIcon } from '../sprites/SkillIcons'
 
+function formatSteps(n: number): string {
+  return Math.floor(n).toLocaleString()
+}
+
 export function HeroStatus() {
   const { state, rename, reset } = useGame()
   const { session, signOut } = useAuth()
@@ -30,35 +34,66 @@ export function HeroStatus() {
       </div>
 
       <div className="hero-status">
-        {editing ? (
-          <form
-            className="name-form"
-            onSubmit={(e) => {
-              e.preventDefault()
-              rename(name)
-              setEditing(false)
-            }}
-          >
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-              aria-label="Operator name"
-            />
-            <button type="submit">Save</button>
-          </form>
-        ) : (
-          <button type="button" className="name-btn" onClick={() => setEditing(true)}>
-            <span className="operator">{state.playerName}</span>
-            <span className="title">{titleForLevel(state.level)}</span>
-          </button>
-        )}
+        <dl className="status-strip" aria-label="Operator status">
+          <div className="status-cell">
+            <dt>Name</dt>
+            <dd>
+              {editing ? (
+                <form
+                  className="name-form status-name-form"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    rename(name)
+                    setEditing(false)
+                  }}
+                >
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoFocus
+                    aria-label="Operator name"
+                  />
+                  <button type="submit">Save</button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  className="status-name-btn"
+                  onClick={() => {
+                    setName(state.playerName)
+                    setEditing(true)
+                  }}
+                >
+                  {state.playerName}
+                </button>
+              )}
+            </dd>
+          </div>
+
+          <div className="status-cell">
+            <dt>Level</dt>
+            <dd>
+              <span className="status-value">{state.level}</span>
+              <span className="status-sub">{titleForLevel(state.level)}</span>
+            </dd>
+          </div>
+
+          <div className="status-cell status-steps">
+            <dt>Steps</dt>
+            <dd>
+              <span className="status-value">{formatSteps(state.stepsToday)}</span>
+              <span className="status-sub">
+                today · {formatSteps(state.stepsLifetime)} life
+              </span>
+            </dd>
+          </div>
+        </dl>
 
         <div className="xp-block">
           <div className="xp-meta">
-            <span>Lv {state.level}</span>
+            <span>XP to Lv {state.level + 1}</span>
             <span>
-              {Math.floor(state.xp)} / {needed} XP
+              {Math.floor(state.xp)} / {needed}
             </span>
           </div>
           <div className="xp-track" aria-hidden>
