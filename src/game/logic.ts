@@ -38,6 +38,7 @@ import {
   stepSkillGains,
   SKILL_DEFS,
 } from './skills'
+import { TUTORIAL_STEP_COUNT, tutorialStepIndex } from './tutorial'
 import {
   generateDailyContracts,
   toggleFocusSkill,
@@ -77,7 +78,7 @@ export function createInitialState(): GameState {
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
-      'Welcome to Task Foundry — place a burner drill on iron ore. Steps power every drill.',
+      'Welcome — place a drill on iron ore, or plant a Starter line. Steps power every drill.',
     stats: emptyStats(),
     completedGoals: [],
     tipIndex: 0,
@@ -133,9 +134,14 @@ export function loadState(accountSaveKey?: string): GameState {
         parsed.tutorialComplete === true
           ? null
           : typeof parsed.tutorialStep === 'number'
-            ? parsed.tutorialStep
+            ? parsed.tutorialStep >= TUTORIAL_STEP_COUNT
+              ? null
+              : parsed.tutorialStep
             : 0,
-      tutorialComplete: parsed.tutorialComplete === true,
+      tutorialComplete:
+        parsed.tutorialComplete === true ||
+        (typeof parsed.tutorialStep === 'number' &&
+          parsed.tutorialStep >= TUTORIAL_STEP_COUNT),
     }
     next = ensureContracts(next)
     localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(next))
@@ -805,8 +811,7 @@ export function resetGame(): GameState {
 export function advanceTutorial(state: GameState): GameState {
   if (state.tutorialComplete || state.tutorialStep === null) return state
   const next = state.tutorialStep + 1
-  // 7 steps (0..6)
-  if (next >= 7) {
+  if (next >= TUTORIAL_STEP_COUNT) {
     return {
       ...state,
       tutorialStep: null,
@@ -822,7 +827,25 @@ export function skipTutorial(state: GameState): GameState {
     ...state,
     tutorialStep: null,
     tutorialComplete: true,
-    unlockedToast: 'Tour skipped — you can still explore freely',
+    unlockedToast: 'Tour skipped — explore Floor, Steps, and Tasks at your pace',
+  }
+}
+
+/** One-tap: plant starter smelting line and jump to the “log steps” coach. */
+export function quickStartTutorial(state: GameState): GameState {
+  const planted = buildStarterLine(state)
+  const logIdx = tutorialStepIndex('logSteps')
+  const ok = (planted.unlockedToast ?? '').toLowerCase().includes('starter')
+  if (!ok) {
+    return {
+      ...planted,
+      tutorialStep: tutorialStepIndex('placeDrill'),
+    }
+  }
+  return {
+    ...planted,
+    tutorialStep: logIdx >= 0 ? logIdx : planted.tutorialStep,
+    unlockedToast: 'Starter line planted — log steps (or walk) to mine ore',
   }
 }
 

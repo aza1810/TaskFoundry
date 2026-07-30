@@ -115,8 +115,8 @@ export function AuthScreen() {
           <p className="brand">{APP_NAME}</p>
           <p className="tagline">{APP_TAGLINE}</p>
           <p className="auth-pitch">
-            Sign in to keep your foundry save on this device. Guests can play too — create
-            an account anytime to lock in progress.
+            Walk to power drills, clear daily tasks for parts, automate a factory.
+            Sign in to keep your foundry on this device — or continue as guest.
           </p>
         </div>
 

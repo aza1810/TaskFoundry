@@ -57,7 +57,11 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
 }
 
 /** Compact build tools — shown only on the factory floor. */
-export function BuildToolbar() {
+export function BuildToolbar({
+  highlight,
+}: {
+  highlight?: 'ore' | 'drillTool' | 'beltTool' | 'manualSteps' | 'habit' | null
+}) {
   const { state, selectTool, rotateDir, fuelDrills, buildStarter, selected, placeDir } =
     useGame()
 
@@ -93,11 +97,21 @@ export function BuildToolbar() {
                   ? `Paste ${state.blueprint.length} buildings (spends inventory)`
                   : 'Copy a blueprint first'
                 : PLACEABLE_META[tool].hint
+        const pulse =
+          (highlight === 'drillTool' && tool === 'drill') ||
+          (highlight === 'ore' && tool === 'drill') ||
+          (highlight === 'beltTool' && tool === 'belt')
         return (
           <button
             key={tool}
             type="button"
-            className={selected === tool ? 'tool is-active' : 'tool'}
+            className={[
+              'tool',
+              selected === tool ? 'is-active' : '',
+              pulse ? 'is-tutorial-pulse' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             onClick={() => selectTool(tool)}
             title={hint}
           >

@@ -10,11 +10,12 @@ const CATEGORIES: { id: HabitCategory; label: string }[] = [
   { id: 'logistics', label: 'Logistics' },
 ]
 
-export function HabitsPanel() {
+export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boolean }) {
   const { state, completeHabit, addHabit, removeHabit } = useGame()
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<HabitCategory>('logistics')
   const done = state.habits.filter((h) => h.completedToday).length
+  const firstOpen = state.habits.find((h) => !h.completedToday)
 
   function onAdd(e: FormEvent) {
     e.preventDefault()
@@ -38,14 +39,17 @@ export function HabitsPanel() {
       <ul className="habit-list">
         {state.habits.map((habit) => {
           const reward = HABIT_REWARDS[habit.category]
+          const pulse = highlightHabit && firstOpen?.id === habit.id
           return (
             <li
               key={habit.id}
-              className={`habit ${habit.completedToday ? 'is-done' : ''}`}
+              className={`habit ${habit.completedToday ? 'is-done' : ''} ${
+                pulse ? 'is-tutorial-pulse' : ''
+              }`}
             >
               <button
                 type="button"
-                className="habit-check"
+                className={`habit-check ${pulse ? 'is-tutorial-cta' : ''}`}
                 disabled={habit.completedToday}
                 onClick={() => completeHabit(habit.id)}
                 aria-label={`Complete ${habit.title}`}

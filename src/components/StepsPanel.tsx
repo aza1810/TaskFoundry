@@ -5,7 +5,13 @@ import type { PedometerApi } from '../hooks/usePedometer'
 
 const PRESETS = [1, 10, 50, 100, 500, 1000]
 
-export function StepsPanel({ pedometer }: { pedometer: PedometerApi }) {
+export function StepsPanel({
+  pedometer,
+  highlightManual = false,
+}: {
+  pedometer: PedometerApi
+  highlightManual?: boolean
+}) {
   const { state, logSteps } = useGame()
   const [custom, setCustom] = useState('100')
   const drills = Object.values(state.entities).filter(
@@ -95,11 +101,16 @@ export function StepsPanel({ pedometer }: { pedometer: PedometerApi }) {
         </div>
       </div>
 
-      <div className="manual-steps">
+      <div className={`manual-steps ${highlightManual ? 'is-tutorial-pulse' : ''}`}>
         <h3 className="manual-title">Manual log (desktop / backup)</h3>
         <div className="step-actions">
           {PRESETS.map((n) => (
-            <button key={n} type="button" className="primary-btn" onClick={() => logSteps(n)}>
+            <button
+              key={n}
+              type="button"
+              className={`primary-btn ${highlightManual && n === 10 ? 'is-tutorial-cta' : ''}`}
+              onClick={() => logSteps(n)}
+            >
               +{n} {n === 1 ? 'step' : 'steps'}
             </button>
           ))}

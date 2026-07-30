@@ -41,7 +41,7 @@ function toolLabel(selected: string | null, placeDir: Entity['dir']): string {
   return 'Select a tool'
 }
 
-export function FactoryGrid() {
+export function FactoryGrid({ highlightOre = false }: { highlightOre?: boolean }) {
   const { state, place, rotateAt, collect, selected, placeDir } = useGame()
   const { width, height, tiles, entities, copyCorner, blueprint } = state
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
@@ -214,7 +214,9 @@ export function FactoryGrid() {
                       ent ? `has-${ent.kind}` : ''
                     } ${isHover ? 'is-hover' : ''} ${inSelect ? 'is-select' : ''} ${
                       isCopyCorner ? 'is-copy-corner' : ''
-                    } ${bpGhost ? 'is-bp-ghost' : ''}`}
+                    } ${bpGhost ? 'is-bp-ghost' : ''} ${
+                      highlightOre && tile.ore === 'ironOre' && !ent ? 'is-ore-hint' : ''
+                    }`}
                     title={titleParts.join(' · ')}
                     onMouseDown={(e) => {
                       if (e.button !== 0) return

@@ -32,6 +32,7 @@ import {
   claimContract as claimContractLogic,
   advanceTutorial as advanceTutorialLogic,
   skipTutorial as skipTutorialLogic,
+  quickStartTutorial as quickStartTutorialLogic,
   tickState,
 } from './logic'
 import type { Dir, GameState, HabitCategory, Placeable, SkillId, TechId } from './types'
@@ -59,6 +60,7 @@ type Action =
   | { type: 'CLAIM_CONTRACT'; id: string }
   | { type: 'ADVANCE_TUTORIAL' }
   | { type: 'SKIP_TUTORIAL' }
+  | { type: 'QUICK_START_TUTORIAL' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -106,6 +108,8 @@ function reducer(state: GameState, action: Action): GameState {
       return advanceTutorialLogic(state)
     case 'SKIP_TUTORIAL':
       return skipTutorialLogic(state)
+    case 'QUICK_START_TUTORIAL':
+      return quickStartTutorialLogic(state)
     default:
       return state
   }
@@ -134,6 +138,7 @@ interface GameContextValue {
   claimContract: (id: string) => void
   advanceTutorial: () => void
   skipTutorial: () => void
+  quickStartTutorial: () => void
   placeDir: Dir
   selected: GameState['selected']
 }
@@ -267,6 +272,10 @@ export function GameProvider({
   )
   const advanceTutorial = useCallback(() => dispatch({ type: 'ADVANCE_TUTORIAL' }), [])
   const skipTutorial = useCallback(() => dispatch({ type: 'SKIP_TUTORIAL' }), [])
+  const quickStartTutorial = useCallback(
+    () => dispatch({ type: 'QUICK_START_TUTORIAL' }),
+    [],
+  )
 
   const value = useMemo(
     () => ({
@@ -292,6 +301,7 @@ export function GameProvider({
       claimContract,
       advanceTutorial,
       skipTutorial,
+      quickStartTutorial,
       placeDir: state.placeDir,
       selected: state.selected,
     }),
@@ -318,6 +328,7 @@ export function GameProvider({
       claimContract,
       advanceTutorial,
       skipTutorial,
+      quickStartTutorial,
     ],
   )
 

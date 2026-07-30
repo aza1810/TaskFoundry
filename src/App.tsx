@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { saveKeyForAccount } from './auth/auth'
 import { AuthScreen } from './components/AuthScreen'
@@ -16,6 +16,7 @@ import { TutorialOverlay } from './components/TutorialOverlay'
 import { GameProvider, useGame } from './game/GameContext'
 import { usePedometer } from './hooks/usePedometer'
 import { activeGoal } from './game/goals'
+import { getTutorialStep, unlockedTabsFor } from './game/tutorial'
 import type { TabId } from './game/types'
 import './index.css'
 
@@ -78,12 +79,30 @@ function ObjectiveChip({ onOpenTasks }: { onOpenTasks: () => void }) {
 
 function Shell() {
   const [tab, setTab] = useState<TabId>('factory')
-  const { logSteps } = useGame()
+  const { state, logSteps } = useGame()
   const pedometer = usePedometer(logSteps)
   const requestTab = useCallback((t: TabId) => setTab(t), [])
 
+  const tutorialStep = getTutorialStep(
+    state.tutorialComplete ? null : state.tutorialStep,
+  )
+  const unlocked = useMemo(
+    () => unlockedTabsFor(state.tutorialStep, state.tutorialComplete),
+    [state.tutorialStep, state.tutorialComplete],
+  )
+  const highlight = tutorialStep?.highlight ?? null
+  const coaching = Boolean(tutorialStep && tutorialStep.mode === 'coach')
+
+  const setTabSafe = useCallback(
+    (t: TabId) => {
+      if (!unlocked.includes(t)) return
+      setTab(t)
+    },
+    [unlocked],
+  )
+
   return (
-    <div className="app app-sections">
+    <div className={`app app-sections ${coaching ? 'is-coaching' : ''}`}>
       <div className="atmosphere" aria-hidden>
         <div className="belt-strip" />
         <div className="haze" />
@@ -96,46 +115,61 @@ function Shell() {
         <main className="main" key={tab}>
           {tab === 'factory' && (
             <div className="section-floor">
-              <ObjectiveChip onOpenTasks={() => setTab('habits')} />
-              <BuildToolbar />
-              <FactoryGrid />
+              <ObjectiveChip onOpenTasks={() => setTabSafe('habits')} />
+              <BuildToolbar highlight={highlight} />
+              <FactoryGrid highlightOre={highlight === 'ore'} />
             </div>
           )}
           {tab === 'inventory' && <InventoryPanel />}
-          {tab === 'steps' && <StepsPanel pedometer={pedometer} />}
+          {tab === 'steps' && (
+            <StepsPanel pedometer={pedometer} highlightManual={highlight === 'manualSteps'} />
+          )}
           {tab === 'skills' && <SkillsPanel />}
           {tab === 'craft' && <CraftPanel />}
           {tab === 'research' && <ResearchPanel />}
           {tab === 'habits' && (
             <div className="section-tasks">
               <GoalsBar />
-              <HabitsPanel />
+              <HabitsPanel highlightHabit={highlight === 'habit'} />
             </div>
           )}
         </main>
       </div>
 
       <nav className="bottom-nav" aria-label="Sections">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={tab === t.id ? 'bottom-nav-btn is-active' : 'bottom-nav-btn'}
-            onClick={() => setTab(t.id)}
-          >
-            <span className="bottom-nav-label">{t.short}</span>
-            {t.id === 'steps' && pedometer.status === 'listening' && (
-              <span className="bottom-nav-live">live</span>
-            )}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const locked = !unlocked.includes(t.id)
+          const focus = tutorialStep?.tab === t.id
+          return (
+            <button
+              key={t.id}
+              type="button"
+              className={[
+                'bottom-nav-btn',
+                tab === t.id ? 'is-active' : '',
+                locked ? 'is-locked' : '',
+                focus ? 'is-tour-focus' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => setTabSafe(t.id)}
+              disabled={locked}
+              title={locked ? 'Finish the tour to unlock' : t.label}
+            >
+              <span className="bottom-nav-label">{t.short}</span>
+              {t.id === 'steps' && pedometer.status === 'listening' && (
+                <span className="bottom-nav-live">live</span>
+              )}
+            </button>
+          )
+        })}
       </nav>
 
       {pedometer.status === 'listening' && tab !== 'steps' && (
         <PedometerChip
           sessionSteps={pedometer.sessionSteps}
           onStop={pedometer.stop}
-          onOpen={() => setTab('steps')}
+          onOpen={() => setTabSafe('steps')}
         />
       )}
 
