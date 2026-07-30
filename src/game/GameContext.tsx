@@ -28,9 +28,11 @@ import {
   rotatePlaceDir as rotatePlaceDirLogic,
   saveState,
   selectTool as selectToolLogic,
+  setFocusSkill as setFocusSkillLogic,
+  claimContract as claimContractLogic,
   tickState,
 } from './logic'
-import type { Dir, GameState, HabitCategory, Placeable, TechId } from './types'
+import type { Dir, GameState, HabitCategory, Placeable, SkillId, TechId } from './types'
 
 type Action =
   | { type: 'TICK'; now: number }
@@ -51,6 +53,8 @@ type Action =
   | { type: 'CLEAR_TOAST' }
   | { type: 'RESET' }
   | { type: 'RENAME'; name: string }
+  | { type: 'FOCUS'; id: SkillId }
+  | { type: 'CLAIM_CONTRACT'; id: string }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -90,6 +94,10 @@ function reducer(state: GameState, action: Action): GameState {
       return resetGame()
     case 'RENAME':
       return renamePlayer(state, action.name)
+    case 'FOCUS':
+      return setFocusSkillLogic(state, action.id)
+    case 'CLAIM_CONTRACT':
+      return claimContractLogic(state, action.id)
     default:
       return state
   }
@@ -114,6 +122,8 @@ interface GameContextValue {
   clearToast: () => void
   reset: () => void
   rename: (name: string) => void
+  toggleFocus: (id: SkillId) => void
+  claimContract: (id: string) => void
   placeDir: Dir
   selected: GameState['selected']
 }
@@ -223,6 +233,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     (name: string) => dispatch({ type: 'RENAME', name }),
     [],
   )
+  const toggleFocus = useCallback(
+    (id: SkillId) => dispatch({ type: 'FOCUS', id }),
+    [],
+  )
+  const claimContract = useCallback(
+    (id: string) => dispatch({ type: 'CLAIM_CONTRACT', id }),
+    [],
+  )
 
   const value = useMemo(
     () => ({
@@ -244,6 +262,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clearToast,
       reset,
       rename,
+      toggleFocus,
+      claimContract,
       placeDir: state.placeDir,
       selected: state.selected,
     }),
@@ -266,6 +286,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clearToast,
       reset,
       rename,
+      toggleFocus,
+      claimContract,
     ],
   )
 

@@ -13,7 +13,7 @@ import { SkillIcon } from '../sprites/SkillIcons'
 import type { SkillId } from '../game/types'
 
 export function SkillsPanel() {
-  const { state } = useGame()
+  const { state, toggleFocus } = useGame()
   const active = countActiveLine(state.entities)
   const bonuses = skillBonuses(state.skills)
   const [selected, setSelected] = useState<SkillId>('mining')
@@ -23,6 +23,7 @@ export function SkillsPanel() {
   const need = maxed ? 0 : skillXpForLevel(skill.level)
   const pct = maxed ? 100 : Math.min(100, (skill.xp / need) * 100)
   const next = nextPerkLabel(selected, skill.level)
+  const focused = state.focusSkills ?? []
 
   const training: SkillId[] = ['fieldwork']
   if (active.drills > 0) training.push('mining')
@@ -35,9 +36,18 @@ export function SkillsPanel() {
       <div className="panel-head">
         <h2>Skills</h2>
         <p>
-          Task Foundry skills — walk to train whatever your floor is running. Tap an icon
-          for perks.
+          Tap an icon for perks. Focus up to 2 skills for ×1.5 step XP. Walk to train
+          whatever your floor is running.
         </p>
+      </div>
+
+      <div className="skill-focus-bar">
+        Focus:{' '}
+        {focused.length === 0 ? (
+          <em>none — tap Focus on a skill</em>
+        ) : (
+          focused.map((id) => SKILL_DEFS[id].name).join(' · ')
+        )}
       </div>
 
       <div className="skill-board">
@@ -48,21 +58,23 @@ export function SkillsPanel() {
             const isTraining = training.includes(id)
             const isSelected = selected === id
             const pulse = state.lastSkillGains?.[id] ?? 0
+            const isFocus = focused.includes(id)
             return (
               <li key={id}>
                 <button
                   type="button"
                   className={`skill-tile ${isSelected ? 'is-selected' : ''} ${
                     isTraining ? 'is-training' : ''
-                  }`}
+                  } ${isFocus ? 'is-focus' : ''}`}
                   onClick={() => setSelected(id)}
                   aria-pressed={isSelected}
                   title={`${d.name} — level ${s.level}`}
                 >
                   <SkillIcon id={id} level={s.level} lit={isTraining || pulse > 0} size="lg" />
                   <span className="skill-tile-name">{d.name}</span>
+                  {isFocus && <span className="skill-tile-focus">Focus</span>}
                   {pulse > 0 && <span className="skill-tile-gain">+{pulse}</span>}
-                  {isTraining && pulse <= 0 && (
+                  {isTraining && pulse <= 0 && !isFocus && (
                     <span className="skill-tile-pulse">Training</span>
                   )}
                 </button>
@@ -102,6 +114,14 @@ export function SkillsPanel() {
             </div>
             {next && !maxed && <p className="skill-next">Next unlock: {next}</p>}
           </div>
+
+          <button
+            type="button"
+            className={`primary-btn focus-btn ${focused.includes(selected) ? 'is-on' : ''}`}
+            onClick={() => toggleFocus(selected)}
+          >
+            {focused.includes(selected) ? 'Clear focus' : 'Focus this skill (×1.5 XP)'}
+          </button>
 
           <ul className="skill-perks">
             {def.perks.map((perk) => (

@@ -141,19 +141,32 @@ export function SplitterSprite({ dir }: { dir: Dir }) {
   )
 }
 
-export function InserterSprite({ dir }: { dir: Dir }) {
+export function InserterSprite({ dir, long }: { dir: Dir; long?: boolean }) {
+  const arm = long ? '#e07040' : '#c4a035'
+  const tip = long ? '#f0a070' : '#e8c84a'
   return (
     <svg
-      className="sprite sprite-inserter"
+      className={`sprite sprite-inserter ${long ? 'is-long' : ''}`}
       viewBox="0 0 64 64"
       style={{ transform: `rotate(${ROT[dir]}deg)` }}
       aria-hidden
     >
       <circle cx="32" cy="32" r="10" fill="#6b655c" stroke="#1a1612" strokeWidth="2" />
       <circle cx="32" cy="32" r="4" fill="#2a2620" />
-      <rect x="28" y="8" width="8" height="24" rx="2" fill="#c4a035" stroke="#1a1612" strokeWidth="1" />
-      <rect x="24" y="6" width="16" height="8" rx="1" fill="#e8c84a" stroke="#1a1612" strokeWidth="1" />
-      <polygon points="32,2 38,10 26,10" fill="#1a1612" />
+      <rect
+        x="28"
+        y={long ? 2 : 8}
+        width="8"
+        height={long ? 30 : 24}
+        rx="2"
+        fill={arm}
+        stroke="#1a1612"
+        strokeWidth="1"
+      />
+      <rect x="24" y={long ? 0 : 6} width="16" height="8" rx="1" fill={tip} stroke="#1a1612" strokeWidth="1" />
+      <polygon points={long ? '32,-2 38,6 26,6' : '32,2 38,10 26,10'} fill="#1a1612" />
+      {long && <circle cx="32" cy="46" r="5" fill="#1a1612" />}
+      {long && <circle cx="32" cy="46" r="2.5" fill="#f0a070" />}
     </svg>
   )
 }
@@ -274,6 +287,7 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   steel: { fill: '#5C6B7A', edge: '#2a3540' },
   belt: { fill: '#F0A020', edge: '#8a5a10' },
   inserter: { fill: '#c4a035', edge: '#6a5010' },
+  longInserter: { fill: '#e07040', edge: '#8a3020' },
   drill: { fill: '#6B5535', edge: '#3d3020' },
   furnace: { fill: '#8A4B1A', edge: '#4a2810' },
   steelFurnace: { fill: '#4a5560', edge: '#2a3038' },
@@ -360,6 +374,8 @@ export function EntitySprite({
       return <DrillSprite dir={dir} active={active} electric />
     case 'inserter':
       return <InserterSprite dir={dir} />
+    case 'longInserter':
+      return <InserterSprite dir={dir} long />
     case 'furnace':
       return <FurnaceSprite lit={lit} />
     case 'steelFurnace':

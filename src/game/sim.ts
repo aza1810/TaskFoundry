@@ -16,6 +16,7 @@ import {
   isBeltKind,
   isDrillKind,
   isFurnaceKind,
+  isInserterKind,
   rotateDir,
 } from './data'
 import { getTile } from './grid'
@@ -100,18 +101,28 @@ function takeAny(
   return null
 }
 
+function neighborAt(
+  state: GameState,
+  x: number,
+  y: number,
+  dir: Entity['dir'],
+  dist: number,
+): { x: number; y: number; entity: Entity | null; tile: ReturnType<typeof getTile> } {
+  const { dx, dy } = DIR_DELTA[dir]
+  const nx = x + dx * dist
+  const ny = y + dy * dist
+  const tile = getTile(state.tiles, nx, ny)
+  const entity = tile?.entityId ? state.entities[tile.entityId] ?? null : null
+  return { x: nx, y: ny, entity, tile }
+}
+
 function neighbor(
   state: GameState,
   x: number,
   y: number,
   dir: Entity['dir'],
 ): { x: number; y: number; entity: Entity | null; tile: ReturnType<typeof getTile> } {
-  const { dx, dy } = DIR_DELTA[dir]
-  const nx = x + dx
-  const ny = y + dy
-  const tile = getTile(state.tiles, nx, ny)
-  const entity = tile?.entityId ? state.entities[tile.entityId] ?? null : null
-  return { x: nx, y: ny, entity, tile }
+  return neighborAt(state, x, y, dir, 1)
 }
 
 /** Find matching UG partner (entrance↔exit) along facing axis. */
@@ -484,12 +495,13 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Inserters ---
   for (const e of Object.values(entities)) {
-    if (e.kind !== 'inserter') continue
+    if (!isInserterKind(e.kind)) continue
     e.progress = Math.max(0, e.progress - dt)
     if (e.progress > 0) continue
 
-    const behind = neighbor(state, e.x, e.y, OPPOSITE[e.dir])
-    const front = neighbor(state, e.x, e.y, e.dir)
+    const reach = e.kind === 'longInserter' ? 2 : 1
+    const behind = neighborAt(state, e.x, e.y, OPPOSITE[e.dir], reach)
+    const front = neighborAt(state, e.x, e.y, e.dir, reach)
     if (!behind.entity || !front.entity) continue
 
     const src = entities[behind.entity.id]

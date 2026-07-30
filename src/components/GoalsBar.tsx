@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatNum } from '../game/data'
 import { GOALS, TIPS, activeGoal } from '../game/goals'
+import {
+  contractComplete,
+  contractProgress,
+} from '../game/contracts'
 import { useGame } from '../game/GameContext'
 
 export function GoalsBar() {
-  const { state } = useGame()
+  const { state, claimContract } = useGame()
   const goal = activeGoal(state)
   const done = state.completedGoals.length
   const total = GOALS.length
@@ -12,22 +16,31 @@ export function GoalsBar() {
 
   const prev = useRef(state.stats)
   const prevAt = useRef(Date.now())
-  const [rates, setRates] = useState({ ore: 0, plates: 0, gears: 0 })
+  const ema = useRef({ ore: 0, plates: 0, gears: 0, moved: 0 })
+  const [rates, setRates] = useState({ ore: 0, plates: 0, gears: 0, moved: 0 })
 
   useEffect(() => {
     const now = Date.now()
-    const dt = Math.max(0.2, (now - prevAt.current) / 1000)
-    const dOre = (state.stats.oreMined - prev.current.oreMined) / dt
-    const dPlates = (state.stats.platesSmelted - prev.current.platesSmelted) / dt
-    const dGears = (state.stats.gearsMade - prev.current.gearsMade) / dt
-    setRates({
-      ore: Math.max(0, dOre),
-      plates: Math.max(0, dPlates),
-      gears: Math.max(0, dGears),
-    })
+    const dt = Math.max(0.25, (now - prevAt.current) / 1000)
+    const instant = {
+      ore: Math.max(0, (state.stats.oreMined - prev.current.oreMined) / dt),
+      plates: Math.max(0, (state.stats.platesSmelted - prev.current.platesSmelted) / dt),
+      gears: Math.max(0, (state.stats.gearsMade - prev.current.gearsMade) / dt),
+      moved: Math.max(0, (state.stats.itemsMoved - prev.current.itemsMoved) / dt),
+    }
+    const a = 0.35
+    ema.current = {
+      ore: ema.current.ore * (1 - a) + instant.ore * a,
+      plates: ema.current.plates * (1 - a) + instant.plates * a,
+      gears: ema.current.gears * (1 - a) + instant.gears * a,
+      moved: ema.current.moved * (1 - a) + instant.moved * a,
+    }
+    setRates({ ...ema.current })
     prev.current = state.stats
     prevAt.current = now
   }, [state.stats])
+
+  const contracts = state.contracts ?? []
 
   return (
     <div className="goals-bar">
@@ -36,6 +49,9 @@ export function GoalsBar() {
           Objectives {done}/{total}
           {state.researched.length > 0 && (
             <span> · Tech {state.researched.length}</span>
+          )}
+          {state.focusSkills?.length > 0 && (
+            <span> · Focus {state.focusSkills.length}/2</span>
           )}
         </div>
         {goal ? (
@@ -48,13 +64,14 @@ export function GoalsBar() {
           <p className="goals-detail">All objectives clear — research upgrades and expand.</p>
         )}
       </div>
+
       <div className="goals-stats">
         <span>Ore {formatNum(state.stats.oreMined)}</span>
         <span>Plates {formatNum(state.stats.platesSmelted)}</span>
         <span>Gears {formatNum(state.stats.gearsMade)}</span>
         <span>Moved {formatNum(state.stats.itemsMoved)}</span>
         <span className="rate">
-          {rates.ore > 0.05 ? `Fe ${rates.ore.toFixed(1)}/s` : 'idle'}
+          {rates.ore > 0.05 ? `Ore ${rates.ore.toFixed(1)}/s` : 'idle'}
         </span>
         {rates.plates > 0.02 && (
           <span className="rate">Plates {rates.plates.toFixed(1)}/s</span>
@@ -62,7 +79,46 @@ export function GoalsBar() {
         {rates.gears > 0.02 && (
           <span className="rate">Gears {rates.gears.toFixed(1)}/s</span>
         )}
+        {rates.moved > 0.05 && (
+          <span className="rate">Flow {rates.moved.toFixed(1)}/s</span>
+        )}
       </div>
+
+      {contracts.length > 0 && (
+        <div className="contracts">
+          <h4 className="contracts-title">Daily contracts</h4>
+          <ul className="contract-list">
+            {contracts.map((c) => {
+              const prog = Math.min(c.amount, contractProgress(state, c))
+              const ready = contractComplete(state, c)
+              const pct = Math.min(100, (prog / c.amount) * 100)
+              return (
+                <li key={c.id} className={`contract ${c.claimed ? 'is-claimed' : ''}`}>
+                  <div className="contract-main">
+                    <strong>{c.title}</strong>
+                    <span>
+                      {Math.floor(prog)}/{c.amount}
+                    </span>
+                  </div>
+                  <div className="contract-track" aria-hidden>
+                    <div className="contract-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="contract-detail">{c.detail}</p>
+                  <button
+                    type="button"
+                    className="primary-btn contract-btn"
+                    disabled={c.claimed || !ready}
+                    onClick={() => claimContract(c.id)}
+                  >
+                    {c.claimed ? 'Claimed' : ready ? `Claim · ${c.rewardLabel}` : 'In progress'}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
       <p className="goals-tip">{tip}</p>
     </div>
   )

@@ -141,6 +141,8 @@ export const TIPS = [
   'Skills level from steps: drills train Mining, furnaces Smelting, belts Logistics.',
   'Assemblers and the craft bench train Assembly while you walk.',
   'Task Foundry: check daily tasks, walk to mine, automate the rest.',
+  'Daily contracts refresh each day — claim them for mats.',
+  'Focus up to two skills on the Skills tab for ×1.5 step XP.',
 ]
 
 export function emptyStats(): FactoryStats {

@@ -10,6 +10,7 @@ export type ItemId =
   | 'fastBelt'
   | 'undergroundBelt'
   | 'inserter'
+  | 'longInserter'
   | 'drill'
   | 'electricDrill'
   | 'furnace'
@@ -29,6 +30,7 @@ export type EntityKind =
   | 'fastBelt'
   | 'undergroundBelt'
   | 'inserter'
+  | 'longInserter'
   | 'furnace'
   | 'steelFurnace'
   | 'chest'
@@ -41,6 +43,7 @@ export type TechId =
   | 'splitters'
   | 'undergroundBelts'
   | 'steelProcessing'
+  | 'longInserters'
 
 export type HabitCategory = 'mining' | 'smelting' | 'assembly' | 'logistics'
 
@@ -90,6 +93,7 @@ export interface Inventory {
   fastBelt: number
   undergroundBelt: number
   inserter: number
+  longInserter: number
   drill: number
   electricDrill: number
   furnace: number
@@ -107,6 +111,7 @@ export type Placeable = Extract<
   | 'fastBelt'
   | 'undergroundBelt'
   | 'inserter'
+  | 'longInserter'
   | 'furnace'
   | 'steelFurnace'
   | 'chest'
@@ -152,6 +157,24 @@ export interface SkillState {
 
 export type SkillsState = Record<SkillId, SkillState>
 
+export interface ContractState {
+  id: string
+  kind:
+    | 'stepsToday'
+    | 'oreMined'
+    | 'platesSmelted'
+    | 'gearsMade'
+    | 'habitsToday'
+    | 'mineCycles'
+  title: string
+  detail: string
+  amount: number
+  baseline: number
+  reward: Partial<Inventory>
+  rewardLabel: string
+  claimed: boolean
+}
+
 export interface GameState {
   version: number
   playerName: string
@@ -183,6 +206,10 @@ export interface GameState {
   skills: SkillsState
   /** Latest skill XP from a step batch (UI pulse) */
   lastSkillGains: Partial<Record<SkillId, number>> | null
+  /** Up to 2 skills getting bonus step XP */
+  focusSkills: SkillId[]
+  contractsDate: string
+  contracts: ContractState[]
 }
 
 export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research' | 'skills'

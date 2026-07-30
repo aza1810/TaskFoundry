@@ -36,6 +36,11 @@ import {
   stepSkillGains,
   SKILL_DEFS,
 } from './skills'
+import {
+  generateDailyContracts,
+  toggleFocusSkill,
+  contractComplete,
+} from './contracts'
 import { findUgPartner, runMineCycles, simTick } from './sim'
 import type {
   BlueprintEntity,
@@ -45,6 +50,7 @@ import type {
   Habit,
   HabitCategory,
   Placeable,
+  SkillId,
   TechId,
 } from './types'
 
@@ -79,14 +85,17 @@ export function createInitialState(): GameState {
     copyCorner: null,
     skills: emptySkills(),
     lastSkillGains: null,
+    focusSkills: [],
+    contractsDate: todayKey(),
+    contracts: [],
   }
 }
 
 export function loadState(): GameState {
   try {
-    // Prefer current key; also try previous Habitworks keys once
     const raw =
       localStorage.getItem(SAVE_KEY) ??
+      localStorage.getItem('task-foundry-v8') ??
       localStorage.getItem('habitworks-grid-v7') ??
       localStorage.getItem('habitworks-grid-v6')
     if (!raw) return createInitialState()
@@ -94,7 +103,7 @@ export function loadState(): GameState {
     if (!parsed || typeof parsed.version !== 'number' || parsed.version < 6) {
       return createInitialState()
     }
-    const next = {
+    let next: GameState = {
       ...createInitialState(),
       ...parsed,
       version: GAME_VERSION,
@@ -110,11 +119,25 @@ export function loadState(): GameState {
       copyCorner: parsed.copyCorner ?? null,
       skills: normalizeSkills(parsed.skills),
       lastSkillGains: null,
+      focusSkills: (parsed.focusSkills ?? []).slice(0, 2),
+      contractsDate: parsed.contractsDate ?? '',
+      contracts: parsed.contracts ?? [],
     }
+    next = ensureContracts(next)
     localStorage.setItem(SAVE_KEY, JSON.stringify(next))
     return next
   } catch {
     return createInitialState()
+  }
+}
+
+function ensureContracts(state: GameState): GameState {
+  const day = todayKey()
+  if (state.contractsDate === day && state.contracts.length > 0) return state
+  return {
+    ...state,
+    contractsDate: day,
+    contracts: generateDailyContracts(state, day),
   }
 }
 
@@ -143,7 +166,7 @@ function refreshDaily(state: GameState): GameState {
       ...h,
       completedToday: h.lastCompletedDate === today,
     }))
-    return { ...state, habits }
+    return ensureContracts({ ...state, habits })
   }
 
   const habits = state.habits.map((h) => {
@@ -156,7 +179,14 @@ function refreshDaily(state: GameState): GameState {
     return { ...h, completedToday: false, streak }
   })
 
-  return { ...state, habits, stepsToday: 0, stepsDate: today }
+  return ensureContracts({
+    ...state,
+    habits,
+    stepsToday: 0,
+    stepsDate: today,
+    contractsDate: '',
+    contracts: [],
+  })
 }
 
 /** Claim any newly completed goals and grant rewards */
@@ -760,6 +790,37 @@ export function resetGame(): GameState {
 
 export function renamePlayer(state: GameState, name: string): GameState {
   return { ...state, playerName: name.slice(0, 24) || state.playerName }
+}
+
+export function setFocusSkill(state: GameState, id: SkillId): GameState {
+  const focusSkills = toggleFocusSkill(state.focusSkills ?? [], id)
+  const names = focusSkills.map((s) => SKILL_DEFS[s].name).join(' + ')
+  return {
+    ...state,
+    focusSkills,
+    unlockedToast:
+      focusSkills.length === 0
+        ? 'Skill focus cleared'
+        : `Focus: ${names} (×${1.5} step XP)`,
+  }
+}
+
+export function claimContract(state: GameState, contractId: string): GameState {
+  let next = ensureContracts(refreshDaily(state))
+  const c = next.contracts.find((x) => x.id === contractId)
+  if (!c || c.claimed) return next
+  if (!contractComplete(next, c)) {
+    return { ...next, unlockedToast: 'Contract not finished yet' }
+  }
+  next = {
+    ...next,
+    inventory: gain(next.inventory, c.reward),
+    contracts: next.contracts.map((x) =>
+      x.id === contractId ? { ...x, claimed: true } : x,
+    ),
+    unlockedToast: `Contract complete: ${c.title} — ${c.rewardLabel}`,
+  }
+  return addXp(claimGoals(next), 20)
 }
 
 export function researchTech(state: GameState, techId: TechId): GameState {

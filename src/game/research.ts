@@ -44,4 +44,11 @@ export const TECHS: TechDef[] = [
     cost: { ironPlate: 50, gear: 25, coal: 30 },
     unlocks: 'Steel + steel furnace crafting',
   },
+  {
+    id: 'longInserters',
+    name: 'Long inserters',
+    detail: 'Unlock inserters that reach two tiles for bridging gaps.',
+    cost: { ironPlate: 25, gear: 20, inserter: 2 },
+    unlocks: 'Long inserter crafting',
+  },
 ]

@@ -8,8 +8,8 @@ import type {
   Placeable,
 } from './types'
 
-export const SAVE_KEY = 'task-foundry-v8'
-export const GAME_VERSION = 8
+export const SAVE_KEY = 'task-foundry-v9'
+export const GAME_VERSION = 9
 export const APP_NAME = 'Task Foundry'
 export const APP_TAGLINE = 'Walk. Task. Automate.'
 export const GRID_W = 24
@@ -53,6 +53,7 @@ export const ITEM_META: Record<
   fastBelt: { label: 'Fast Belt', short: '≡', color: '#E05050' },
   undergroundBelt: { label: 'Underground Belt', short: '⊓', color: '#c4783a' },
   inserter: { label: 'Inserter', short: '↕', color: '#3D8BFD' },
+  longInserter: { label: 'Long Inserter', short: '↕↕', color: '#e07040' },
   drill: { label: 'Burner Drill', short: '⛏', color: '#6B5535' },
   electricDrill: { label: 'Electric Drill', short: '⚡', color: '#3D9E5F' },
   furnace: { label: 'Stone Furnace', short: '▲', color: '#8A4B1A' },
@@ -96,6 +97,11 @@ export const PLACEABLE_META: Record<
     inventoryKey: 'inserter',
     hint: 'Pulls from behind, drops in front.',
   },
+  longInserter: {
+    label: 'Long Inserter',
+    inventoryKey: 'longInserter',
+    hint: 'Reaches 2 tiles behind and 2 tiles ahead.',
+  },
   furnace: {
     label: 'Stone Furnace',
     inventoryKey: 'furnace',
@@ -128,6 +134,7 @@ export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
   fastBelt: { ironPlate: 2, gear: 1 },
   undergroundBelt: { ironPlate: 4, gear: 2 },
   inserter: { ironPlate: 1, gear: 1 },
+  longInserter: { ironPlate: 2, gear: 2, inserter: 1 },
   drill: { ironPlate: 3, gear: 2, coal: 2 },
   electricDrill: { ironPlate: 5, gear: 3, copperPlate: 4 },
   furnace: { ironPlate: 5 },
@@ -256,6 +263,15 @@ export const HAND_RECIPES: HandRecipe[] = [
     requiresTech: 'splitters',
   },
   {
+    id: 'craftLongInserter',
+    name: 'Craft Long Inserter',
+    inputs: { ironPlate: 2, gear: 2, inserter: 1 },
+    outputs: { longInserter: 1 },
+    handSeconds: 6,
+    category: 'building',
+    requiresTech: 'longInserters',
+  },
+  {
     id: 'craftUgBelt',
     name: 'Craft Underground Belt',
     inputs: { ironPlate: 4, gear: 2 },
@@ -318,6 +334,7 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   fastBelt: 0,
   undergroundBelt: 0,
   inserter: 4,
+  longInserter: 0,
   drill: 1,
   electricDrill: 0,
   furnace: 1,
@@ -446,7 +463,7 @@ export function entityGlyph(kind: EntityKind, dir: Dir): string {
     return dir === 'N' || dir === 'S' ? '║' : '═'
   }
   if (kind === 'undergroundBelt') return '⊓'
-  if (kind === 'inserter') return '↕'
+  if (kind === 'inserter' || kind === 'longInserter') return '↕'
   if (kind === 'drill' || kind === 'electricDrill') return '⛏'
   if (kind === 'furnace' || kind === 'steelFurnace') return '▲'
   if (kind === 'assembler') return '⧉'
@@ -460,6 +477,10 @@ export function isBeltKind(kind: EntityKind): boolean {
 
 export function isFurnaceKind(kind: EntityKind): boolean {
   return kind === 'furnace' || kind === 'steelFurnace'
+}
+
+export function isInserterKind(kind: EntityKind): boolean {
+  return kind === 'inserter' || kind === 'longInserter'
 }
 
 export function isDrillKind(kind: EntityKind): boolean {

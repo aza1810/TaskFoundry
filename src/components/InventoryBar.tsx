@@ -17,6 +17,7 @@ const INV_ORDER: ItemId[] = [
   'fastBelt',
   'undergroundBelt',
   'inserter',
+  'longInserter',
   'splitter',
   'furnace',
   'steelFurnace',
@@ -31,6 +32,7 @@ const TOOLS: ToolId[] = [
   'fastBelt',
   'undergroundBelt',
   'inserter',
+  'longInserter',
   'splitter',
   'furnace',
   'steelFurnace',
@@ -72,6 +74,7 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
   if (tool === 'splitter') return researched.includes('splitters')
   if (tool === 'undergroundBelt') return researched.includes('undergroundBelts')
   if (tool === 'steelFurnace') return researched.includes('steelProcessing')
+  if (tool === 'longInserter') return researched.includes('longInserters')
   return false
 }
 

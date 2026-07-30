@@ -1786,3 +1786,111 @@ button {
   font-size: clamp(1.6rem, 4vw, 2.1rem);
   letter-spacing: 0.02em;
 }
+
+.skill-focus-bar {
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #3a3020;
+  background: #1a1612;
+  color: #a89878;
+  font-size: 0.88rem;
+}
+
+.skill-focus-bar em {
+  color: #6a6558;
+  font-style: normal;
+}
+
+.skill-tile.is-focus {
+  border-color: #f0e0a0;
+  box-shadow: 0 0 12px rgba(240, 224, 160, 0.2);
+}
+
+.skill-tile-focus {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0e0a0;
+}
+
+.focus-btn {
+  width: 100%;
+  margin-top: 0.85rem;
+}
+
+.focus-btn.is-on {
+  background: #3a3020;
+  border-color: #c9a227;
+}
+
+.contracts {
+  grid-column: 1 / -1;
+  margin-top: 0.35rem;
+}
+
+.contracts-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.85rem;
+  color: #c4b8a0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.contract-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.55rem;
+}
+
+.contract {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #3a3020;
+  background: #161410;
+}
+
+.contract.is-claimed {
+  opacity: 0.55;
+}
+
+.contract-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+  color: #e8e0d4;
+}
+
+.contract-main span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #8a8070;
+}
+
+.contract-track {
+  margin-top: 0.35rem;
+  height: 0.35rem;
+  background: #0a0806;
+  border: 1px solid #2a2218;
+  overflow: hidden;
+}
+
+.contract-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c9a227, #f0e0a0);
+}
+
+.contract-detail {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.78rem;
+  color: #8a8070;
+}
+
+.contract-btn {
+  width: 100%;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.5rem;
+}

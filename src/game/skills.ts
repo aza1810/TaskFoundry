@@ -1,4 +1,5 @@
 import type { Entity, GameState, SkillId, SkillState, SkillsState } from './types'
+import { FOCUS_XP_MULT } from './contracts'
 
 export const MAX_SKILL_LEVEL = 5
 
@@ -295,6 +296,15 @@ export function stepSkillGains(
         (0.4 + Math.min(0.4, assemblers * 0.12) + craftBoost) *
         mult,
     )
+  }
+
+  const focus = new Set(state.focusSkills ?? [])
+  if (focus.size > 0) {
+    for (const id of Object.keys(gains) as SkillId[]) {
+      if (focus.has(id) && gains[id]) {
+        gains[id] = Math.floor((gains[id] ?? 0) * FOCUS_XP_MULT)
+      }
+    }
   }
 
   return gains
