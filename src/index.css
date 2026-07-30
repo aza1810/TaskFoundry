@@ -726,7 +726,7 @@ button {
   font-size: 1.1rem;
 }
 
-/* —— Grid factory —— */
+/* —— Grid factory (Factorio-style) —— */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -735,46 +735,124 @@ button {
 }
 
 .tool {
-  display: grid;
-  gap: 0.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   text-align: left;
-  border: 1px solid rgba(26, 22, 18, 0.14);
-  background: #fffdf8;
-  color: inherit;
-  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(26, 22, 18, 0.2);
+  background: linear-gradient(180deg, #3a3834 0%, #2a2824 100%);
+  color: #e8e0d4;
+  padding: 0.4rem 0.55rem;
   border-radius: 2px;
+  min-width: 7.5rem;
 }
 
 .tool.is-active {
   border-color: var(--belt);
-  background: rgba(240, 160, 32, 0.18);
-  box-shadow: inset 0 -2px 0 var(--belt);
+  box-shadow: inset 0 0 0 1px var(--belt), 0 0 12px rgba(240, 160, 32, 0.25);
+  background: linear-gradient(180deg, #4a3a18 0%, #2a2418 100%);
+}
+
+.tool-text {
+  display: grid;
+  gap: 0.05rem;
 }
 
 .tool-name {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .tool-meta {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--steel);
+  font-size: 0.65rem;
+  color: #a89878;
+}
+
+.tool-icon,
+.tool-icon-wrap {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: block;
+}
+
+.tool-icon-wrap .sprite {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.tool-rotate-glyph {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--belt);
+  background: #1a1814;
+  border: 1px solid #5a5040;
+}
+
+.tool-fuel {
+  width: 28px;
+  height: 28px;
+}
+
+.resource-tex {
+  align-items: center;
+}
+
+.resource-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  display: block;
+}
+
+.resource-icon .sprite {
+  width: 22px;
+  height: 22px;
 }
 
 .factory-panel {
   overflow: hidden;
+  background: rgba(28, 30, 24, 0.92) !important;
+  color: #e4dcc8;
+  border-top-color: #1a1612 !important;
+}
+
+.factory-panel .panel-head h2 {
+  color: #f0e6d2;
+}
+
+.factory-panel .panel-head p {
+  color: #a89878;
+}
+
+.factory-stage {
+  margin-top: 0.85rem;
+  padding: 0.55rem;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 40%),
+    #1c1e18;
+  border: 3px solid #0e0e0c;
+  box-shadow:
+    inset 0 0 0 1px #3a4030,
+    0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
 .factory-grid {
   display: grid;
-  gap: 2px;
-  margin-top: 1rem;
-  padding: 0.45rem;
-  background: #2a2620;
-  border: 2px solid var(--oil);
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  background: #2a3520;
+  border: 1px solid #0a0c08;
   user-select: none;
   touch-action: manipulation;
+  image-rendering: pixelated;
 }
 
 .cell {
@@ -783,108 +861,121 @@ button {
   min-height: 0;
   border: none;
   padding: 0;
-  background: #3d3830;
-  color: var(--concrete);
+  background: #4a5c32;
+  color: #e8e0d4;
   overflow: hidden;
   cursor: crosshair;
 }
 
-.cell:hover {
-  outline: 1px solid var(--belt);
-  z-index: 1;
-}
-
-.cell.ore-iron {
-  background: linear-gradient(145deg, #5a4a38, #3d3830 60%);
-}
-
-.cell.ore-copper {
-  background: linear-gradient(145deg, #6a4020, #3d3830 60%);
-}
-
-.cell.ore-coal {
-  background: linear-gradient(145deg, #1c1a18, #3d3830 55%);
-}
-
-.ore-speckle {
+.cell-tex {
   position: absolute;
-  inset: 30% 30%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
 }
 
-.ent {
+.tex {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cell-gridline {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: clamp(0.65rem, 2.2vw, 1rem);
-  line-height: 1;
+  z-index: 1;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.cell:hover {
+  z-index: 5;
+}
+
+.cell:hover .cell-gridline {
+  box-shadow:
+    inset 0 0 0 1px rgba(240, 160, 32, 0.85),
+    0 0 10px rgba(240, 160, 32, 0.35);
+}
+
+.cell-ent {
+  position: absolute;
+  inset: 4%;
   z-index: 2;
+  pointer-events: none;
 }
 
-.ent-belt {
-  color: var(--belt);
-  font-weight: 800;
+.sprite {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
 }
 
-.ent-drill {
-  color: #e8dcc8;
+.sprite-belt .belt-stripes {
+  animation: belt-scroll 0.55s linear infinite;
 }
 
-.ent-inserter {
-  color: #7eb6ff;
+@keyframes belt-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-14px);
+  }
 }
 
-.ent-furnace {
-  color: #ff8a4a;
+.sprite-drill.is-active .drill-bit {
+  animation: drill-spin 0.6s linear infinite;
+  transform-origin: 22px 48px;
 }
 
-.ent-chest {
-  color: #b8c4d0;
+.sprite-drill.is-active .drill-lamp {
+  animation: lamp-blink 1s ease-in-out infinite;
 }
 
-.ent-dir {
+@keyframes drill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lamp-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.sprite-furnace.is-lit .furnace-glow {
+  animation: fire-flicker 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes fire-flicker {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cargo-item {
   position: absolute;
-  top: 1px;
-  right: 2px;
-  font-size: 0.55rem;
-  opacity: 0.85;
-  z-index: 3;
-  color: var(--belt);
-}
-
-.cargo-dot {
-  position: absolute;
-  width: 28%;
-  height: 28%;
-  border-radius: 1px;
+  width: 42%;
+  height: 42%;
   z-index: 4;
-  left: calc(10% + var(--p, 0) * 55%);
-  top: 36%;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  transition: left 0.15s linear;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+  transition: left 0.12s linear, top 0.12s linear;
 }
 
-.cell.has-belt {
-  background: #4a3a18;
-}
-
-.cell.has-drill {
-  background: #4a4030;
-}
-
-.cell.has-inserter {
-  background: #2a3548;
-}
-
-.cell.has-furnace {
-  background: #4a3020;
-}
-
-.cell.has-chest {
-  background: #343a42;
+.cargo-item .sprite {
+  width: 100%;
+  height: 100%;
 }
 
 .cell-store {
@@ -893,15 +984,18 @@ button {
   bottom: 1px;
   right: 1px;
   font-family: var(--font-mono);
-  font-size: 0.45rem;
+  font-size: clamp(0.4rem, 1.1vw, 0.55rem);
   line-height: 1.1;
-  color: #f5efe6;
-  opacity: 0.9;
-  z-index: 3;
+  color: #fff8e8;
+  text-shadow: 0 1px 2px #000;
+  opacity: 0.95;
+  z-index: 5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 1px 2px;
 }
 
 .smelt-bar {
@@ -909,25 +1003,37 @@ button {
   left: 0;
   bottom: 0;
   height: 3px;
-  background: var(--belt);
-  z-index: 4;
+  background: linear-gradient(90deg, #ff6a20, #f0a020);
+  z-index: 6;
+  box-shadow: 0 0 6px #ff6a20;
 }
 
 .grid-help {
   margin: 0.65rem 0 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--steel);
+  color: #a89878;
 }
 
 .ghost-dir {
-  color: var(--copper);
+  color: var(--belt);
 }
 
 .steps-goal .hint {
   color: var(--copper);
   font-family: var(--font-mono);
   font-size: 0.8rem;
+}
+
+/* Inventory chips: darker industrial */
+.resources .resource {
+  background: rgba(36, 34, 30, 0.88);
+  border-left-color: var(--belt);
+  color: #e8e0d4;
+}
+
+.resources .resource-label {
+  color: #a89878;
 }
 
 @media (min-width: 800px) {
@@ -941,9 +1047,8 @@ button {
     align-items: end;
   }
 
-  .factory-grid {
-    gap: 3px;
-    padding: 0.55rem;
+  .factory-stage {
+    padding: 0.7rem;
   }
 }
 
@@ -952,7 +1057,12 @@ button {
     display: none;
   }
 
+  .tool {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
   .tool-name {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
   }
 }

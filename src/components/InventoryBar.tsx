@@ -1,5 +1,6 @@
 import { ITEM_META, PLACEABLE_META, formatNum } from '../game/data'
 import { useGame } from '../game/GameContext'
+import { ItemSprite, ToolIcon } from '../sprites/Sprites'
 import type { ItemId, Placeable } from '../game/types'
 
 const INV_ORDER: ItemId[] = [
@@ -38,8 +39,10 @@ export function InventoryBar() {
           }
           const meta = ITEM_META[id]
           return (
-            <div key={id} className="resource" title={meta.label}>
-              <span className="resource-swatch" style={{ background: meta.color }} />
+            <div key={id} className="resource resource-tex" title={meta.label}>
+              <span className="resource-icon">
+                <ItemSprite item={id} />
+              </span>
               <div className="resource-text">
                 <span className="resource-label">{meta.label}</span>
                 <span className="resource-amount">{formatNum(amount)}</span>
@@ -74,20 +77,31 @@ export function InventoryBar() {
               className={selected === tool ? 'tool is-active' : 'tool'}
               onClick={() => selectTool(tool)}
             >
-              <span className="tool-name">{label}</span>
-              <span className="tool-meta">
-                [{hotkey}]{count !== null ? ` · ${count}` : ''}
+              <ToolIcon kind={tool} />
+              <span className="tool-text">
+                <span className="tool-name">{label}</span>
+                <span className="tool-meta">
+                  [{hotkey}]{count !== null ? ` · ${count}` : ''}
+                </span>
               </span>
             </button>
           )
         })}
         <button type="button" className="tool" onClick={rotateDir}>
-          <span className="tool-name">Rotate {placeDir}</span>
-          <span className="tool-meta">[R]</span>
+          <span className="tool-rotate-glyph">{placeDir}</span>
+          <span className="tool-text">
+            <span className="tool-name">Rotate</span>
+            <span className="tool-meta">[R]</span>
+          </span>
         </button>
         <button type="button" className="tool" onClick={fuelDrills}>
-          <span className="tool-name">Fuel drills</span>
-          <span className="tool-meta">coal</span>
+          <span className="resource-icon tool-fuel">
+            <ItemSprite item="coal" />
+          </span>
+          <span className="tool-text">
+            <span className="tool-name">Fuel drills</span>
+            <span className="tool-meta">coal</span>
+          </span>
         </button>
       </div>
     </div>
