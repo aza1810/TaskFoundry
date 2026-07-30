@@ -18,7 +18,7 @@ const host = process.env.FTP_HOST || 'azztech.online'
 const user = process.env.FTP_USER
 const pass = process.env.FTP_PASS
 const port = Number(process.env.FTP_PORT || 21)
-const remoteDir = (process.env.FTP_REMOTE_DIR || 'public_html/apps/tf').replace(/\\/g, '/')
+const remoteDir = (process.env.FTP_REMOTE_DIR || 'htdocs/apps/tf').replace(/\\/g, '/')
 
 if (!user || !pass) {
   console.error('Missing FTP_USER / FTP_PASS. Set them then re-run: npm run deploy:azz')
