@@ -8,7 +8,6 @@ import {
   OPPOSITE,
   SMELT_MAP,
   idx,
-  storeTotal,
 } from './data'
 import { getTile } from './grid'
 import type {
@@ -24,13 +23,26 @@ const MACHINE_CAP: Record<string, number> = {
   chest: 50,
 }
 
+function storeSum(
+  store: Partial<Record<ItemId, number>>,
+  except?: ItemId[],
+): number {
+  let sum = 0
+  for (const [id, n] of Object.entries(store) as [ItemId, number][]) {
+    if (except?.includes(id)) continue
+    sum += n ?? 0
+  }
+  return sum
+}
+
 function addToStore(
   store: Partial<Record<ItemId, number>>,
   item: ItemId,
   n: number,
   cap: number,
+  exceptFromCap?: ItemId[],
 ): number {
-  const have = storeTotal(store)
+  const have = storeSum(store, exceptFromCap)
   const space = Math.max(0, cap - have)
   const put = Math.min(n, space)
   if (put <= 0) return 0
@@ -118,7 +130,8 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
         continue
       }
 
-      const put = addToStore(e.store, tile.ore, 1, MACHINE_CAP.drill)
+      // Coal is fuel — don't let it fill the output buffer cap
+      const put = addToStore(e.store, tile.ore, 1, MACHINE_CAP.drill, ['coal'])
       if (put <= 0) {
         entities[e.id] = e
         continue
