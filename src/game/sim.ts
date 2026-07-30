@@ -19,6 +19,7 @@ import {
   rotateDir,
 } from './data'
 import { getTile } from './grid'
+import { skillBonuses } from './skills'
 import type {
   Dir,
   Entity,
@@ -113,17 +114,19 @@ function neighbor(
   return { x: nx, y: ny, entity, tile }
 }
 
-/** Find matching UG partner (entrance↔exit) along facing axis, up to MAX_UNDERGROUND. */
+/** Find matching UG partner (entrance↔exit) along facing axis. */
 export function findUgPartner(
   state: GameState,
   entities: Record<string, Entity>,
   ug: Entity,
+  maxRange = MAX_UNDERGROUND,
 ): Entity | null {
   const isEntrance = (ug.toggle ?? 0) === 0
   const lookingFor = isEntrance ? 1 : 0
   const sign = isEntrance ? 1 : -1
   const { dx, dy } = DIR_DELTA[ug.dir]
-  for (let d = 1; d <= MAX_UNDERGROUND; d++) {
+  const range = Math.max(1, maxRange)
+  for (let d = 1; d <= range; d++) {
     const x = ug.x + dx * d * sign
     const y = ug.y + dy * d * sign
     if (!inBounds(x, y, state.width, state.height)) break
@@ -258,6 +261,8 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
   let mined = 0
   const stats: FactoryStats = { ...state.stats }
   const view = { ...state, entities }
+  const bonuses = skillBonuses(state.skills)
+  const coalCost = 0.25 * (1 - bonuses.drillCoalSave)
 
   for (let c = 0; c < cycles; c++) {
     for (const id of Object.keys(entities)) {
@@ -271,11 +276,16 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       }
 
       const electric = e.kind === 'electricDrill'
-      if (!electric && (e.store.coal ?? 0) < 0.25) continue
+      if (!electric && (e.store.coal ?? 0) < coalCost) continue
 
       tryDrillEject(view, entities, e)
 
-      const yieldAmt = electric ? ELECTRIC_DRILL_YIELD : 1
+      const base = (electric ? ELECTRIC_DRILL_YIELD : 1) + (electric ? bonuses.electricYieldBonus : 0)
+      const raw = base * bonuses.mineYieldMult
+      const whole = Math.floor(raw)
+      const frac = raw - whole
+      const yieldAmt = Math.max(1, whole + (Math.random() < frac ? 1 : 0))
+
       const put = addToStore(
         e.store,
         tile.ore,
@@ -286,7 +296,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       if (put <= 0) continue
 
       if (!electric) {
-        e.store.coal = (e.store.coal ?? 0) - 0.25
+        e.store.coal = (e.store.coal ?? 0) - coalCost
         if (e.store.coal <= 0.001) delete e.store.coal
       }
 
@@ -326,6 +336,9 @@ export function simTick(state: GameState, dt: number): GameState {
   }
   const stats: FactoryStats = { ...state.stats }
   let moved = 0
+  const bonuses = skillBonuses(state.skills)
+  const ugRange = MAX_UNDERGROUND + bonuses.ugBonus
+  const inserterCd = INSERTER_COOLDOWN / bonuses.inserterSpeedMult
 
   // --- Drill auto-eject ---
   for (const e of Object.values(entities)) {
@@ -337,14 +350,18 @@ export function simTick(state: GameState, dt: number): GameState {
   for (const e of Object.values(entities)) {
     if (!isFurnaceKind(e.kind)) continue
     const cap = MACHINE_CAP[e.kind] ?? 12
-    const seconds = furnaceSecondsFor(e.kind)
+    const seconds = furnaceSecondsFor(e.kind) / bonuses.furnaceSpeedMult
+    const coalNeed = Math.max(
+      0.25,
+      FURNACE_COAL_PER_SMELT * (1 - bonuses.furnaceCoalSave),
+    )
 
     if (!e.smelting) {
       for (const ore of FURNACE_INPUT_ORES) {
-        if ((e.store[ore] ?? 0) >= 1 && (e.store.coal ?? 0) >= FURNACE_COAL_PER_SMELT) {
+        if ((e.store[ore] ?? 0) >= 1 && (e.store.coal ?? 0) >= coalNeed) {
           e.smelting = ore
           takeFromStore(e.store, ore, 1)
-          takeFromStore(e.store, 'coal', FURNACE_COAL_PER_SMELT)
+          takeFromStore(e.store, 'coal', coalNeed)
           e.progress = 0
           break
         }
@@ -395,7 +412,10 @@ export function simTick(state: GameState, dt: number): GameState {
 
   for (const e of beltOrder) {
     if (!e.cargo) continue
-    e.cargo.progress = Math.min(1, e.cargo.progress + beltSpeedFor(e.kind) * dt)
+    e.cargo.progress = Math.min(
+      1,
+      e.cargo.progress + beltSpeedFor(e.kind) * bonuses.beltSpeedMult * dt,
+    )
     if (e.cargo.progress < 1) continue
 
     const next = neighbor(state, e.x, e.y, e.dir)
@@ -411,11 +431,14 @@ export function simTick(state: GameState, dt: number): GameState {
   // --- Underground belts: entrance teleports to exit, exit ejects forward ---
   for (const e of Object.values(entities)) {
     if (e.kind !== 'undergroundBelt' || !e.cargo) continue
-    e.cargo.progress = Math.min(1, e.cargo.progress + beltSpeedFor('belt') * dt)
+    e.cargo.progress = Math.min(
+      1,
+      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt,
+    )
     if (e.cargo.progress < 1) continue
 
     if ((e.toggle ?? 0) === 0) {
-      const partner = findUgPartner(state, entities, e)
+      const partner = findUgPartner(state, entities, e, ugRange)
       if (!partner || partner.cargo) continue
       partner.cargo = { item: e.cargo.item, progress: 0 }
       e.cargo = null
@@ -433,7 +456,10 @@ export function simTick(state: GameState, dt: number): GameState {
   // Splitters: alternate forward vs right output
   for (const e of Object.values(entities)) {
     if (e.kind !== 'splitter' || !e.cargo) continue
-    e.cargo.progress = Math.min(1, e.cargo.progress + beltSpeedFor('belt') * dt)
+    e.cargo.progress = Math.min(
+      1,
+      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt,
+    )
     if (e.cargo.progress < 1) continue
 
     const toggle = e.toggle ?? 0
@@ -483,7 +509,7 @@ export function simTick(state: GameState, dt: number): GameState {
       tryAcceptItem(src, item)
       continue
     }
-    e.progress = INSERTER_COOLDOWN
+    e.progress = inserterCd
     moved += 1
   }
 

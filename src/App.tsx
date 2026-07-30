@@ -6,6 +6,7 @@ import { HabitsPanel } from './components/HabitsPanel'
 import { HeroStatus } from './components/HeroStatus'
 import { InventoryBar } from './components/InventoryBar'
 import { ResearchPanel } from './components/ResearchPanel'
+import { SkillsPanel } from './components/SkillsPanel'
 import { StepsPanel } from './components/StepsPanel'
 import { GameProvider, useGame } from './game/GameContext'
 import { usePedometer } from './hooks/usePedometer'
@@ -15,6 +16,7 @@ import './index.css'
 const TABS: { id: TabId; label: string }[] = [
   { id: 'factory', label: 'Factory' },
   { id: 'steps', label: 'Steps' },
+  { id: 'skills', label: 'Skills' },
   { id: 'craft', label: 'Craft' },
   { id: 'research', label: 'Research' },
   { id: 'habits', label: 'Habits' },
@@ -90,6 +92,7 @@ function Shell() {
         <main className="main" key={tab}>
           {tab === 'factory' && <FactoryGrid />}
           {tab === 'steps' && <StepsPanel pedometer={pedometer} />}
+          {tab === 'skills' && <SkillsPanel />}
           {tab === 'craft' && <CraftPanel />}
           {tab === 'research' && <ResearchPanel />}
           {tab === 'habits' && <HabitsPanel />}

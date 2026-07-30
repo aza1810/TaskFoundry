@@ -103,6 +103,14 @@ export const GOALS: GoalDef[] = [
     rewardLabel: '20 plates + 10 gears',
     check: (s) => s.researched.length >= 1,
   },
+  {
+    id: 'skill-mining-1',
+    title: 'Trained miner',
+    detail: 'Reach Mining skill level 1 by walking with drills placed.',
+    reward: { coal: 15, belt: 4 },
+    rewardLabel: '15 coal + 4 belts',
+    check: (s) => (s.skills?.mining?.level ?? 0) >= 1,
+  },
 ]
 
 export const TIPS = [
@@ -114,6 +122,7 @@ export const TIPS = [
   'Research fast belts, electric drills, and splitters when you have plates to spare.',
   'Starter line auto-builds a basic drill → furnace → chest setup.',
   'Habits restock belts and fuel so the factory keeps growing.',
+  'Skills level from steps: drills train Mining, furnaces Smelting, belts Logistics.',
 ]
 
 export function emptyStats(): FactoryStats {

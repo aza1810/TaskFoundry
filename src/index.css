@@ -1468,3 +1468,134 @@ button {
     font-size: 0.72rem;
   }
 }
+
+.skill-active {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #2a4030;
+  background: #152018;
+  color: #a89878;
+  font-size: 0.92rem;
+}
+
+.skill-active strong {
+  color: #e8e0d4;
+}
+
+.skill-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.skill-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid #2a3028;
+  background: #161a14;
+}
+
+.skill-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.skill-card-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.skill-level {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #8a8070;
+  letter-spacing: 0.04em;
+}
+
+.skill-detail {
+  margin: 0.4rem 0 0.65rem;
+  color: #a89878;
+  font-size: 0.88rem;
+}
+
+.skill-track {
+  height: 0.45rem;
+  background: #0e120c;
+  border: 1px solid #2a3028;
+  overflow: hidden;
+}
+
+.skill-fill {
+  height: 100%;
+  min-width: 0;
+  transition: width 0.25s ease;
+}
+
+.skill-xp,
+.skill-next {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #8a8070;
+}
+
+.skill-next {
+  color: #c4b8a0;
+}
+
+.skill-perks {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.perk {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: #6a6558;
+}
+
+.perk.is-owned {
+  color: #d8d0c0;
+}
+
+.perk-lv {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.skill-bonuses {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #2a3028;
+}
+
+.skill-bonuses h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: #c4b8a0;
+}
+
+.skill-bonuses ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #a89878;
+  font-size: 0.88rem;
+  columns: 2;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .skill-bonuses ul {
+    columns: 1;
+  }
+}

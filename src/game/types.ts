@@ -138,6 +138,15 @@ export interface FactoryStats {
   itemsMoved: number
 }
 
+export type SkillId = 'mining' | 'smelting' | 'logistics' | 'fieldwork'
+
+export interface SkillState {
+  xp: number
+  level: number
+}
+
+export type SkillsState = Record<SkillId, SkillState>
+
 export interface GameState {
   version: number
   playerName: string
@@ -166,6 +175,7 @@ export interface GameState {
   blueprint: BlueprintEntity[] | null
   /** First corner while copying */
   copyCorner: { x: number; y: number } | null
+  skills: SkillsState
 }
 
-export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research'
+export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research' | 'skills'

@@ -8,8 +8,8 @@ import type {
   Placeable,
 } from './types'
 
-export const SAVE_KEY = 'habitworks-grid-v6'
-export const GAME_VERSION = 6
+export const SAVE_KEY = 'habitworks-grid-v7'
+export const GAME_VERSION = 7
 export const GRID_W = 24
 export const GRID_H = 16
 export const MAX_CRAFT_QUEUE = 8

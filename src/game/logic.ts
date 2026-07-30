@@ -27,6 +27,14 @@ import {
 import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
 import { TECHS } from './research'
+import {
+  emptySkills,
+  grantSkillXp,
+  normalizeSkills,
+  skillBonuses,
+  stepSkillGains,
+  SKILL_DEFS,
+} from './skills'
 import { findUgPartner, runMineCycles, simTick } from './sim'
 import type {
   BlueprintEntity,
@@ -67,6 +75,7 @@ export function createInitialState(): GameState {
     researched: [],
     blueprint: null,
     copyCorner: null,
+    skills: emptySkills(),
   }
 }
 
@@ -89,6 +98,7 @@ export function loadState(): GameState {
       researched: parsed.researched ?? [],
       blueprint: parsed.blueprint ?? null,
       copyCorner: parsed.copyCorner ?? null,
+      skills: normalizeSkills(parsed.skills),
     }
   } catch {
     return createInitialState()
@@ -346,8 +356,9 @@ function resolveUgToggle(
   dir: Dir,
 ): number {
   const { dx, dy } = DIR_DELTA[dir]
+  const range = MAX_UNDERGROUND + skillBonuses(state.skills).ugBonus
   // Look behind for an unpaired entrance → place exit
-  for (let d = 1; d <= MAX_UNDERGROUND; d++) {
+  for (let d = 1; d <= range; d++) {
     const nx = x - dx * d
     const ny = y - dy * d
     if (!inBounds(nx, ny)) break
@@ -357,13 +368,13 @@ function resolveUgToggle(
       e?.kind === 'undergroundBelt' &&
       e.dir === dir &&
       (e.toggle ?? 0) === 0 &&
-      !findUgPartner(state, state.entities, e)
+      !findUgPartner(state, state.entities, e, range)
     ) {
       return 1
     }
   }
   // Look ahead for an unpaired exit → place entrance
-  for (let d = 1; d <= MAX_UNDERGROUND; d++) {
+  for (let d = 1; d <= range; d++) {
     const nx = x + dx * d
     const ny = y + dy * d
     if (!inBounds(nx, ny)) break
@@ -373,7 +384,7 @@ function resolveUgToggle(
       e?.kind === 'undergroundBelt' &&
       e.dir === dir &&
       (e.toggle ?? 0) === 1 &&
-      !findUgPartner(state, state.entities, e)
+      !findUgPartner(state, state.entities, e, range)
     ) {
       return 0
     }
@@ -533,9 +544,10 @@ export function topUpDrillFuel(state: GameState): GameState {
 function ensureDrillFuel(state: GameState): GameState {
   let inventory = { ...state.inventory }
   const entities: typeof state.entities = { ...state.entities }
+  const coalNeed = 0.25 * (1 - skillBonuses(state.skills).drillCoalSave)
   for (const ent of Object.values(state.entities)) {
     if (ent.kind !== 'drill') continue
-    if ((ent.store.coal ?? 0) >= 0.25) continue
+    if ((ent.store.coal ?? 0) >= coalNeed) continue
     if (inventory.coal < 1) continue
     inventory.coal -= 1
     entities[ent.id] = {
@@ -558,7 +570,26 @@ export function logSteps(state: GameState, amount: number): GameState {
   }
   next = ensureDrillFuel(next)
   next = runMineCycles(next, add)
-  next = addXp(next, Math.floor(add / 400))
+
+  const bonuses = skillBonuses(next.skills)
+  const gains = stepSkillGains(next, add)
+  const { skills, leveled } = grantSkillXp(next.skills, gains)
+  next = { ...next, skills }
+
+  const opXp = Math.floor((add / 400) * bonuses.stepOperatorXpMult)
+  next = addXp(next, opXp)
+
+  if (leveled.length > 0) {
+    const last = leveled[leveled.length - 1]
+    const def = SKILL_DEFS[last]
+    const lvl = next.skills[last].level
+    const perk = def.perks.find((p) => p.level === lvl)
+    next = {
+      ...next,
+      unlockedToast: `${def.name} → Lv ${lvl}${perk ? ` — ${perk.label}` : ''}`,
+    }
+  }
+
   return claimGoals(next)
 }
 
@@ -570,6 +601,8 @@ export function completeHabit(state: GameState, habitId: string): GameState {
   const reward = HABIT_REWARDS[habit.category]
   const streak = habit.streak + 1
   const streakMult = 1 + Math.min(0.5, (streak - 1) * 0.05)
+  const fieldMult = skillBonuses(next.skills).habitRewardMult
+  const rewardMult = streakMult * fieldMult
 
   const habits = next.habits.map((h) =>
     h.id === habitId
@@ -580,7 +613,7 @@ export function completeHabit(state: GameState, habitId: string): GameState {
   next = {
     ...next,
     habits,
-    inventory: gain(next.inventory, reward.items, streakMult),
+    inventory: gain(next.inventory, reward.items, rewardMult),
     totalHabitsCompleted: next.totalHabitsCompleted + 1,
   }
   // Track hand-crafted gears from habit rewards
@@ -589,11 +622,12 @@ export function completeHabit(state: GameState, habitId: string): GameState {
       ...next,
       stats: {
         ...next.stats,
-        gearsMade: next.stats.gearsMade + Math.floor((reward.items.gear ?? 0) * streakMult),
+        gearsMade:
+          next.stats.gearsMade + Math.floor((reward.items.gear ?? 0) * rewardMult),
       },
     }
   }
-  next = addXp(next, Math.round(reward.xp * streakMult))
+  next = addXp(next, Math.round(reward.xp * rewardMult))
   return claimGoals(next)
 }
 
