@@ -78,6 +78,15 @@ export type Placeable = Extract<
   'drill' | 'belt' | 'inserter' | 'furnace' | 'chest' | 'assembler'
 >
 
+export interface CraftJob {
+  id: string
+  recipeId: string
+  /** Elapsed seconds */
+  elapsed: number
+  /** Total seconds required */
+  duration: number
+}
+
 export interface FactoryStats {
   oreMined: number
   platesSmelted: number
@@ -107,8 +116,9 @@ export interface GameState {
   unlockedToast: string | null
   stats: FactoryStats
   completedGoals: string[]
-  /** Soft guidance tip index */
   tipIndex: number
+  /** Hand-crafting bench queue (inputs already spent) */
+  craftQueue: CraftJob[]
 }
 
 export type TabId = 'factory' | 'habits' | 'steps' | 'craft'

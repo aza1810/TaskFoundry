@@ -8,10 +8,11 @@ import type {
   Placeable,
 } from './types'
 
-export const SAVE_KEY = 'habitworks-grid-v3'
-export const GAME_VERSION = 3
+export const SAVE_KEY = 'habitworks-grid-v4'
+export const GAME_VERSION = 4
 export const GRID_W = 18
 export const GRID_H = 12
+export const MAX_CRAFT_QUEUE = 8
 
 export const DIRS: Dir[] = ['N', 'E', 'S', 'W']
 
@@ -92,67 +93,103 @@ export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
   assembler: { ironPlate: 6, gear: 4, copperPlate: 2 },
 }
 
-export const HAND_RECIPES: {
+export type HandRecipe = {
   id: string
   name: string
   inputs: Partial<Inventory>
   outputs: Partial<Inventory>
-}[] = [
+  /** Seconds at the hand crafting bench */
+  handSeconds: number
+  /** Comparable machine time, if any */
+  machineSeconds?: number
+  machineLabel?: string
+  category: 'smelt' | 'part' | 'building'
+}
+
+export const HAND_RECIPES: HandRecipe[] = [
   {
     id: 'smeltIron',
     name: 'Hand-smelt Iron Plate',
     inputs: { ironOre: 1, coal: 1 },
     outputs: { ironPlate: 1 },
+    handSeconds: 8,
+    machineSeconds: 2.4,
+    machineLabel: 'Stone furnace',
+    category: 'smelt',
   },
   {
     id: 'smeltCopper',
     name: 'Hand-smelt Copper Plate',
     inputs: { copperOre: 1, coal: 1 },
     outputs: { copperPlate: 1 },
+    handSeconds: 8,
+    machineSeconds: 2.4,
+    machineLabel: 'Stone furnace',
+    category: 'smelt',
   },
   {
     id: 'gear',
     name: 'Cut Iron Gear',
     inputs: { ironPlate: 2 },
     outputs: { gear: 1 },
+    handSeconds: 5,
+    machineSeconds: 1.6,
+    machineLabel: 'Assembler',
+    category: 'part',
   },
   {
     id: 'craftBelt',
     name: 'Craft Transport Belt',
     inputs: { ironPlate: 1 },
     outputs: { belt: 1 },
+    handSeconds: 2.5,
+    category: 'building',
   },
   {
     id: 'craftInserter',
     name: 'Craft Inserter',
     inputs: { ironPlate: 1, gear: 1 },
     outputs: { inserter: 1 },
+    handSeconds: 4.5,
+    category: 'building',
   },
   {
     id: 'craftDrill',
     name: 'Craft Burner Drill',
     inputs: { ironPlate: 3, gear: 2, coal: 2 },
     outputs: { drill: 1 },
+    handSeconds: 12,
+    category: 'building',
   },
   {
     id: 'craftFurnace',
     name: 'Craft Stone Furnace',
     inputs: { ironPlate: 5 },
     outputs: { furnace: 1 },
+    handSeconds: 9,
+    category: 'building',
   },
   {
     id: 'craftChest',
     name: 'Craft Iron Chest',
     inputs: { ironPlate: 4 },
     outputs: { chest: 1 },
+    handSeconds: 6,
+    category: 'building',
   },
   {
     id: 'craftAssembler',
     name: 'Craft Assembling Machine',
     inputs: { ironPlate: 6, gear: 4, copperPlate: 2 },
     outputs: { assembler: 1 },
+    handSeconds: 16,
+    category: 'building',
   },
 ]
+
+export const RECIPE_MAP = Object.fromEntries(
+  HAND_RECIPES.map((r) => [r.id, r]),
+) as Record<string, HandRecipe>
 
 export const SMELT_MAP: Record<OreId, ItemId> = {
   ironOre: 'ironPlate',

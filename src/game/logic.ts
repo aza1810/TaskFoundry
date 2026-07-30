@@ -6,7 +6,9 @@ import {
   GRID_W,
   HABIT_REWARDS,
   HAND_RECIPES,
+  MAX_CRAFT_QUEUE,
   PLACEABLE_META,
+  RECIPE_MAP,
   SAVE_KEY,
   canAfford,
   gain,
@@ -21,6 +23,7 @@ import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
 import { runMineCycles, simTick } from './sim'
 import type {
+  CraftJob,
   Dir,
   GameState,
   Habit,
@@ -52,6 +55,7 @@ export function createInitialState(): GameState {
     stats: emptyStats(),
     completedGoals: [],
     tipIndex: 0,
+    craftQueue: [],
   }
 }
 
@@ -70,6 +74,7 @@ export function loadState(): GameState {
       entities: parsed.entities ?? {},
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
       completedGoals: parsed.completedGoals ?? [],
+      craftQueue: parsed.craftQueue ?? [],
     }
   } catch {
     return createInitialState()
@@ -135,12 +140,77 @@ export function claimGoals(state: GameState): GameState {
   return next
 }
 
+function applyCraftOutputs(state: GameState, recipeId: string): GameState {
+  const recipe = RECIPE_MAP[recipeId]
+  if (!recipe) return state
+  let next = {
+    ...state,
+    inventory: gain(state.inventory, recipe.outputs),
+  }
+  if (recipe.outputs.gear) {
+    next = {
+      ...next,
+      stats: {
+        ...next.stats,
+        gearsMade: next.stats.gearsMade + (recipe.outputs.gear ?? 0),
+      },
+    }
+  }
+  if (recipe.outputs.ironPlate || recipe.outputs.copperPlate) {
+    next = {
+      ...next,
+      stats: {
+        ...next.stats,
+        platesSmelted:
+          next.stats.platesSmelted +
+          (recipe.outputs.ironPlate ?? 0) +
+          (recipe.outputs.copperPlate ?? 0),
+      },
+    }
+  }
+  next = addXp(next, 2)
+  const outLabel = Object.entries(recipe.outputs)
+    .map(([k, n]) => `${n} ${k}`)
+    .join(', ')
+  next = {
+    ...next,
+    unlockedToast: `Crafted ${recipe.name.replace(/^Hand-/, '')} (+${outLabel})`,
+  }
+  return next
+}
+
+/** Advance hand-crafting bench queue */
+export function tickHandCraft(state: GameState, dt: number): GameState {
+  if (dt <= 0 || state.craftQueue.length === 0) return state
+  let queue = state.craftQueue.map((j) => ({ ...j }))
+  let next: GameState = { ...state, craftQueue: queue }
+
+  let remaining = dt
+  while (remaining > 0 && queue.length > 0) {
+    const job = queue[0]
+    const left = job.duration - job.elapsed
+    if (remaining >= left) {
+      remaining -= left
+      queue = queue.slice(1)
+      next = { ...next, craftQueue: queue }
+      next = applyCraftOutputs(next, job.recipeId)
+      queue = next.craftQueue.map((j) => ({ ...j }))
+    } else {
+      job.elapsed += remaining
+      remaining = 0
+      next = { ...next, craftQueue: queue }
+    }
+  }
+  return next
+}
+
 export function tickState(state: GameState, now = Date.now()): GameState {
   let next = refreshDaily(state)
   const dt = Math.min(5, Math.max(0, (now - next.lastTick) / 1000))
   next = { ...next, lastTick: now }
   if (dt < 0.02) return claimGoals(next)
   next = simTick(next, dt)
+  next = tickHandCraft(next, dt)
   return claimGoals(next)
 }
 
@@ -357,36 +427,49 @@ export function removeHabit(state: GameState, habitId: string): GameState {
 }
 
 export function craftRecipe(state: GameState, recipeId: string): GameState {
-  const recipe = HAND_RECIPES.find((r) => r.id === recipeId)
+  const recipe = RECIPE_MAP[recipeId]
   if (!recipe) return state
+  if (state.craftQueue.length >= MAX_CRAFT_QUEUE) {
+    return {
+      ...state,
+      unlockedToast: `Craft queue full (${MAX_CRAFT_QUEUE}) — wait for the bench`,
+    }
+  }
   if (!canAfford(state.inventory, recipe.inputs)) return state
-  let next = {
+
+  const job: CraftJob = {
+    id: `craft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    recipeId: recipe.id,
+    elapsed: 0,
+    duration: recipe.handSeconds,
+  }
+
+  return {
     ...state,
-    inventory: gain(spend(state.inventory, recipe.inputs), recipe.outputs),
+    inventory: spend(state.inventory, recipe.inputs),
+    craftQueue: [...state.craftQueue, job],
+    unlockedToast:
+      state.craftQueue.length === 0
+        ? `Hand-crafting ${recipe.name} (${recipe.handSeconds}s)`
+        : `Queued ${recipe.name} (#${state.craftQueue.length + 1})`,
   }
-  if (recipe.outputs.gear) {
-    next = {
-      ...next,
-      stats: {
-        ...next.stats,
-        gearsMade: next.stats.gearsMade + (recipe.outputs.gear ?? 0),
-      },
-    }
+}
+
+export function cancelCraft(state: GameState, jobId: string): GameState {
+  const idxJob = state.craftQueue.findIndex((j) => j.id === jobId)
+  if (idxJob < 0) return state
+  const job = state.craftQueue[idxJob]
+  const recipe = RECIPE_MAP[job.recipeId]
+  const queue = state.craftQueue.filter((j) => j.id !== jobId)
+  // Refund inputs fully (simple Factorio hand-craft cancel)
+  let inventory = state.inventory
+  if (recipe) inventory = gain(inventory, recipe.inputs)
+  return {
+    ...state,
+    craftQueue: queue,
+    inventory,
+    unlockedToast: `Cancelled ${recipe?.name ?? 'craft'} — materials returned`,
   }
-  if (recipe.outputs.ironPlate || recipe.outputs.copperPlate) {
-    next = {
-      ...next,
-      stats: {
-        ...next.stats,
-        platesSmelted:
-          next.stats.platesSmelted +
-          (recipe.outputs.ironPlate ?? 0) +
-          (recipe.outputs.copperPlate ?? 0),
-      },
-    }
-  }
-  next = addXp(next, 2)
-  return claimGoals(next)
 }
 
 export function collectChest(state: GameState, x: number, y: number): GameState {

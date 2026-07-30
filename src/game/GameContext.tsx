@@ -14,6 +14,7 @@ import {
   collectChest as collectChestLogic,
   completeHabit as completeHabitLogic,
   craftRecipe as craftRecipeLogic,
+  cancelCraft as cancelCraftLogic,
   fuelAllDrills as fuelAllDrillsLogic,
   loadState,
   logSteps as logStepsLogic,
@@ -41,6 +42,7 @@ type Action =
   | { type: 'ADD_HABIT'; title: string; category: HabitCategory }
   | { type: 'REMOVE_HABIT'; id: string }
   | { type: 'CRAFT'; recipeId: string }
+  | { type: 'CANCEL_CRAFT'; jobId: string }
   | { type: 'FUEL' }
   | { type: 'CLEAR_TOAST' }
   | { type: 'RESET' }
@@ -70,6 +72,8 @@ function reducer(state: GameState, action: Action): GameState {
       return removeHabitLogic(state, action.id)
     case 'CRAFT':
       return craftRecipeLogic(state, action.recipeId)
+    case 'CANCEL_CRAFT':
+      return cancelCraftLogic(state, action.jobId)
     case 'FUEL':
       return fuelAllDrillsLogic(state)
     case 'CLEAR_TOAST':
@@ -95,6 +99,7 @@ interface GameContextValue {
   addHabit: (title: string, category: HabitCategory) => void
   removeHabit: (id: string) => void
   craft: (recipeId: string) => void
+  cancelCraft: (jobId: string) => void
   fuelDrills: () => void
   clearToast: () => void
   reset: () => void
@@ -188,6 +193,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     (recipeId: string) => dispatch({ type: 'CRAFT', recipeId }),
     [],
   )
+  const cancelCraft = useCallback(
+    (jobId: string) => dispatch({ type: 'CANCEL_CRAFT', jobId }),
+    [],
+  )
   const fuelDrills = useCallback(() => dispatch({ type: 'FUEL' }), [])
   const clearToast = useCallback(() => dispatch({ type: 'CLEAR_TOAST' }), [])
   const reset = useCallback(() => {
@@ -211,6 +220,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       addHabit,
       removeHabit,
       craft,
+      cancelCraft,
       fuelDrills,
       clearToast,
       reset,
@@ -230,6 +240,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       addHabit,
       removeHabit,
       craft,
+      cancelCraft,
       fuelDrills,
       clearToast,
       reset,
