@@ -156,7 +156,7 @@ function peekExtractable(entity: Entity): boolean {
   return Object.values(entity.store).some((n) => (n ?? 0) > 0)
 }
 
-/** Factorio-style: drill drops output onto facing belt/chest/furnace */
+/** Factorio-style: drill drops mined ore onto facing belt/chest/furnace */
 function tryDrillEject(
   state: GameState,
   entities: Record<string, Entity>,
@@ -169,13 +169,14 @@ function tryDrillEject(
   if (dest.kind !== 'belt' && dest.kind !== 'chest' && dest.kind !== 'furnace') {
     return false
   }
-  const item = tryExtractItem(drill, ['ironOre', 'copperOre', 'coal'])
+
+  const tile = getTile(state.tiles, drill.x, drill.y)
+  // Never dump burner fuel — only eject the resource being mined
+  const prefer: ItemId[] =
+    tile?.ore === 'coal' ? ['coal'] : ['ironOre', 'copperOre']
+
+  const item = tryExtractItem(drill, prefer)
   if (!item) return false
-  // Don't eject the last bits of fuel coal into the line unless mining coal
-  if (item === 'coal' && (drill.store.coal ?? 0) < 1 && dest.kind !== 'furnace') {
-    tryAcceptItem(drill, item)
-    return false
-  }
   if (!tryAcceptItem(dest, item)) {
     tryAcceptItem(drill, item)
     return false
