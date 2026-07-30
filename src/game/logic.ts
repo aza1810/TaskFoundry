@@ -13,6 +13,8 @@ import {
   PLACEABLE_META,
   RECIPE_MAP,
   SAVE_KEY,
+  ACTIVE_SAVE_KEY,
+  setActiveSaveKey,
   canAfford,
   gain,
   idx,
@@ -88,16 +90,21 @@ export function createInitialState(): GameState {
     focusSkills: [],
     contractsDate: todayKey(),
     contracts: [],
+    tutorialStep: 0,
+    tutorialComplete: false,
   }
 }
 
-export function loadState(): GameState {
+export function loadState(accountSaveKey?: string): GameState {
+  if (accountSaveKey) setActiveSaveKey(accountSaveKey)
   try {
     const raw =
-      localStorage.getItem(SAVE_KEY) ??
-      localStorage.getItem('task-foundry-v8') ??
-      localStorage.getItem('habitworks-grid-v7') ??
-      localStorage.getItem('habitworks-grid-v6')
+      localStorage.getItem(ACTIVE_SAVE_KEY) ??
+      (ACTIVE_SAVE_KEY === SAVE_KEY
+        ? localStorage.getItem('task-foundry-v8') ??
+          localStorage.getItem('habitworks-grid-v7') ??
+          localStorage.getItem('habitworks-grid-v6')
+        : null)
     if (!raw) return createInitialState()
     const parsed = JSON.parse(raw) as GameState & { version?: number }
     if (!parsed || typeof parsed.version !== 'number' || parsed.version < 6) {
@@ -122,9 +129,16 @@ export function loadState(): GameState {
       focusSkills: (parsed.focusSkills ?? []).slice(0, 2),
       contractsDate: parsed.contractsDate ?? '',
       contracts: parsed.contracts ?? [],
+      tutorialStep:
+        parsed.tutorialComplete === true
+          ? null
+          : typeof parsed.tutorialStep === 'number'
+            ? parsed.tutorialStep
+            : 0,
+      tutorialComplete: parsed.tutorialComplete === true,
     }
     next = ensureContracts(next)
-    localStorage.setItem(SAVE_KEY, JSON.stringify(next))
+    localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(next))
     return next
   } catch {
     return createInitialState()
@@ -142,7 +156,7 @@ function ensureContracts(state: GameState): GameState {
 }
 
 export function saveState(state: GameState): void {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+  localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(state))
 }
 
 function addXp(state: GameState, amount: number): GameState {
@@ -784,8 +798,32 @@ export function clearToast(state: GameState): GameState {
 }
 
 export function resetGame(): GameState {
-  localStorage.removeItem(SAVE_KEY)
+  localStorage.removeItem(ACTIVE_SAVE_KEY)
   return createInitialState()
+}
+
+export function advanceTutorial(state: GameState): GameState {
+  if (state.tutorialComplete || state.tutorialStep === null) return state
+  const next = state.tutorialStep + 1
+  // 7 steps (0..6)
+  if (next >= 7) {
+    return {
+      ...state,
+      tutorialStep: null,
+      tutorialComplete: true,
+      unlockedToast: 'Tour complete — walk the line, operator',
+    }
+  }
+  return { ...state, tutorialStep: next }
+}
+
+export function skipTutorial(state: GameState): GameState {
+  return {
+    ...state,
+    tutorialStep: null,
+    tutorialComplete: true,
+    unlockedToast: 'Tour skipped — you can still explore freely',
+  }
 }
 
 export function renamePlayer(state: GameState, name: string): GameState {

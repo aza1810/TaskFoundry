@@ -210,6 +210,9 @@ export interface GameState {
   focusSkills: SkillId[]
   contractsDate: string
   contracts: ContractState[]
+  /** null = finished or not started after complete; 0+ = active step index */
+  tutorialStep: number | null
+  tutorialComplete: boolean
 }
 
 export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research' | 'skills'

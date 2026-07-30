@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import { AuthProvider, useAuth } from './auth/AuthContext'
+import { saveKeyForAccount } from './auth/auth'
+import { AuthScreen } from './components/AuthScreen'
 import { CraftPanel } from './components/CraftPanel'
 import { FactoryGrid } from './components/FactoryGrid'
 import { GoalsBar } from './components/GoalsBar'
@@ -8,6 +11,7 @@ import { InventoryBar } from './components/InventoryBar'
 import { ResearchPanel } from './components/ResearchPanel'
 import { SkillsPanel } from './components/SkillsPanel'
 import { StepsPanel } from './components/StepsPanel'
+import { TutorialOverlay } from './components/TutorialOverlay'
 import { GameProvider, useGame } from './game/GameContext'
 import { usePedometer } from './hooks/usePedometer'
 import type { TabId } from './game/types'
@@ -61,6 +65,7 @@ function Shell() {
   const [tab, setTab] = useState<TabId>('factory')
   const { logSteps } = useGame()
   const pedometer = usePedometer(logSteps)
+  const requestTab = useCallback((t: TabId) => setTab(t), [])
 
   return (
     <div className="app">
@@ -107,15 +112,31 @@ function Shell() {
         />
       )}
 
+      <TutorialOverlay onRequestTab={requestTab} />
       <Toast />
     </div>
   )
 }
 
-export default function App() {
+function AuthenticatedApp() {
+  const { session } = useAuth()
+  if (!session) return <AuthScreen />
+
   return (
-    <GameProvider>
+    <GameProvider
+      key={session.accountId}
+      saveKey={saveKeyForAccount(session.accountId)}
+      displayName={session.displayName}
+    >
       <Shell />
     </GameProvider>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuthenticatedApp />
+    </AuthProvider>
   )
 }

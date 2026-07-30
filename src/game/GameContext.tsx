@@ -30,6 +30,8 @@ import {
   selectTool as selectToolLogic,
   setFocusSkill as setFocusSkillLogic,
   claimContract as claimContractLogic,
+  advanceTutorial as advanceTutorialLogic,
+  skipTutorial as skipTutorialLogic,
   tickState,
 } from './logic'
 import type { Dir, GameState, HabitCategory, Placeable, SkillId, TechId } from './types'
@@ -55,6 +57,8 @@ type Action =
   | { type: 'RENAME'; name: string }
   | { type: 'FOCUS'; id: SkillId }
   | { type: 'CLAIM_CONTRACT'; id: string }
+  | { type: 'ADVANCE_TUTORIAL' }
+  | { type: 'SKIP_TUTORIAL' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -98,6 +102,10 @@ function reducer(state: GameState, action: Action): GameState {
       return setFocusSkillLogic(state, action.id)
     case 'CLAIM_CONTRACT':
       return claimContractLogic(state, action.id)
+    case 'ADVANCE_TUTORIAL':
+      return advanceTutorialLogic(state)
+    case 'SKIP_TUTORIAL':
+      return skipTutorialLogic(state)
     default:
       return state
   }
@@ -124,14 +132,30 @@ interface GameContextValue {
   rename: (name: string) => void
   toggleFocus: (id: SkillId) => void
   claimContract: (id: string) => void
+  advanceTutorial: () => void
+  skipTutorial: () => void
   placeDir: Dir
   selected: GameState['selected']
 }
 
 const GameContext = createContext<GameContextValue | null>(null)
 
-export function GameProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadState)
+export function GameProvider({
+  children,
+  saveKey,
+  displayName,
+}: {
+  children: ReactNode
+  saveKey: string
+  displayName?: string
+}) {
+  const [state, dispatch] = useReducer(reducer, undefined, () => {
+    const loaded = loadState(saveKey)
+    if (displayName && loaded.playerName === 'Operator') {
+      return { ...loaded, playerName: displayName }
+    }
+    return loaded
+  })
   const saveTimer = useRef<number | null>(null)
 
   useEffect(() => {
@@ -241,6 +265,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     (id: string) => dispatch({ type: 'CLAIM_CONTRACT', id }),
     [],
   )
+  const advanceTutorial = useCallback(() => dispatch({ type: 'ADVANCE_TUTORIAL' }), [])
+  const skipTutorial = useCallback(() => dispatch({ type: 'SKIP_TUTORIAL' }), [])
 
   const value = useMemo(
     () => ({
@@ -264,6 +290,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rename,
       toggleFocus,
       claimContract,
+      advanceTutorial,
+      skipTutorial,
       placeDir: state.placeDir,
       selected: state.selected,
     }),
@@ -288,6 +316,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rename,
       toggleFocus,
       claimContract,
+      advanceTutorial,
+      skipTutorial,
     ],
   )
 

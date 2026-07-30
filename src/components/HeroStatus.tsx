@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
 import { APP_NAME, APP_TAGLINE, titleForLevel, xpForLevel } from '../game/data'
 import { SKILL_IDS } from '../game/skills'
 import { useGame } from '../game/GameContext'
@@ -6,6 +7,7 @@ import { SkillIcon } from '../sprites/SkillIcons'
 
 export function HeroStatus() {
   const { state, rename, reset } = useGame()
+  const { session, signOut } = useAuth()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(state.playerName)
   const needed = xpForLevel(state.level)
@@ -16,6 +18,11 @@ export function HeroStatus() {
       <div className="hero-brand">
         <p className="brand">{APP_NAME}</p>
         <p className="tagline">{APP_TAGLINE}</p>
+        {session && (
+          <p className="auth-session">
+            {session.isGuest ? 'Guest' : `@${session.username}`}
+          </p>
+        )}
       </div>
 
       <div className="hero-status">
@@ -68,9 +75,14 @@ export function HeroStatus() {
           ))}
         </div>
 
-        <button type="button" className="ghost-btn" onClick={reset}>
-          Scrap save
-        </button>
+        <div className="hero-actions">
+          <button type="button" className="ghost-btn" onClick={signOut}>
+            Sign out
+          </button>
+          <button type="button" className="ghost-btn" onClick={reset}>
+            Scrap save
+          </button>
+        </div>
       </div>
     </header>
   )

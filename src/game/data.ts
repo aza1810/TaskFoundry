@@ -12,6 +12,12 @@ export const SAVE_KEY = 'task-foundry-v9'
 export const GAME_VERSION = 9
 export const APP_NAME = 'Task Foundry'
 export const APP_TAGLINE = 'Walk. Task. Automate.'
+/** Overridden per signed-in account at runtime */
+export let ACTIVE_SAVE_KEY = SAVE_KEY
+
+export function setActiveSaveKey(key: string): void {
+  ACTIVE_SAVE_KEY = key
+}
 export const GRID_W = 24
 export const GRID_H = 16
 export const MAX_CRAFT_QUEUE = 8
