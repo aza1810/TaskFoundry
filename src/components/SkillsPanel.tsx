@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   MAX_SKILL_LEVEL,
   SKILL_DEFS,
@@ -8,96 +9,117 @@ import {
   skillXpForLevel,
 } from '../game/skills'
 import { useGame } from '../game/GameContext'
+import { SkillIcon } from '../sprites/SkillIcons'
+import type { SkillId } from '../game/types'
 
 export function SkillsPanel() {
   const { state } = useGame()
   const active = countActiveLine(state.entities)
   const bonuses = skillBonuses(state.skills)
+  const [selected, setSelected] = useState<SkillId>('mining')
+  const def = SKILL_DEFS[selected]
+  const skill = state.skills[selected]
+  const maxed = skill.level >= MAX_SKILL_LEVEL
+  const need = maxed ? 0 : skillXpForLevel(skill.level)
+  const pct = maxed ? 100 : Math.min(100, (skill.xp / need) * 100)
+  const next = nextPerkLabel(selected, skill.level)
+
+  const training: SkillId[] = ['fieldwork']
+  if (active.drills > 0) training.push('mining')
+  if (active.furnaces > 0) training.push('smelting')
+  if (active.logistics > 0) training.push('logistics')
 
   return (
-    <section className="panel">
+    <section className="panel skills-panel">
       <div className="panel-head">
-        <h2>Operator Skills</h2>
+        <h2>Skills</h2>
         <p>
-          Walking trains the skills your factory is using. Place drills to train Mining,
-          light furnaces for Smelting, run belts for Logistics — every step also trains
-          Fieldwork.
+          Classic operator skills — walk to train whatever your factory is running. Tap an
+          icon for perks.
         </p>
+      </div>
+
+      <div className="skill-board">
+        <ul className="skill-grid" role="list">
+          {SKILL_IDS.map((id) => {
+            const d = SKILL_DEFS[id]
+            const s = state.skills[id]
+            const isTraining = training.includes(id)
+            const isSelected = selected === id
+            return (
+              <li key={id}>
+                <button
+                  type="button"
+                  className={`skill-tile ${isSelected ? 'is-selected' : ''} ${
+                    isTraining ? 'is-training' : ''
+                  }`}
+                  onClick={() => setSelected(id)}
+                  aria-pressed={isSelected}
+                  title={`${d.name} — level ${s.level}`}
+                >
+                  <SkillIcon id={id} level={s.level} lit={isTraining} size="lg" />
+                  <span className="skill-tile-name">{d.name}</span>
+                  {isTraining && <span className="skill-tile-pulse">Training</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+
+        <div className="skill-inspect">
+          <div className="skill-inspect-top">
+            <SkillIcon id={selected} level={skill.level} lit={training.includes(selected)} size="lg" />
+            <div className="skill-inspect-meta">
+              <h3 style={{ color: def.color }}>{def.name}</h3>
+              <p className="skill-inspect-lv">
+                Level {skill.level}
+                <span> / {MAX_SKILL_LEVEL}</span>
+              </p>
+              <p className="skill-detail">{def.detail}</p>
+            </div>
+          </div>
+
+          <div className="skill-xp-block">
+            <div className="skill-xp-meta">
+              <span>{maxed ? 'Max level' : 'Experience'}</span>
+              <span>
+                {maxed ? '—' : `${Math.floor(skill.xp)} / ${need}`}
+              </span>
+            </div>
+            <div className="skill-track" aria-hidden>
+              <div
+                className="skill-fill"
+                style={{ width: `${pct}%`, background: def.color }}
+              />
+            </div>
+            {next && !maxed && <p className="skill-next">Next unlock: {next}</p>}
+          </div>
+
+          <ul className="skill-perks">
+            {def.perks.map((perk) => (
+              <li
+                key={perk.level}
+                className={skill.level >= perk.level ? 'perk is-owned' : 'perk is-locked'}
+              >
+                <span className="perk-lv">{perk.level}</span>
+                <span>{perk.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       <div className="skill-active">
         <p>
-          This walk trains:{' '}
-          <strong>Fieldwork</strong>
-          {active.drills > 0 ? (
-            <>
-              {' '}
-              · <strong>Mining</strong> ({active.drills} drills)
-            </>
-          ) : null}
-          {active.furnaces > 0 ? (
-            <>
-              {' '}
-              · <strong>Smelting</strong> ({active.furnaces} furnaces)
-            </>
-          ) : null}
-          {active.logistics > 0 ? (
-            <>
-              {' '}
-              · <strong>Logistics</strong> ({active.logistics} movers)
-            </>
-          ) : null}
+          Currently training:{' '}
+          {training.map((id, i) => (
+            <span key={id}>
+              {i > 0 ? ' · ' : ''}
+              <strong>{SKILL_DEFS[id].name}</strong>
+            </span>
+          ))}
         </p>
       </div>
-
-      <ul className="skill-list">
-        {SKILL_IDS.map((id) => {
-          const def = SKILL_DEFS[id]
-          const skill = state.skills[id]
-          const maxed = skill.level >= MAX_SKILL_LEVEL
-          const need = maxed ? 0 : skillXpForLevel(skill.level)
-          const pct = maxed ? 100 : Math.min(100, (skill.xp / need) * 100)
-          const next = nextPerkLabel(id, skill.level)
-          return (
-            <li key={id} className="skill-card">
-              <div className="skill-card-head">
-                <h3 style={{ color: def.color }}>{def.name}</h3>
-                <span className="skill-level">
-                  Lv {skill.level}/{MAX_SKILL_LEVEL}
-                </span>
-              </div>
-              <p className="skill-detail">{def.detail}</p>
-              <div className="skill-track" aria-hidden>
-                <div
-                  className="skill-fill"
-                  style={{ width: `${pct}%`, background: def.color }}
-                />
-              </div>
-              <p className="skill-xp">
-                {maxed
-                  ? 'Maxed'
-                  : `${Math.floor(skill.xp)} / ${need} XP → next perk`}
-              </p>
-              {next && !maxed && (
-                <p className="skill-next">Next: {next}</p>
-              )}
-              <ul className="skill-perks">
-                {def.perks.map((perk) => (
-                  <li
-                    key={perk.level}
-                    className={
-                      skill.level >= perk.level ? 'perk is-owned' : 'perk is-locked'
-                    }
-                  >
-                    <span className="perk-lv">Lv {perk.level}</span>
-                    <span>{perk.label}</span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          )
-        })}
-      </ul>
 
       <div className="skill-bonuses">
         <h3>Active bonuses</h3>
