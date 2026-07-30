@@ -10,12 +10,19 @@ export type ItemId =
   | 'drill'
   | 'furnace'
   | 'chest'
+  | 'assembler'
 
 export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
 export type Dir = 'N' | 'E' | 'S' | 'W'
 
-export type EntityKind = 'drill' | 'belt' | 'inserter' | 'furnace' | 'chest'
+export type EntityKind =
+  | 'drill'
+  | 'belt'
+  | 'inserter'
+  | 'furnace'
+  | 'chest'
+  | 'assembler'
 
 export type HabitCategory = 'mining' | 'smelting' | 'assembly' | 'logistics'
 
@@ -28,10 +35,8 @@ export interface Habit {
   lastCompletedDate: string | null
 }
 
-/** Items sitting on a belt tile */
 export interface BeltCargo {
   item: ItemId
-  /** 0..1 progress toward the next tile */
   progress: number
 }
 
@@ -40,20 +45,15 @@ export interface Entity {
   kind: EntityKind
   x: number
   y: number
-  /** Output / facing direction */
   dir: Dir
-  /** Shared storage for chests, drill output, furnace slots */
   store: Partial<Record<ItemId, number>>
-  /** Furnace smelt progress 0..1 */
   progress: number
-  /** Current furnace recipe target ore */
   smelting: OreId | null
   cargo: BeltCargo | null
 }
 
 export interface Tile {
   ore: OreId | null
-  /** Remaining ore; null = infinite patch */
   amount: number | null
   entityId: string | null
 }
@@ -70,12 +70,20 @@ export interface Inventory {
   drill: number
   furnace: number
   chest: number
+  assembler: number
 }
 
 export type Placeable = Extract<
   EntityKind,
-  'drill' | 'belt' | 'inserter' | 'furnace' | 'chest'
+  'drill' | 'belt' | 'inserter' | 'furnace' | 'chest' | 'assembler'
 >
+
+export interface FactoryStats {
+  oreMined: number
+  platesSmelted: number
+  gearsMade: number
+  itemsMoved: number
+}
 
 export interface GameState {
   version: number
@@ -97,6 +105,10 @@ export interface GameState {
   lastTick: number
   totalHabitsCompleted: number
   unlockedToast: string | null
+  stats: FactoryStats
+  completedGoals: string[]
+  /** Soft guidance tip index */
+  tipIndex: number
 }
 
 export type TabId = 'factory' | 'habits' | 'steps' | 'craft'

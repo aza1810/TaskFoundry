@@ -2,8 +2,8 @@
 
 Idle RPG habit tracker + step-powered **mini Factorio**.
 
-Build a grid factory: mining drills, transport belts, inserters, furnaces, and chests.
 **Every step you log is one mining cycle on every burner drill.**
+Drills auto-drop onto the belt/chest they face. Objectives guide the early factory.
 
 ## Play
 
@@ -13,23 +13,21 @@ npm run dev
 ```
 
 ### Loop
-1. **Factory** — place a drill on an ore patch (iron / copper / coal)
-2. **Steps** — log steps to mine; fuel drills with coal
-3. **Belts + inserters** — move ore into furnaces, plates into chests
-4. **Craft** — hand-craft more belts/machines from plates & gears
-5. **Habits** — daily checks restock inventory for expansion
+1. Place a drill on ore (faces the output tile)
+2. Log steps to mine — ore ejects onto belts
+3. Inserters + furnaces smelt plates; assemblers cut gears
+4. Clear objectives for free buildings
+5. Habits restock inventory for expansion
 
 ### Controls
 | Key | Action |
 |-----|--------|
-| 1–5 | Drill / Belt / Inserter / Furnace / Chest |
+| 1–6 | Drill / Belt / Inserter / Furnace / Chest / Assembler |
 | R | Rotate place direction |
-| Q / X | Remove tool |
-| Click | Place / remove |
+| Q / X | Remove |
+| Drag | Paint place / bulldoze |
 | Shift-click | Rotate entity |
-| Right-click chest | Collect into inventory |
-
-Progress autosaves in `localStorage`.
+| Right-click chest | Collect |
 
 ## Stack
 

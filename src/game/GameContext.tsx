@@ -143,6 +143,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (key === '3') dispatch({ type: 'SELECT', tool: 'inserter' })
       if (key === '4') dispatch({ type: 'SELECT', tool: 'furnace' })
       if (key === '5') dispatch({ type: 'SELECT', tool: 'chest' })
+      if (key === '6') dispatch({ type: 'SELECT', tool: 'assembler' })
       if (key === 'escape') dispatch({ type: 'SELECT', tool: null })
     }
     window.addEventListener('keydown', onKey)

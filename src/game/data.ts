@@ -8,8 +8,8 @@ import type {
   Placeable,
 } from './types'
 
-export const SAVE_KEY = 'habitworks-grid-v2'
-export const GAME_VERSION = 2
+export const SAVE_KEY = 'habitworks-grid-v3'
+export const GAME_VERSION = 3
 export const GRID_W = 18
 export const GRID_H = 12
 
@@ -44,6 +44,7 @@ export const ITEM_META: Record<
   drill: { label: 'Burner Drill', short: '⛏', color: '#6B5535' },
   furnace: { label: 'Stone Furnace', short: '▲', color: '#8A4B1A' },
   chest: { label: 'Iron Chest', short: '▣', color: '#5C6B7A' },
+  assembler: { label: 'Assembling Machine', short: '⧉', color: '#4a6a8a' },
 }
 
 export const PLACEABLE_META: Record<
@@ -75,6 +76,11 @@ export const PLACEABLE_META: Record<
     inventoryKey: 'chest',
     hint: 'Stores items. Inserters load/unload it.',
   },
+  assembler: {
+    label: 'Assembling Machine',
+    inventoryKey: 'assembler',
+    hint: 'Crafts gears from iron plates automatically.',
+  },
 }
 
 export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
@@ -83,6 +89,7 @@ export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
   drill: { ironPlate: 3, gear: 2, coal: 2 },
   furnace: { ironPlate: 5 },
   chest: { ironPlate: 4 },
+  assembler: { ironPlate: 6, gear: 4, copperPlate: 2 },
 }
 
 export const HAND_RECIPES: {
@@ -139,6 +146,12 @@ export const HAND_RECIPES: {
     inputs: { ironPlate: 4 },
     outputs: { chest: 1 },
   },
+  {
+    id: 'craftAssembler',
+    name: 'Craft Assembling Machine',
+    inputs: { ironPlate: 6, gear: 4, copperPlate: 2 },
+    outputs: { assembler: 1 },
+  },
 ]
 
 export const SMELT_MAP: Record<OreId, ItemId> = {
@@ -150,6 +163,8 @@ export const SMELT_MAP: Record<OreId, ItemId> = {
 export const FURNACE_INPUT_ORES: OreId[] = ['ironOre', 'copperOre']
 export const FURNACE_COAL_PER_SMELT = 1
 export const FURNACE_SECONDS = 2.4
+export const ASSEMBLER_SECONDS = 1.6
+export const ASSEMBLER_PLATES_PER_GEAR = 2
 export const BELT_SPEED = 1.8 // tiles per second
 export const INSERTER_COOLDOWN = 0.45
 
@@ -158,13 +173,14 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   copperOre: 4,
   coal: 12,
   ironPlate: 10,
-  copperPlate: 0,
+  copperPlate: 2,
   gear: 4,
-  belt: 12,
+  belt: 16,
   inserter: 4,
   drill: 1,
   furnace: 1,
   chest: 1,
+  assembler: 0,
 })
 
 export const DEFAULT_HABITS = (): Habit[] => [
@@ -288,5 +304,6 @@ export function entityGlyph(kind: EntityKind, dir: Dir): string {
   if (kind === 'inserter') return '↕'
   if (kind === 'drill') return '⛏'
   if (kind === 'furnace') return '▲'
+  if (kind === 'assembler') return '⧉'
   return '▣'
 }

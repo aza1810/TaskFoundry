@@ -17,8 +17,9 @@ import {
   todayKey,
   xpForLevel,
 } from './data'
+import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
-import { MACHINE_CAP, addToStore, runMineCycles, simTick, takeFromStore } from './sim'
+import { runMineCycles, simTick } from './sim'
 import type {
   Dir,
   GameState,
@@ -47,7 +48,10 @@ export function createInitialState(): GameState {
     placeDir: 'E',
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
-    unlockedToast: 'Place a drill on iron ore. Every step mines once.',
+    unlockedToast: 'Goal: place a burner drill on iron ore. Steps power every drill.',
+    stats: emptyStats(),
+    completedGoals: [],
+    tipIndex: 0,
   }
 }
 
@@ -61,9 +65,11 @@ export function loadState(): GameState {
       ...createInitialState(),
       ...parsed,
       inventory: { ...EMPTY_INVENTORY(), ...parsed.inventory },
+      stats: { ...emptyStats(), ...parsed.stats },
       tiles: parsed.tiles?.length === GRID_W * GRID_H ? parsed.tiles : createTiles(),
       entities: parsed.entities ?? {},
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
+      completedGoals: parsed.completedGoals ?? [],
     }
   } catch {
     return createInitialState()
@@ -111,12 +117,31 @@ function refreshDaily(state: GameState): GameState {
   return { ...state, habits, stepsToday: 0, stepsDate: today }
 }
 
+/** Claim any newly completed goals and grant rewards */
+export function claimGoals(state: GameState): GameState {
+  let next = state
+  for (const goal of GOALS) {
+    if (next.completedGoals.includes(goal.id)) continue
+    if (!goal.check(next)) continue
+    next = {
+      ...next,
+      completedGoals: [...next.completedGoals, goal.id],
+      inventory: gain(next.inventory, goal.reward),
+      unlockedToast: `Objective complete: ${goal.title} — ${goal.rewardLabel}`,
+      tipIndex: (next.tipIndex + 1) % TIPS.length,
+    }
+    next = addXp(next, 25)
+  }
+  return next
+}
+
 export function tickState(state: GameState, now = Date.now()): GameState {
   let next = refreshDaily(state)
   const dt = Math.min(5, Math.max(0, (now - next.lastTick) / 1000))
   next = { ...next, lastTick: now }
-  if (dt < 0.02) return next
-  return simTick(next, dt)
+  if (dt < 0.02) return claimGoals(next)
+  next = simTick(next, dt)
+  return claimGoals(next)
 }
 
 export function selectTool(state: GameState, tool: GameState['selected']): GameState {
@@ -147,14 +172,13 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     delete entities[ent.id]
     tile.entityId = null
 
-    // Refund building + dump store into inventory
     const invKey = ent.kind as Placeable
     let inventory = gain(state.inventory, { [invKey]: 1 })
     inventory = gain(inventory, ent.store as Partial<typeof inventory>)
     if (ent.cargo) {
       inventory = gain(inventory, { [ent.cargo.item]: 1 } as Partial<typeof inventory>)
     }
-    return { ...state, tiles, entities, inventory }
+    return claimGoals({ ...state, tiles, entities, inventory })
   }
 
   if (tile.entityId) return state
@@ -167,10 +191,33 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     return { ...state, unlockedToast: 'Drills must be placed on an ore patch' }
   }
 
-  let inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
-  const ent = createEntity(tool, x, y, state.placeDir)
+  let placeDir = state.placeDir
+  // Belts inherit direction from a neighbor pointing into this cell
+  if (tool === 'belt') {
+    for (const dir of ['N', 'E', 'S', 'W'] as Dir[]) {
+      const { dx, dy } =
+        dir === 'N'
+          ? { dx: 0, dy: -1 }
+          : dir === 'E'
+            ? { dx: 1, dy: 0 }
+            : dir === 'S'
+              ? { dx: 0, dy: 1 }
+              : { dx: -1, dy: 0 }
+      const nx = x - dx
+      const ny = y - dy
+      if (!inBounds(nx, ny)) continue
+      const nTile = state.tiles[idx(nx, ny)]
+      const nEnt = nTile.entityId ? state.entities[nTile.entityId] : null
+      if (nEnt?.kind === 'belt' && nEnt.dir === dir) {
+        placeDir = dir
+        break
+      }
+    }
+  }
 
-  // Auto-fuel new drills from inventory
+  let inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
+  const ent = createEntity(tool, x, y, placeDir)
+
   if (tool === 'drill') {
     const fuel = Math.min(5, inventory.coal)
     if (fuel > 0) {
@@ -180,12 +227,13 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   }
 
   tile.entityId = ent.id
-  return {
+  return claimGoals({
     ...state,
     tiles,
     entities: { ...state.entities, [ent.id]: ent },
     inventory,
-  }
+    placeDir,
+  })
 }
 
 export function rotateEntityAt(state: GameState, x: number, y: number): GameState {
@@ -202,7 +250,6 @@ export function rotateEntityAt(state: GameState, x: number, y: number): GameStat
   }
 }
 
-/** Feed coal from player inventory into all drills that are empty */
 export function topUpDrillFuel(state: GameState): GameState {
   let inventory = { ...state.inventory }
   const entities = { ...state.entities }
@@ -221,10 +268,6 @@ export function topUpDrillFuel(state: GameState): GameState {
   return { ...state, inventory, entities }
 }
 
-/**
- * Before mining, allow drills to sip 1 coal from player inventory if empty
- * so step cycles aren't soft-locked.
- */
 function ensureDrillFuel(state: GameState): GameState {
   let inventory = { ...state.inventory }
   const entities: typeof state.entities = { ...state.entities }
@@ -252,10 +295,9 @@ export function logSteps(state: GameState, amount: number): GameState {
     stepsLifetime: next.stepsLifetime + add,
   }
   next = ensureDrillFuel(next)
-  // Every step = one mining cycle for each drill
   next = runMineCycles(next, add)
   next = addXp(next, Math.floor(add / 400))
-  return next
+  return claimGoals(next)
 }
 
 export function completeHabit(state: GameState, habitId: string): GameState {
@@ -279,7 +321,18 @@ export function completeHabit(state: GameState, habitId: string): GameState {
     inventory: gain(next.inventory, reward.items, streakMult),
     totalHabitsCompleted: next.totalHabitsCompleted + 1,
   }
-  return addXp(next, Math.round(reward.xp * streakMult))
+  // Track hand-crafted gears from habit rewards
+  if (reward.items.gear) {
+    next = {
+      ...next,
+      stats: {
+        ...next.stats,
+        gearsMade: next.stats.gearsMade + Math.floor((reward.items.gear ?? 0) * streakMult),
+      },
+    }
+  }
+  next = addXp(next, Math.round(reward.xp * streakMult))
+  return claimGoals(next)
 }
 
 export function addHabit(
@@ -311,17 +364,37 @@ export function craftRecipe(state: GameState, recipeId: string): GameState {
     ...state,
     inventory: gain(spend(state.inventory, recipe.inputs), recipe.outputs),
   }
+  if (recipe.outputs.gear) {
+    next = {
+      ...next,
+      stats: {
+        ...next.stats,
+        gearsMade: next.stats.gearsMade + (recipe.outputs.gear ?? 0),
+      },
+    }
+  }
+  if (recipe.outputs.ironPlate || recipe.outputs.copperPlate) {
+    next = {
+      ...next,
+      stats: {
+        ...next.stats,
+        platesSmelted:
+          next.stats.platesSmelted +
+          (recipe.outputs.ironPlate ?? 0) +
+          (recipe.outputs.copperPlate ?? 0),
+      },
+    }
+  }
   next = addXp(next, 2)
-  return next
+  return claimGoals(next)
 }
 
-/** Pull all items from a chest into player inventory */
 export function collectChest(state: GameState, x: number, y: number): GameState {
   const tile = getTile(state.tiles, x, y)
   if (!tile?.entityId) return state
   const ent = state.entities[tile.entityId]
   if (!ent || ent.kind !== 'chest') return state
-  return {
+  return claimGoals({
     ...state,
     inventory: gain(state.inventory, ent.store as Partial<typeof state.inventory>),
     entities: {
@@ -329,13 +402,16 @@ export function collectChest(state: GameState, x: number, y: number): GameState 
       [ent.id]: { ...ent, store: {} },
     },
     unlockedToast: 'Collected chest contents',
-  }
+  })
 }
 
-/** Manually load coal into drills from inventory */
 export function fuelAllDrills(state: GameState): GameState {
   const next = topUpDrillFuel(state)
   return { ...next, unlockedToast: 'Fueled burner drills from inventory' }
+}
+
+export function cycleTip(state: GameState): GameState {
+  return { ...state, tipIndex: (state.tipIndex + 1) % TIPS.length }
 }
 
 export function clearToast(state: GameState): GameState {
@@ -351,4 +427,4 @@ export function renamePlayer(state: GameState, name: string): GameState {
   return { ...state, playerName: name.slice(0, 24) || state.playerName }
 }
 
-export { HAND_RECIPES, MACHINE_CAP, addToStore, takeFromStore }
+export { HAND_RECIPES }

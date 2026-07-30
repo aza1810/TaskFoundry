@@ -15,6 +15,7 @@ const INV_ORDER: ItemId[] = [
   'inserter',
   'furnace',
   'chest',
+  'assembler',
 ]
 
 const TOOLS: (Placeable | 'remove')[] = [
@@ -23,8 +24,19 @@ const TOOLS: (Placeable | 'remove')[] = [
   'inserter',
   'furnace',
   'chest',
+  'assembler',
   'remove',
 ]
+
+const HOTKEYS: Record<string, string> = {
+  drill: '1',
+  belt: '2',
+  inserter: '3',
+  furnace: '4',
+  chest: '5',
+  assembler: '6',
+  remove: 'Q',
+}
 
 export function InventoryBar() {
   const { state, selectTool, rotateDir, fuelDrills, selected, placeDir } = useGame()
@@ -34,7 +46,10 @@ export function InventoryBar() {
       <div className="resources" aria-label="Inventory">
         {INV_ORDER.map((id) => {
           const amount = state.inventory[id]
-          if (amount <= 0 && !['ironOre', 'coal', 'ironPlate', 'belt', 'drill'].includes(id)) {
+          if (
+            amount <= 0 &&
+            !['ironOre', 'coal', 'ironPlate', 'belt', 'drill', 'assembler'].includes(id)
+          ) {
             return null
           }
           const meta = ITEM_META[id]
@@ -54,34 +69,22 @@ export function InventoryBar() {
 
       <div className="toolbar" role="toolbar" aria-label="Build tools">
         {TOOLS.map((tool) => {
-          const label =
-            tool === 'remove' ? 'Remove' : PLACEABLE_META[tool].label
+          const label = tool === 'remove' ? 'Remove' : PLACEABLE_META[tool].label
           const count =
             tool === 'remove' ? null : state.inventory[PLACEABLE_META[tool].inventoryKey]
-          const hotkey =
-            tool === 'drill'
-              ? '1'
-              : tool === 'belt'
-                ? '2'
-                : tool === 'inserter'
-                  ? '3'
-                  : tool === 'furnace'
-                    ? '4'
-                    : tool === 'chest'
-                      ? '5'
-                      : 'Q'
           return (
             <button
               key={tool}
               type="button"
               className={selected === tool ? 'tool is-active' : 'tool'}
               onClick={() => selectTool(tool)}
+              title={tool === 'remove' ? 'Bulldoze' : PLACEABLE_META[tool].hint}
             >
               <ToolIcon kind={tool} />
               <span className="tool-text">
                 <span className="tool-name">{label}</span>
                 <span className="tool-meta">
-                  [{hotkey}]{count !== null ? ` · ${count}` : ''}
+                  [{HOTKEYS[tool]}]{count !== null ? ` · ${count}` : ''}
                 </span>
               </span>
             </button>

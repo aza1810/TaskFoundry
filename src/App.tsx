@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CraftPanel } from './components/CraftPanel'
 import { FactoryGrid } from './components/FactoryGrid'
+import { GoalsBar } from './components/GoalsBar'
 import { HabitsPanel } from './components/HabitsPanel'
 import { HeroStatus } from './components/HeroStatus'
 import { InventoryBar } from './components/InventoryBar'
@@ -42,6 +43,7 @@ function Shell() {
 
       <div className="shell">
         <HeroStatus />
+        <GoalsBar />
         <InventoryBar />
 
         <nav className="tabs" aria-label="Factory stations">

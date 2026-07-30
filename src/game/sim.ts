@@ -1,4 +1,6 @@
 import {
+  ASSEMBLER_PLATES_PER_GEAR,
+  ASSEMBLER_SECONDS,
   BELT_SPEED,
   DIR_DELTA,
   FURNACE_COAL_PER_SMELT,
@@ -12,6 +14,7 @@ import {
 import { getTile } from './grid'
 import type {
   Entity,
+  FactoryStats,
   GameState,
   ItemId,
   OreId,
@@ -19,8 +22,9 @@ import type {
 
 const MACHINE_CAP: Record<string, number> = {
   drill: 5,
-  furnace: 10,
+  furnace: 12,
   chest: 50,
+  assembler: 12,
 }
 
 function storeSum(
@@ -98,71 +102,6 @@ function neighbor(
   return { x: nx, y: ny, entity, tile }
 }
 
-/** One mining cycle per drill — driven by player steps */
-export function runMineCycles(state: GameState, cycles: number): GameState {
-  if (cycles <= 0) return state
-  const entities = { ...state.entities }
-  const tiles = state.tiles.map((t) => ({ ...t }))
-  let mined = 0
-
-  for (let c = 0; c < cycles; c++) {
-    for (const ent of Object.values(entities)) {
-      if (ent.kind !== 'drill') continue
-      const e = { ...ent, store: { ...ent.store } }
-      const tile = tiles[idx(e.x, e.y)]
-      if (!tile?.ore) {
-        entities[e.id] = e
-        continue
-      }
-      if (tile.amount !== null && tile.amount <= 0) {
-        tile.ore = null
-        entities[e.id] = e
-        continue
-      }
-
-      // Burner drill sips coal from its own store, else from player? Require coal in drill.
-      // Auto-feed: if drill has no coal, skip. Player/inserter must feed coal.
-      // Starter QoL: drills can pull 1 coal from inventory once — keep strict: need coal in store.
-      if ((e.store.coal ?? 0) < 0.25) {
-        // Try sip from inventory automatically for burner convenience? User wants Factorio feel —
-        // require coal in drill. But starter drills need fuel: allow consuming from inventory if empty.
-        entities[e.id] = e
-        continue
-      }
-
-      // Coal is fuel — don't let it fill the output buffer cap
-      const put = addToStore(e.store, tile.ore, 1, MACHINE_CAP.drill, ['coal'])
-      if (put <= 0) {
-        entities[e.id] = e
-        continue
-      }
-
-      // Consume fractional coal per cycle
-      const coalUse = 0.25
-      e.store.coal = (e.store.coal ?? 0) - coalUse
-      if (e.store.coal <= 0.001) delete e.store.coal
-
-      if (tile.amount !== null) {
-        tile.amount -= 1
-        if (tile.amount <= 0) {
-          tile.amount = 0
-          tile.ore = null
-        }
-      }
-      mined += 1
-      entities[e.id] = e
-    }
-  }
-
-  return {
-    ...state,
-    entities,
-    tiles,
-    mineCycles: state.mineCycles + cycles,
-    xp: state.xp + Math.floor(mined / 5),
-  }
-}
-
 function tryAcceptItem(entity: Entity, item: ItemId): boolean {
   if (entity.kind === 'belt') {
     if (entity.cargo) return false
@@ -170,20 +109,21 @@ function tryAcceptItem(entity: Entity, item: ItemId): boolean {
     return true
   }
   if (entity.kind === 'chest' || entity.kind === 'drill') {
-    return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind]) > 0
+    const except = entity.kind === 'drill' ? (['coal'] as ItemId[]) : undefined
+    return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind], except) > 0
   }
   if (entity.kind === 'furnace') {
-    // Accept ore or coal into input store
-    if (
-      item === 'coal' ||
-      item === 'ironOre' ||
-      item === 'copperOre'
-    ) {
+    if (item === 'coal' || item === 'ironOre' || item === 'copperOre') {
       return addToStore(entity.store, item, 1, MACHINE_CAP.furnace) > 0
     }
     return false
   }
-  if (entity.kind === 'inserter') return false
+  if (entity.kind === 'assembler') {
+    if (item === 'ironPlate') {
+      return addToStore(entity.store, item, 1, MACHINE_CAP.assembler, ['gear']) > 0
+    }
+    return false
+  }
   return false
 }
 
@@ -201,24 +141,105 @@ function tryExtractItem(
     return takeAny(entity.store, prefer)
   }
   if (entity.kind === 'furnace') {
-    // Output plates preferred
     return takeAny(entity.store, prefer ?? ['ironPlate', 'copperPlate'])
   }
+  if (entity.kind === 'assembler') {
+    return takeAny(entity.store, prefer ?? ['gear'])
+  }
   return null
 }
 
-function peekExtractable(entity: Entity): ItemId | null {
+function peekExtractable(entity: Entity): boolean {
   if (entity.kind === 'belt') {
-    if (!entity.cargo || entity.cargo.progress < 0.55) return null
-    return entity.cargo.item
+    return Boolean(entity.cargo && entity.cargo.progress >= 0.55)
   }
-  for (const [id, n] of Object.entries(entity.store) as [ItemId, number][]) {
-    if (n > 0) return id
-  }
-  return null
+  return Object.values(entity.store).some((n) => (n ?? 0) > 0)
 }
 
-/** Continuous factory simulation: belts, inserters, furnaces */
+/** Factorio-style: drill drops output onto facing belt/chest/furnace */
+function tryDrillEject(
+  state: GameState,
+  entities: Record<string, Entity>,
+  drill: Entity,
+): boolean {
+  const front = neighbor(state, drill.x, drill.y, drill.dir)
+  if (!front.entity) return false
+  const dest = entities[front.entity.id]
+  if (!dest) return false
+  if (dest.kind !== 'belt' && dest.kind !== 'chest' && dest.kind !== 'furnace') {
+    return false
+  }
+  const item = tryExtractItem(drill, ['ironOre', 'copperOre', 'coal'])
+  if (!item) return false
+  // Don't eject the last bits of fuel coal into the line unless mining coal
+  if (item === 'coal' && (drill.store.coal ?? 0) < 1 && dest.kind !== 'furnace') {
+    tryAcceptItem(drill, item)
+    return false
+  }
+  if (!tryAcceptItem(dest, item)) {
+    tryAcceptItem(drill, item)
+    return false
+  }
+  return true
+}
+
+/** One mining cycle per drill — driven by player steps */
+export function runMineCycles(state: GameState, cycles: number): GameState {
+  if (cycles <= 0) return state
+  const entities: Record<string, Entity> = {}
+  for (const [id, e] of Object.entries(state.entities)) {
+    entities[id] = { ...e, store: { ...e.store }, cargo: e.cargo ? { ...e.cargo } : null }
+  }
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  let mined = 0
+  const stats: FactoryStats = { ...state.stats }
+  const view = { ...state, entities }
+
+  for (let c = 0; c < cycles; c++) {
+    for (const id of Object.keys(entities)) {
+      const e = entities[id]
+      if (e.kind !== 'drill') continue
+
+      const tile = tiles[idx(e.x, e.y)]
+      if (!tile?.ore || (tile.amount !== null && tile.amount <= 0)) {
+        if (tile && tile.amount !== null && tile.amount <= 0) tile.ore = null
+        continue
+      }
+      if ((e.store.coal ?? 0) < 0.25) continue
+
+      // Free buffer space by ejecting first
+      tryDrillEject(view, entities, e)
+
+      const put = addToStore(e.store, tile.ore, 1, MACHINE_CAP.drill, ['coal'])
+      if (put <= 0) continue
+
+      e.store.coal = (e.store.coal ?? 0) - 0.25
+      if (e.store.coal <= 0.001) delete e.store.coal
+
+      if (tile.amount !== null) {
+        tile.amount -= 1
+        if (tile.amount <= 0) {
+          tile.amount = 0
+          tile.ore = null
+        }
+      }
+      mined += 1
+      stats.oreMined += 1
+      tryDrillEject(view, entities, e)
+    }
+  }
+
+  return {
+    ...state,
+    entities,
+    tiles,
+    stats,
+    mineCycles: state.mineCycles + cycles,
+    xp: state.xp + Math.floor(mined / 5),
+  }
+}
+
+/** Continuous factory simulation: belts, inserters, furnaces, assemblers, drill eject */
 export function simTick(state: GameState, dt: number): GameState {
   if (dt <= 0) return state
   const entities: Record<string, Entity> = {}
@@ -228,6 +249,14 @@ export function simTick(state: GameState, dt: number): GameState {
       store: { ...e.store },
       cargo: e.cargo ? { ...e.cargo } : null,
     }
+  }
+  const stats: FactoryStats = { ...state.stats }
+  let moved = 0
+
+  // --- Drill auto-eject ---
+  for (const e of Object.values(entities)) {
+    if (e.kind !== 'drill') continue
+    if (tryDrillEject(state, entities, e)) moved += 1
   }
 
   // --- Furnaces ---
@@ -252,6 +281,7 @@ export function simTick(state: GameState, dt: number): GameState {
         const out = SMELT_MAP[e.smelting as OreId]
         if (out !== 'coal') {
           addToStore(e.store, out, 1, MACHINE_CAP.furnace)
+          stats.platesSmelted += 1
         }
         e.smelting = null
         e.progress = 0
@@ -259,10 +289,35 @@ export function simTick(state: GameState, dt: number): GameState {
     }
   }
 
-  // --- Belts: advance cargo, then try transfer ---
+  // --- Assemblers: 2 iron plate → 1 gear ---
+  for (const e of Object.values(entities)) {
+    if (e.kind !== 'assembler') continue
+    const plates = e.store.ironPlate ?? 0
+    if (!e.smelting && plates >= ASSEMBLER_PLATES_PER_GEAR) {
+      // reuse smelting flag as "busy" with dummy ore mark via progress only
+      takeFromStore(e.store, 'ironPlate', ASSEMBLER_PLATES_PER_GEAR)
+      e.progress = 0
+      e.smelting = 'ironOre' // busy marker
+    }
+    if (e.smelting) {
+      e.progress += dt / ASSEMBLER_SECONDS
+      if (e.progress >= 1) {
+        addToStore(e.store, 'gear', 1, MACHINE_CAP.assembler, ['ironPlate'])
+        stats.gearsMade += 1
+        e.smelting = null
+        e.progress = 0
+      }
+    }
+  }
+
+  // --- Belts ---
   const beltOrder = Object.values(entities).filter((e) => e.kind === 'belt')
-  // Move from downstream first to avoid double-step: sort by direction
-  beltOrder.sort((a, b) => b.x + b.y * 100 - (a.x + a.y * 100))
+  beltOrder.sort((a, b) => {
+    // Downstream-first by direction
+    const da = DIR_DELTA[a.dir]
+    const db = DIR_DELTA[b.dir]
+    return db.dx + db.dy * 50 + b.x + b.y * 100 - (da.dx + da.dy * 50 + a.x + a.y * 100)
+  })
 
   for (const e of beltOrder) {
     if (!e.cargo) continue
@@ -271,21 +326,23 @@ export function simTick(state: GameState, dt: number): GameState {
 
     const next = neighbor(state, e.x, e.y, e.dir)
     if (!next.entity) continue
+    const dest = entities[next.entity.id]
 
-    if (next.entity.kind === 'belt') {
-      const dest = entities[next.entity.id]
+    if (dest.kind === 'belt') {
       if (!dest.cargo) {
         dest.cargo = { item: e.cargo.item, progress: 0 }
         e.cargo = null
+        moved += 1
       }
     } else if (
-      next.entity.kind === 'chest' ||
-      next.entity.kind === 'furnace' ||
-      next.entity.kind === 'drill'
+      dest.kind === 'chest' ||
+      dest.kind === 'furnace' ||
+      dest.kind === 'drill' ||
+      dest.kind === 'assembler'
     ) {
-      const dest = entities[next.entity.id]
       if (tryAcceptItem(dest, e.cargo.item)) {
         e.cargo = null
+        moved += 1
       }
     }
   }
@@ -293,7 +350,6 @@ export function simTick(state: GameState, dt: number): GameState {
   // --- Inserters ---
   for (const e of Object.values(entities)) {
     if (e.kind !== 'inserter') continue
-    // cooldown stored in progress field
     e.progress = Math.max(0, e.progress - dt)
     if (e.progress > 0) continue
 
@@ -304,30 +360,27 @@ export function simTick(state: GameState, dt: number): GameState {
     const src = entities[behind.entity.id]
     const dest = entities[front.entity.id]
 
-    // Prefer feeding furnaces coal/ore; prefer pulling plates from furnaces
     let prefer: ItemId[] | undefined
     if (dest.kind === 'furnace') prefer = ['coal', 'ironOre', 'copperOre']
+    if (dest.kind === 'assembler') prefer = ['ironPlate']
     if (src.kind === 'furnace') prefer = ['ironPlate', 'copperPlate']
+    if (src.kind === 'assembler') prefer = ['gear']
     if (src.kind === 'drill') prefer = ['ironOre', 'copperOre', 'coal']
 
     if (!peekExtractable(src)) continue
-    // Soft check dest capacity via try accept after extract — extract then rollback if needed
     const item = tryExtractItem(src, prefer)
     if (!item) continue
     if (!tryAcceptItem(dest, item)) {
-      // put back
       tryAcceptItem(src, item)
       continue
     }
     e.progress = INSERTER_COOLDOWN
+    moved += 1
   }
 
-  return { ...state, entities, lastTick: Date.now() }
-}
+  stats.itemsMoved += moved
 
-export function fuelDrillsFromInventory(state: GameState): GameState {
-  // Helper used when placing drill: put some coal in it from inventory
-  return state
+  return { ...state, entities, stats, lastTick: Date.now() }
 }
 
 export { addToStore, takeFromStore, MACHINE_CAP }

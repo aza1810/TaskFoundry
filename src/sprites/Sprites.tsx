@@ -185,6 +185,25 @@ export function ChestSprite({ filled }: { filled?: boolean }) {
   )
 }
 
+export function AssemblerSprite({ active }: { active?: boolean }) {
+  return (
+    <svg
+      className={`sprite sprite-assembler ${active ? 'is-active' : ''}`}
+      viewBox="0 0 64 64"
+      aria-hidden
+    >
+      <rect x="8" y="12" width="48" height="44" rx="2" fill="#4a6a8a" stroke="#1a1612" strokeWidth="2" />
+      <rect x="14" y="18" width="36" height="22" fill="#1a2430" />
+      <rect x="18" y="22" width="12" height="14" fill="#6a8aaa" className="asm-arm" />
+      <rect x="34" y="22" width="12" height="14" fill="#6a8aaa" className="asm-arm" />
+      <circle cx="32" cy="48" r="6" fill="#c47a12" stroke="#1a1612" strokeWidth="1" />
+      {active && <circle cx="50" cy="16" r="3" fill="#7dff9a" className="drill-lamp" />}
+      <rect x="12" y="42" width="8" height="4" fill="#2a4058" />
+      <rect x="44" y="42" width="8" height="4" fill="#2a4058" />
+    </svg>
+  )
+}
+
 const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   ironOre: { fill: '#8B7355', edge: '#5a4a38' },
   copperOre: { fill: '#C4783A', edge: '#8a4a28' },
@@ -197,6 +216,7 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   drill: { fill: '#6B5535', edge: '#3d3020' },
   furnace: { fill: '#8A4B1A', edge: '#4a2810' },
   chest: { fill: '#5C6B7A', edge: '#2a3540' },
+  assembler: { fill: '#4a6a8a', edge: '#2a4058' },
 }
 
 export function ItemSprite({ item }: { item: ItemId }) {
@@ -264,6 +284,8 @@ export function EntitySprite({
       return <FurnaceSprite lit={lit} />
     case 'chest':
       return <ChestSprite filled={filled} />
+    case 'assembler':
+      return <AssemblerSprite active={active || lit} />
   }
 }
 
