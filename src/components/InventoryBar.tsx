@@ -1,7 +1,7 @@
 import { ITEM_META, PLACEABLE_META, formatNum } from '../game/data'
 import { useGame } from '../game/GameContext'
 import { ItemSprite, ToolIcon } from '../sprites/Sprites'
-import type { ItemId, Placeable } from '../game/types'
+import type { ItemId, Placeable, ToolId } from '../game/types'
 
 const INV_ORDER: ItemId[] = [
   'ironOre',
@@ -9,32 +9,39 @@ const INV_ORDER: ItemId[] = [
   'coal',
   'ironPlate',
   'copperPlate',
+  'steel',
   'gear',
   'drill',
   'electricDrill',
   'belt',
   'fastBelt',
+  'undergroundBelt',
   'inserter',
   'splitter',
   'furnace',
+  'steelFurnace',
   'chest',
   'assembler',
 ]
 
-const TOOLS: (Placeable | 'remove')[] = [
+const TOOLS: ToolId[] = [
   'drill',
   'electricDrill',
   'belt',
   'fastBelt',
+  'undergroundBelt',
   'inserter',
   'splitter',
   'furnace',
+  'steelFurnace',
   'chest',
   'assembler',
   'remove',
+  'copy',
+  'paste',
 ]
 
-const HOTKEYS: Partial<Record<Placeable | 'remove', string>> = {
+const HOTKEYS: Partial<Record<ToolId, string>> = {
   drill: '1',
   belt: '2',
   inserter: '3',
@@ -42,6 +49,30 @@ const HOTKEYS: Partial<Record<Placeable | 'remove', string>> = {
   chest: '5',
   assembler: '6',
   remove: 'Q',
+  copy: 'C',
+  paste: 'V',
+}
+
+function isUnlocked(tool: ToolId, researched: string[]): boolean {
+  if (
+    tool === 'remove' ||
+    tool === 'copy' ||
+    tool === 'paste' ||
+    tool === 'drill' ||
+    tool === 'belt' ||
+    tool === 'inserter' ||
+    tool === 'furnace' ||
+    tool === 'chest' ||
+    tool === 'assembler'
+  ) {
+    return true
+  }
+  if (tool === 'fastBelt') return researched.includes('logistics2')
+  if (tool === 'electricDrill') return researched.includes('electricMining')
+  if (tool === 'splitter') return researched.includes('splitters')
+  if (tool === 'undergroundBelt') return researched.includes('undergroundBelts')
+  if (tool === 'steelFurnace') return researched.includes('steelProcessing')
+  return false
 }
 
 export function InventoryBar() {
@@ -71,30 +102,42 @@ export function InventoryBar() {
 
       <div className="toolbar" role="toolbar" aria-label="Build tools">
         {TOOLS.map((tool) => {
-          const unlocked =
-            tool === 'remove' ||
-            tool === 'drill' ||
-            tool === 'belt' ||
-            tool === 'inserter' ||
-            tool === 'furnace' ||
-            tool === 'chest' ||
-            tool === 'assembler' ||
-            (tool === 'fastBelt' && state.researched.includes('logistics2')) ||
-            (tool === 'electricDrill' && state.researched.includes('electricMining')) ||
-            (tool === 'splitter' && state.researched.includes('splitters'))
+          const unlocked = isUnlocked(tool, state.researched)
           if (!unlocked) {
+            if (tool === 'copy' || tool === 'paste' || tool === 'remove') return null
             if ((state.inventory[tool as Placeable] ?? 0) <= 0) return null
           }
-          const label = tool === 'remove' ? 'Remove' : PLACEABLE_META[tool].label
+          const label =
+            tool === 'remove'
+              ? 'Remove'
+              : tool === 'copy'
+                ? 'Copy'
+                : tool === 'paste'
+                  ? 'Paste'
+                  : PLACEABLE_META[tool].label
           const count =
-            tool === 'remove' ? null : state.inventory[PLACEABLE_META[tool].inventoryKey]
+            tool === 'remove' || tool === 'copy' || tool === 'paste'
+              ? tool === 'paste' && state.blueprint
+                ? state.blueprint.length
+                : null
+              : state.inventory[PLACEABLE_META[tool].inventoryKey]
+          const hint =
+            tool === 'remove'
+              ? 'Bulldoze'
+              : tool === 'copy'
+                ? 'Click two corners to copy a rectangle of buildings'
+                : tool === 'paste'
+                  ? state.blueprint
+                    ? `Paste ${state.blueprint.length} buildings (spends inventory)`
+                    : 'Copy a blueprint first'
+                  : PLACEABLE_META[tool].hint
           return (
             <button
               key={tool}
               type="button"
               className={selected === tool ? 'tool is-active' : 'tool'}
               onClick={() => selectTool(tool)}
-              title={tool === 'remove' ? 'Bulldoze' : PLACEABLE_META[tool].hint}
+              title={hint}
             >
               <ToolIcon kind={tool} />
               <span className="tool-text">

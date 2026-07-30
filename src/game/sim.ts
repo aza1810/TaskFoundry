@@ -5,14 +5,17 @@ import {
   ELECTRIC_DRILL_YIELD,
   FURNACE_COAL_PER_SMELT,
   FURNACE_INPUT_ORES,
-  FURNACE_SECONDS,
   INSERTER_COOLDOWN,
+  MAX_UNDERGROUND,
   OPPOSITE,
   SMELT_MAP,
   beltSpeedFor,
+  furnaceSecondsFor,
   idx,
+  inBounds,
   isBeltKind,
   isDrillKind,
+  isFurnaceKind,
   rotateDir,
 } from './data'
 import { getTile } from './grid'
@@ -29,6 +32,7 @@ const MACHINE_CAP: Record<string, number> = {
   drill: 5,
   electricDrill: 8,
   furnace: 12,
+  steelFurnace: 12,
   chest: 50,
   assembler: 12,
 }
@@ -109,8 +113,44 @@ function neighbor(
   return { x: nx, y: ny, entity, tile }
 }
 
+/** Find matching UG partner (entrance↔exit) along facing axis, up to MAX_UNDERGROUND. */
+export function findUgPartner(
+  state: GameState,
+  entities: Record<string, Entity>,
+  ug: Entity,
+): Entity | null {
+  const isEntrance = (ug.toggle ?? 0) === 0
+  const lookingFor = isEntrance ? 1 : 0
+  const sign = isEntrance ? 1 : -1
+  const { dx, dy } = DIR_DELTA[ug.dir]
+  for (let d = 1; d <= MAX_UNDERGROUND; d++) {
+    const x = ug.x + dx * d * sign
+    const y = ug.y + dy * d * sign
+    if (!inBounds(x, y, state.width, state.height)) break
+    const tile = getTile(state.tiles, x, y)
+    if (!tile?.entityId) continue
+    const e = entities[tile.entityId]
+    if (
+      e &&
+      e.kind === 'undergroundBelt' &&
+      e.dir === ug.dir &&
+      (e.toggle ?? 0) === lookingFor
+    ) {
+      return e
+    }
+  }
+  return null
+}
+
 function tryAcceptItem(entity: Entity, item: ItemId): boolean {
   if (isBeltKind(entity.kind) || entity.kind === 'splitter') {
+    if (entity.cargo) return false
+    entity.cargo = { item, progress: 0 }
+    return true
+  }
+  if (entity.kind === 'undergroundBelt') {
+    // Only entrances accept from the surface; exits receive via teleport
+    if ((entity.toggle ?? 0) !== 0) return false
     if (entity.cargo) return false
     entity.cargo = { item, progress: 0 }
     return true
@@ -121,9 +161,9 @@ function tryAcceptItem(entity: Entity, item: ItemId): boolean {
   if (entity.kind === 'chest') {
     return addToStore(entity.store, item, 1, MACHINE_CAP.chest) > 0
   }
-  if (entity.kind === 'furnace') {
+  if (isFurnaceKind(entity.kind)) {
     if (item === 'coal' || item === 'ironOre' || item === 'copperOre') {
-      return addToStore(entity.store, item, 1, MACHINE_CAP.furnace) > 0
+      return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind] ?? 12) > 0
     }
     return false
   }
@@ -140,7 +180,11 @@ function tryExtractItem(
   entity: Entity,
   prefer?: ItemId[],
 ): ItemId | null {
-  if (isBeltKind(entity.kind) || entity.kind === 'splitter') {
+  if (
+    isBeltKind(entity.kind) ||
+    entity.kind === 'splitter' ||
+    entity.kind === 'undergroundBelt'
+  ) {
     if (!entity.cargo || entity.cargo.progress < 0.55) return null
     const item = entity.cargo.item
     entity.cargo = null
@@ -149,7 +193,7 @@ function tryExtractItem(
   if (isDrillKind(entity.kind) || entity.kind === 'chest') {
     return takeAny(entity.store, prefer)
   }
-  if (entity.kind === 'furnace') {
+  if (isFurnaceKind(entity.kind)) {
     return takeAny(entity.store, prefer ?? ['ironPlate', 'copperPlate'])
   }
   if (entity.kind === 'assembler') {
@@ -159,7 +203,11 @@ function tryExtractItem(
 }
 
 function peekExtractable(entity: Entity): boolean {
-  if (isBeltKind(entity.kind) || entity.kind === 'splitter') {
+  if (
+    isBeltKind(entity.kind) ||
+    entity.kind === 'splitter' ||
+    entity.kind === 'undergroundBelt'
+  ) {
     return Boolean(entity.cargo && entity.cargo.progress >= 0.55)
   }
   return Object.values(entity.store).some((n) => (n ?? 0) > 0)
@@ -178,8 +226,9 @@ function tryDrillEject(
   if (
     !isBeltKind(dest.kind) &&
     dest.kind !== 'chest' &&
-    dest.kind !== 'furnace' &&
-    dest.kind !== 'splitter'
+    !isFurnaceKind(dest.kind) &&
+    dest.kind !== 'splitter' &&
+    dest.kind !== 'undergroundBelt'
   ) {
     return false
   }
@@ -284,9 +333,11 @@ export function simTick(state: GameState, dt: number): GameState {
     if (tryDrillEject(state, entities, e)) moved += 1
   }
 
-  // --- Furnaces ---
+  // --- Furnaces (stone + steel) ---
   for (const e of Object.values(entities)) {
-    if (e.kind !== 'furnace') continue
+    if (!isFurnaceKind(e.kind)) continue
+    const cap = MACHINE_CAP[e.kind] ?? 12
+    const seconds = furnaceSecondsFor(e.kind)
 
     if (!e.smelting) {
       for (const ore of FURNACE_INPUT_ORES) {
@@ -301,11 +352,11 @@ export function simTick(state: GameState, dt: number): GameState {
     }
 
     if (e.smelting) {
-      e.progress += dt / FURNACE_SECONDS
+      e.progress += dt / seconds
       if (e.progress >= 1) {
         const out = SMELT_MAP[e.smelting as OreId]
         if (out !== 'coal') {
-          addToStore(e.store, out, 1, MACHINE_CAP.furnace)
+          addToStore(e.store, out, 1, cap)
           stats.platesSmelted += 1
         }
         e.smelting = null
@@ -319,7 +370,6 @@ export function simTick(state: GameState, dt: number): GameState {
     if (e.kind !== 'assembler') continue
     const plates = e.store.ironPlate ?? 0
     if (!e.smelting && plates >= ASSEMBLER_PLATES_PER_GEAR) {
-      // reuse smelting flag as "busy" with dummy ore mark via progress only
       takeFromStore(e.store, 'ironPlate', ASSEMBLER_PLATES_PER_GEAR)
       e.progress = 0
       e.smelting = 'ironOre' // busy marker
@@ -335,7 +385,7 @@ export function simTick(state: GameState, dt: number): GameState {
     }
   }
 
-  // --- Belts + splitters ---
+  // --- Belts ---
   const beltOrder = Object.values(entities).filter((e) => isBeltKind(e.kind))
   beltOrder.sort((a, b) => {
     const da = DIR_DELTA[a.dir]
@@ -358,6 +408,28 @@ export function simTick(state: GameState, dt: number): GameState {
     }
   }
 
+  // --- Underground belts: entrance teleports to exit, exit ejects forward ---
+  for (const e of Object.values(entities)) {
+    if (e.kind !== 'undergroundBelt' || !e.cargo) continue
+    e.cargo.progress = Math.min(1, e.cargo.progress + beltSpeedFor('belt') * dt)
+    if (e.cargo.progress < 1) continue
+
+    if ((e.toggle ?? 0) === 0) {
+      const partner = findUgPartner(state, entities, e)
+      if (!partner || partner.cargo) continue
+      partner.cargo = { item: e.cargo.item, progress: 0 }
+      e.cargo = null
+      moved += 1
+    } else {
+      const next = neighbor(state, e.x, e.y, e.dir)
+      if (!next.entity) continue
+      if (tryAcceptItem(entities[next.entity.id], e.cargo.item)) {
+        e.cargo = null
+        moved += 1
+      }
+    }
+  }
+
   // Splitters: alternate forward vs right output
   for (const e of Object.values(entities)) {
     if (e.kind !== 'splitter' || !e.cargo) continue
@@ -368,7 +440,6 @@ export function simTick(state: GameState, dt: number): GameState {
     const outDir: Dir = toggle === 0 ? e.dir : rotateDir(e.dir, true)
     const next = neighbor(state, e.x, e.y, outDir)
     if (!next.entity) {
-      // try the other side if blocked
       const alt: Dir = toggle === 0 ? rotateDir(e.dir, true) : e.dir
       const altN = neighbor(state, e.x, e.y, alt)
       if (altN.entity && tryAcceptItem(entities[altN.entity.id], e.cargo.item)) {
@@ -399,9 +470,9 @@ export function simTick(state: GameState, dt: number): GameState {
     const dest = entities[front.entity.id]
 
     let prefer: ItemId[] | undefined
-    if (dest.kind === 'furnace') prefer = ['coal', 'ironOre', 'copperOre']
+    if (isFurnaceKind(dest.kind)) prefer = ['coal', 'ironOre', 'copperOre']
     if (dest.kind === 'assembler') prefer = ['ironPlate']
-    if (src.kind === 'furnace') prefer = ['ironPlate', 'copperPlate']
+    if (isFurnaceKind(src.kind)) prefer = ['ironPlate', 'copperPlate']
     if (src.kind === 'assembler') prefer = ['gear']
     if (isDrillKind(src.kind)) prefer = ['ironOre', 'copperOre', 'coal']
 

@@ -158,14 +158,18 @@ export function InserterSprite({ dir }: { dir: Dir }) {
   )
 }
 
-export function FurnaceSprite({ lit }: { lit?: boolean }) {
+export function FurnaceSprite({ lit, steel }: { lit?: boolean; steel?: boolean }) {
+  const body = steel ? '#4a5560' : '#6a5a4a'
+  const rim = steel ? '#2a3038' : '#2a2018'
+  const top = steel ? '#6a7580' : '#5a4a3a'
+  const foot = steel ? '#3a4450' : '#4a3a2a'
   return (
     <svg
-      className={`sprite sprite-furnace ${lit ? 'is-lit' : ''}`}
+      className={`sprite sprite-furnace ${lit ? 'is-lit' : ''} ${steel ? 'is-steel' : ''}`}
       viewBox="0 0 64 64"
       aria-hidden
     >
-      <rect x="10" y="14" width="44" height="42" rx="2" fill="#6a5a4a" stroke="#2a2018" strokeWidth="2" />
+      <rect x="10" y="14" width="44" height="42" rx="2" fill={body} stroke={rim} strokeWidth="2" />
       <rect x="16" y="20" width="32" height="22" fill="#1a1210" />
       <rect
         className="furnace-glow"
@@ -182,14 +186,47 @@ export function FurnaceSprite({ lit }: { lit?: boolean }) {
           <ellipse cx="38" cy="34" rx="3" ry="5" fill="#ff8822" opacity="0.7" />
         </>
       )}
-      <rect x="14" y="48" width="36" height="6" fill="#4a3a2a" />
-      <rect x="22" y="8" width="8" height="8" fill="#5a4a3a" stroke="#1a1612" strokeWidth="1" />
-      <rect x="34" y="8" width="8" height="8" fill="#5a4a3a" stroke="#1a1612" strokeWidth="1" />
-      {/* rivets */}
+      <rect x="14" y="48" width="36" height="6" fill={foot} />
+      <rect x="22" y="8" width="8" height="8" fill={top} stroke="#1a1612" strokeWidth="1" />
+      <rect x="34" y="8" width="8" height="8" fill={top} stroke="#1a1612" strokeWidth="1" />
+      {steel && (
+        <rect x="24" y="50" width="16" height="3" fill="#c4d0dc" opacity="0.5" />
+      )}
       <circle cx="14" cy="18" r="1.5" fill="#2a2018" />
       <circle cx="50" cy="18" r="1.5" fill="#2a2018" />
       <circle cx="14" cy="50" r="1.5" fill="#2a2018" />
       <circle cx="50" cy="50" r="1.5" fill="#2a2018" />
+    </svg>
+  )
+}
+
+export function UndergroundBeltSprite({
+  dir,
+  exit,
+  moving,
+}: {
+  dir: Dir
+  exit?: boolean
+  moving?: boolean
+}) {
+  return (
+    <svg
+      className={`sprite sprite-ug ${moving ? 'is-moving' : ''}`}
+      viewBox="0 0 64 64"
+      style={{ transform: `rotate(${ROT[dir]}deg)` }}
+      aria-hidden
+    >
+      <rect x="2" y="18" width="60" height="28" rx="2" fill="#1a1612" />
+      <rect x="4" y="20" width="56" height="24" fill="#c4783a" />
+      <rect x="8" y="24" width="20" height="16" fill="#5a3a20" />
+      <ellipse cx={exit ? 48 : 16} cy="32" rx="10" ry="8" fill="#1a1210" />
+      <ellipse cx={exit ? 48 : 16} cy="32" rx="6" ry="5" fill="#0a0806" />
+      {exit ? (
+        <polygon points="58,32 48,24 48,40" fill="#f0a020" />
+      ) : (
+        <polygon points="6,32 16,24 16,40" fill="#f0a020" />
+      )}
+      <rect x="28" y="26" width="8" height="12" fill="#8a5a30" />
     </svg>
   )
 }
@@ -234,13 +271,16 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   ironPlate: { fill: '#A8B0BC', edge: '#6a7280' },
   copperPlate: { fill: '#E8913A', edge: '#a06020' },
   gear: { fill: '#9AA3AD', edge: '#5a636c' },
+  steel: { fill: '#5C6B7A', edge: '#2a3540' },
   belt: { fill: '#F0A020', edge: '#8a5a10' },
   inserter: { fill: '#c4a035', edge: '#6a5010' },
   drill: { fill: '#6B5535', edge: '#3d3020' },
   furnace: { fill: '#8A4B1A', edge: '#4a2810' },
+  steelFurnace: { fill: '#4a5560', edge: '#2a3038' },
   chest: { fill: '#5C6B7A', edge: '#2a3540' },
   assembler: { fill: '#4a6a8a', edge: '#2a4058' },
   fastBelt: { fill: '#E05050', edge: '#8a2020' },
+  undergroundBelt: { fill: '#c4783a', edge: '#6a3a18' },
   electricDrill: { fill: '#3D9E5F', edge: '#1a5030' },
   splitter: { fill: '#c4a035', edge: '#6a5010' },
 }
@@ -268,7 +308,7 @@ export function ItemSprite({ item }: { item: ItemId }) {
       </svg>
     )
   }
-  if (item === 'ironPlate' || item === 'copperPlate') {
+  if (item === 'ironPlate' || item === 'copperPlate' || item === 'steel') {
     return (
       <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
         <rect x="4" y="8" width="24" height="16" rx="1" fill={c.fill} stroke={c.edge} strokeWidth="2" />
@@ -291,6 +331,7 @@ export function EntitySprite({
   active,
   moving,
   filled,
+  toggle,
 }: {
   kind: EntityKind
   dir: Dir
@@ -298,12 +339,21 @@ export function EntitySprite({
   active?: boolean
   moving?: boolean
   filled?: boolean
+  toggle?: number
 }) {
   switch (kind) {
     case 'belt':
       return <BeltSprite dir={dir} moving={moving} />
     case 'fastBelt':
       return <BeltSprite dir={dir} moving={moving} fast />
+    case 'undergroundBelt':
+      return (
+        <UndergroundBeltSprite
+          dir={dir}
+          exit={(toggle ?? 0) === 1}
+          moving={moving}
+        />
+      )
     case 'drill':
       return <DrillSprite dir={dir} active={active} />
     case 'electricDrill':
@@ -312,6 +362,8 @@ export function EntitySprite({
       return <InserterSprite dir={dir} />
     case 'furnace':
       return <FurnaceSprite lit={lit} />
+    case 'steelFurnace':
+      return <FurnaceSprite lit={lit} steel />
     case 'chest':
       return <ChestSprite filled={filled} />
     case 'assembler':
@@ -321,13 +373,29 @@ export function EntitySprite({
   }
 }
 
-export function ToolIcon({ kind }: { kind: EntityKind | 'remove' }) {
+export function ToolIcon({ kind }: { kind: EntityKind | 'remove' | 'copy' | 'paste' }) {
   if (kind === 'remove') {
     return (
       <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>
         <rect x="4" y="4" width="24" height="24" fill="#3d3030" stroke="#b33a2b" strokeWidth="2" />
         <line x1="10" y1="10" x2="22" y2="22" stroke="#b33a2b" strokeWidth="3" />
         <line x1="22" y1="10" x2="10" y2="22" stroke="#b33a2b" strokeWidth="3" />
+      </svg>
+    )
+  }
+  if (kind === 'copy') {
+    return (
+      <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>
+        <rect x="6" y="10" width="14" height="14" fill="none" stroke="#7ab0e0" strokeWidth="2" />
+        <rect x="12" y="6" width="14" height="14" fill="#2a3540" stroke="#a8d0f0" strokeWidth="2" />
+      </svg>
+    )
+  }
+  if (kind === 'paste') {
+    return (
+      <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>
+        <rect x="8" y="8" width="16" height="16" fill="#2a4030" stroke="#7dff9a" strokeWidth="2" />
+        <path d="M12 16 L15 19 L21 12" fill="none" stroke="#7dff9a" strokeWidth="2" />
       </svg>
     )
   }

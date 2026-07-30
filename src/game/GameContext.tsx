@@ -159,6 +159,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (key === '4') dispatch({ type: 'SELECT', tool: 'furnace' })
       if (key === '5') dispatch({ type: 'SELECT', tool: 'chest' })
       if (key === '6') dispatch({ type: 'SELECT', tool: 'assembler' })
+      if (key === 'c') dispatch({ type: 'SELECT', tool: 'copy' })
+      if (key === 'v') dispatch({ type: 'SELECT', tool: 'paste' })
       if (key === 'escape') dispatch({ type: 'SELECT', tool: null })
     }
     window.addEventListener('keydown', onKey)

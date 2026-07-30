@@ -5,12 +5,15 @@ export type ItemId =
   | 'ironPlate'
   | 'copperPlate'
   | 'gear'
+  | 'steel'
   | 'belt'
   | 'fastBelt'
+  | 'undergroundBelt'
   | 'inserter'
   | 'drill'
   | 'electricDrill'
   | 'furnace'
+  | 'steelFurnace'
   | 'chest'
   | 'assembler'
   | 'splitter'
@@ -24,13 +27,20 @@ export type EntityKind =
   | 'electricDrill'
   | 'belt'
   | 'fastBelt'
+  | 'undergroundBelt'
   | 'inserter'
   | 'furnace'
+  | 'steelFurnace'
   | 'chest'
   | 'assembler'
   | 'splitter'
 
-export type TechId = 'logistics2' | 'electricMining' | 'splitters'
+export type TechId =
+  | 'logistics2'
+  | 'electricMining'
+  | 'splitters'
+  | 'undergroundBelts'
+  | 'steelProcessing'
 
 export type HabitCategory = 'mining' | 'smelting' | 'assembly' | 'logistics'
 
@@ -58,7 +68,7 @@ export interface Entity {
   progress: number
   smelting: OreId | null
   cargo: BeltCargo | null
-  /** Splitter output toggle 0|1 */
+  /** Splitter output toggle / UG belt: 0=entrance, 1=exit */
   toggle?: number
 }
 
@@ -75,12 +85,15 @@ export interface Inventory {
   ironPlate: number
   copperPlate: number
   gear: number
+  steel: number
   belt: number
   fastBelt: number
+  undergroundBelt: number
   inserter: number
   drill: number
   electricDrill: number
   furnace: number
+  steelFurnace: number
   chest: number
   assembler: number
   splitter: number
@@ -92,12 +105,24 @@ export type Placeable = Extract<
   | 'electricDrill'
   | 'belt'
   | 'fastBelt'
+  | 'undergroundBelt'
   | 'inserter'
   | 'furnace'
+  | 'steelFurnace'
   | 'chest'
   | 'assembler'
   | 'splitter'
 >
+
+export type ToolId = Placeable | 'remove' | 'copy' | 'paste'
+
+export interface BlueprintEntity {
+  kind: Placeable
+  dx: number
+  dy: number
+  dir: Dir
+  toggle?: number
+}
 
 export interface CraftJob {
   id: string
@@ -128,7 +153,7 @@ export interface GameState {
   stepsLifetime: number
   stepsDate: string
   mineCycles: number
-  selected: Placeable | 'remove' | null
+  selected: ToolId | null
   placeDir: Dir
   lastTick: number
   totalHabitsCompleted: number
@@ -138,6 +163,9 @@ export interface GameState {
   tipIndex: number
   craftQueue: CraftJob[]
   researched: TechId[]
+  blueprint: BlueprintEntity[] | null
+  /** First corner while copying */
+  copyCorner: { x: number; y: number } | null
 }
 
 export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research'

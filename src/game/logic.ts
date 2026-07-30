@@ -1,5 +1,6 @@
 import {
   DEFAULT_HABITS,
+  DIR_DELTA,
   EMPTY_INVENTORY,
   GAME_VERSION,
   GRID_H,
@@ -7,6 +8,7 @@ import {
   HABIT_REWARDS,
   HAND_RECIPES,
   MAX_CRAFT_QUEUE,
+  MAX_UNDERGROUND,
   OFFLINE_CAP_SECONDS,
   PLACEABLE_META,
   RECIPE_MAP,
@@ -16,6 +18,7 @@ import {
   idx,
   inBounds,
   isBeltKind,
+  isDrillKind,
   rotateDir,
   spend,
   todayKey,
@@ -24,8 +27,9 @@ import {
 import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
 import { TECHS } from './research'
-import { runMineCycles, simTick } from './sim'
+import { findUgPartner, runMineCycles, simTick } from './sim'
 import type {
+  BlueprintEntity,
   CraftJob,
   Dir,
   GameState,
@@ -61,6 +65,8 @@ export function createInitialState(): GameState {
     tipIndex: 0,
     craftQueue: [],
     researched: [],
+    blueprint: null,
+    copyCorner: null,
   }
 }
 
@@ -81,6 +87,8 @@ export function loadState(): GameState {
       completedGoals: parsed.completedGoals ?? [],
       craftQueue: parsed.craftQueue ?? [],
       researched: parsed.researched ?? [],
+      blueprint: parsed.blueprint ?? null,
+      copyCorner: parsed.copyCorner ?? null,
     }
   } catch {
     return createInitialState()
@@ -234,7 +242,7 @@ export function tickState(state: GameState, now = Date.now()): GameState {
 }
 
 export function selectTool(state: GameState, tool: GameState['selected']): GameState {
-  return { ...state, selected: tool }
+  return { ...state, selected: tool, copyCorner: null }
 }
 
 export function rotatePlaceDir(state: GameState): GameState {
@@ -249,6 +257,13 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   if (!inBounds(x, y)) return state
   const tool = state.selected
   if (!tool) return state
+
+  if (tool === 'copy') {
+    return handleCopyClick(state, x, y)
+  }
+  if (tool === 'paste') {
+    return pasteBlueprint(state, x, y)
+  }
 
   const tiles = state.tiles.map((t) => ({ ...t }))
   const tile = tiles[idx(x, y)]
@@ -284,14 +299,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   // Belts inherit direction from a neighbor pointing into this cell
   if (isBeltKind(tool)) {
     for (const dir of ['N', 'E', 'S', 'W'] as Dir[]) {
-      const { dx, dy } =
-        dir === 'N'
-          ? { dx: 0, dy: -1 }
-          : dir === 'E'
-            ? { dx: 1, dy: 0 }
-            : dir === 'S'
-              ? { dx: 0, dy: 1 }
-              : { dx: -1, dy: 0 }
+      const { dx, dy } = DIR_DELTA[dir]
       const nx = x - dx
       const ny = y - dy
       if (!inBounds(nx, ny)) continue
@@ -317,6 +325,9 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   if (tool === 'splitter') {
     ent.toggle = 0
   }
+  if (tool === 'undergroundBelt') {
+    ent.toggle = resolveUgToggle(state, x, y, placeDir)
+  }
 
   tile.entityId = ent.id
   return claimGoals({
@@ -325,6 +336,165 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     entities: { ...state.entities, [ent.id]: ent },
     inventory,
     placeDir,
+  })
+}
+
+function resolveUgToggle(
+  state: GameState,
+  x: number,
+  y: number,
+  dir: Dir,
+): number {
+  const { dx, dy } = DIR_DELTA[dir]
+  // Look behind for an unpaired entrance → place exit
+  for (let d = 1; d <= MAX_UNDERGROUND; d++) {
+    const nx = x - dx * d
+    const ny = y - dy * d
+    if (!inBounds(nx, ny)) break
+    const tile = state.tiles[idx(nx, ny)]
+    const e = tile.entityId ? state.entities[tile.entityId] : null
+    if (
+      e?.kind === 'undergroundBelt' &&
+      e.dir === dir &&
+      (e.toggle ?? 0) === 0 &&
+      !findUgPartner(state, state.entities, e)
+    ) {
+      return 1
+    }
+  }
+  // Look ahead for an unpaired exit → place entrance
+  for (let d = 1; d <= MAX_UNDERGROUND; d++) {
+    const nx = x + dx * d
+    const ny = y + dy * d
+    if (!inBounds(nx, ny)) break
+    const tile = state.tiles[idx(nx, ny)]
+    const e = tile.entityId ? state.entities[tile.entityId] : null
+    if (
+      e?.kind === 'undergroundBelt' &&
+      e.dir === dir &&
+      (e.toggle ?? 0) === 1 &&
+      !findUgPartner(state, state.entities, e)
+    ) {
+      return 0
+    }
+  }
+  return 0
+}
+
+function handleCopyClick(state: GameState, x: number, y: number): GameState {
+  if (!state.copyCorner) {
+    return {
+      ...state,
+      copyCorner: { x, y },
+      unlockedToast: 'Copy: click the opposite corner of the selection',
+    }
+  }
+
+  const x0 = Math.min(state.copyCorner.x, x)
+  const y0 = Math.min(state.copyCorner.y, y)
+  const x1 = Math.max(state.copyCorner.x, x)
+  const y1 = Math.max(state.copyCorner.y, y)
+
+  const blueprint: BlueprintEntity[] = []
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      const tile = state.tiles[idx(cx, cy)]
+      const ent = tile.entityId ? state.entities[tile.entityId] : null
+      if (!ent) continue
+      blueprint.push({
+        kind: ent.kind as Placeable,
+        dx: cx - x0,
+        dy: cy - y0,
+        dir: ent.dir,
+        toggle: ent.toggle,
+      })
+    }
+  }
+
+  if (blueprint.length === 0) {
+    return {
+      ...state,
+      copyCorner: null,
+      unlockedToast: 'Nothing to copy in that area',
+    }
+  }
+
+  return {
+    ...state,
+    blueprint,
+    copyCorner: null,
+    selected: 'paste',
+    unlockedToast: `Copied ${blueprint.length} buildings — click to paste`,
+  }
+}
+
+function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
+  const bp = state.blueprint
+  if (!bp || bp.length === 0) {
+    return { ...state, unlockedToast: 'No blueprint — use Copy first' }
+  }
+
+  const need: Partial<Record<Placeable, number>> = {}
+  for (const piece of bp) {
+    need[piece.kind] = (need[piece.kind] ?? 0) + 1
+  }
+  if (!canAfford(state.inventory, need)) {
+    const missing = (Object.entries(need) as [Placeable, number][])
+      .filter(([k, n]) => (state.inventory[k] ?? 0) < n)
+      .map(([k]) => PLACEABLE_META[k].label)
+      .join(', ')
+    return {
+      ...state,
+      unlockedToast: `Need more buildings to paste: ${missing}`,
+    }
+  }
+
+  for (const piece of bp) {
+    const x = ox + piece.dx
+    const y = oy + piece.dy
+    if (!inBounds(x, y)) {
+      return { ...state, unlockedToast: 'Blueprint does not fit on the map' }
+    }
+    const tile = state.tiles[idx(x, y)]
+    if (tile.entityId) {
+      return { ...state, unlockedToast: 'Paste area is blocked — clear tiles first' }
+    }
+    if (isDrillKind(piece.kind) && !tile.ore) {
+      return {
+        ...state,
+        unlockedToast: 'Paste needs ore under every drill in the blueprint',
+      }
+    }
+  }
+
+  let inventory = { ...state.inventory }
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  const entities = { ...state.entities }
+
+  for (const piece of bp) {
+    const x = ox + piece.dx
+    const y = oy + piece.dy
+    inventory = spend(inventory, { [piece.kind]: 1 })
+    const ent = createEntity(piece.kind, x, y, piece.dir)
+    if (piece.toggle !== undefined) ent.toggle = piece.toggle
+    if (piece.kind === 'splitter' && ent.toggle === undefined) ent.toggle = 0
+    if (piece.kind === 'drill') {
+      const fuel = Math.min(5, inventory.coal)
+      if (fuel > 0) {
+        inventory = spend(inventory, { coal: fuel })
+        ent.store.coal = fuel
+      }
+    }
+    tiles[idx(x, y)].entityId = ent.id
+    entities[ent.id] = ent
+  }
+
+  return claimGoals({
+    ...state,
+    inventory,
+    tiles,
+    entities,
+    unlockedToast: `Pasted ${bp.length} buildings`,
   })
 }
 

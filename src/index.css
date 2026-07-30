@@ -917,7 +917,7 @@ button {
 }
 
 .factory-stage {
-  margin-top: 0.85rem;
+  margin-top: 0.55rem;
   padding: 0.55rem;
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 40%),
@@ -926,6 +926,53 @@ button {
   box-shadow:
     inset 0 0 0 1px #3a4030,
     0 12px 40px rgba(0, 0, 0, 0.35);
+  overflow: auto;
+  max-height: min(72vh, 820px);
+  overscroll-behavior: contain;
+}
+
+.factory-zoom-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+
+.zoom-btn {
+  min-width: 2rem;
+  height: 1.85rem;
+  padding: 0 0.55rem;
+  border: 1px solid #3a4030;
+  background: #252820;
+  color: #e8e0d4;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.zoom-btn:hover {
+  border-color: #c47a12;
+  color: #f0e6d2;
+}
+
+.zoom-label {
+  min-width: 3.2rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: #c4b8a0;
+  font-size: 0.85rem;
+}
+
+.zoom-hint {
+  margin-left: 0.35rem;
+  color: #7a7060;
+  font-size: 0.75rem;
+}
+
+.factory-zoom-wrap {
+  transform-origin: top left;
+  will-change: transform;
 }
 
 .factory-grid {
@@ -1123,6 +1170,26 @@ button {
   box-shadow:
     inset 0 0 0 1px rgba(240, 160, 32, 0.85),
     0 0 10px rgba(240, 160, 32, 0.35);
+}
+
+.cell.is-select {
+  outline: 2px solid rgba(122, 176, 224, 0.75);
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+.cell.is-copy-corner {
+  outline: 2px solid #a8d0f0;
+  outline-offset: -2px;
+}
+
+.cell.is-bp-ghost {
+  outline: 1px dashed rgba(125, 255, 154, 0.55);
+  outline-offset: -1px;
+}
+
+.cell-bp {
+  opacity: 0.55;
 }
 
 .sprite-assembler.is-active .asm-arm {

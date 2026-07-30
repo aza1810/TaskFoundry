@@ -33,12 +33,14 @@ export function createTiles(): Tile[] {
     entityId: null,
   }))
 
-  // Starter patches — Factorio vibes
-  paintPatch(tiles, 3, 3, 2, 'ironOre', 400)
-  paintPatch(tiles, 8, 2, 1, 'ironOre', 180)
-  paintPatch(tiles, 14, 4, 2, 'copperOre', 320)
-  paintPatch(tiles, 4, 9, 2, 'coal', 500)
-  paintPatch(tiles, 12, 9, 1, 'coal', 200)
+  // Bigger map patches
+  paintPatch(tiles, 4, 3, 2, 'ironOre', 500)
+  paintPatch(tiles, 10, 2, 2, 'ironOre', 320)
+  paintPatch(tiles, 18, 5, 2, 'copperOre', 400)
+  paintPatch(tiles, 20, 12, 1, 'copperOre', 180)
+  paintPatch(tiles, 5, 12, 2, 'coal', 600)
+  paintPatch(tiles, 14, 13, 2, 'coal', 350)
+  paintPatch(tiles, 12, 8, 1, 'ironOre', 200)
 
   return tiles
 }

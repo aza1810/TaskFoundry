@@ -30,4 +30,18 @@ export const TECHS: TechDef[] = [
     cost: { ironPlate: 20, gear: 12, copperPlate: 10 },
     unlocks: 'Splitter crafting',
   },
+  {
+    id: 'undergroundBelts',
+    name: 'Underground belts',
+    detail: 'Tunnel belts under obstacles for up to 6 tiles.',
+    cost: { ironPlate: 40, gear: 20 },
+    unlocks: 'Underground belt crafting',
+  },
+  {
+    id: 'steelProcessing',
+    name: 'Steel processing',
+    detail: 'Smelt steel plates and unlock steel furnaces (2× smelt speed).',
+    cost: { ironPlate: 50, gear: 25, coal: 30 },
+    unlocks: 'Steel + steel furnace crafting',
+  },
 ]
