@@ -70,7 +70,7 @@ export function StepsPanel({ pedometer }: { pedometer: PedometerApi }) {
         )}
         {pedometer.status === 'unsupported' && (
           <p className="hint pedo-hint">
-            This browser has no motion sensors. Open Habitworks on your phone (Chrome or
+            This browser has no motion sensors. Open Task Foundry on your phone (Chrome or
             Safari), or log steps manually below.
           </p>
         )}

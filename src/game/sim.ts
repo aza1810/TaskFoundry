@@ -392,7 +392,7 @@ export function simTick(state: GameState, dt: number): GameState {
       e.smelting = 'ironOre' // busy marker
     }
     if (e.smelting) {
-      e.progress += dt / ASSEMBLER_SECONDS
+      e.progress += dt / (ASSEMBLER_SECONDS / bonuses.assemblerSpeedMult)
       if (e.progress >= 1) {
         addToStore(e.store, 'gear', 1, MACHINE_CAP.assembler, ['ironPlate'])
         stats.gearsMade += 1

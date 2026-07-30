@@ -111,6 +111,22 @@ export const GOALS: GoalDef[] = [
     rewardLabel: '15 coal + 4 belts',
     check: (s) => (s.skills?.mining?.level ?? 0) >= 1,
   },
+  {
+    id: 'skill-assembly-1',
+    title: 'Bench hand',
+    detail: 'Reach Assembly skill level 1 (walk with assemblers or while crafting).',
+    reward: { ironPlate: 10, gear: 4 },
+    rewardLabel: '10 plates + 4 gears',
+    check: (s) => (s.skills?.assembly?.level ?? 0) >= 1,
+  },
+  {
+    id: 'walk-five-k',
+    title: 'Foundry five-k',
+    detail: 'Reach 5,000 lifetime steps.',
+    reward: { electricDrill: 1, fastBelt: 8, steel: 2 },
+    rewardLabel: 'electric drill + 8 fast belts + 2 steel',
+    check: (s) => s.stepsLifetime >= 5000,
+  },
 ]
 
 export const TIPS = [
@@ -123,6 +139,8 @@ export const TIPS = [
   'Starter line auto-builds a basic drill → furnace → chest setup.',
   'Habits restock belts and fuel so the factory keeps growing.',
   'Skills level from steps: drills train Mining, furnaces Smelting, belts Logistics.',
+  'Assemblers and the craft bench train Assembly while you walk.',
+  'Task Foundry: check daily tasks, walk to mine, automate the rest.',
 ]
 
 export function emptyStats(): FactoryStats {

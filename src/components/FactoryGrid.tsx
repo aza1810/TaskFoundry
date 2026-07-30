@@ -95,7 +95,7 @@ export function FactoryGrid() {
   return (
     <section className="panel factory-panel">
       <div className="panel-head">
-        <h2>Factory Floor</h2>
+        <h2>Foundry Floor</h2>
         <p>
           Bigger map — zoom and scroll to navigate. Underground belts tunnel under lines;
           steel furnaces smelt twice as fast. Copy a rectangle, then paste.

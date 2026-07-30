@@ -28,14 +28,15 @@ export function SkillsPanel() {
   if (active.drills > 0) training.push('mining')
   if (active.furnaces > 0) training.push('smelting')
   if (active.logistics > 0) training.push('logistics')
+  if (active.assemblers > 0 || state.craftQueue.length > 0) training.push('assembly')
 
   return (
     <section className="panel skills-panel">
       <div className="panel-head">
         <h2>Skills</h2>
         <p>
-          Classic operator skills — walk to train whatever your factory is running. Tap an
-          icon for perks.
+          Task Foundry skills — walk to train whatever your floor is running. Tap an icon
+          for perks.
         </p>
       </div>
 
@@ -46,6 +47,7 @@ export function SkillsPanel() {
             const s = state.skills[id]
             const isTraining = training.includes(id)
             const isSelected = selected === id
+            const pulse = state.lastSkillGains?.[id] ?? 0
             return (
               <li key={id}>
                 <button
@@ -57,9 +59,12 @@ export function SkillsPanel() {
                   aria-pressed={isSelected}
                   title={`${d.name} — level ${s.level}`}
                 >
-                  <SkillIcon id={id} level={s.level} lit={isTraining} size="lg" />
+                  <SkillIcon id={id} level={s.level} lit={isTraining || pulse > 0} size="lg" />
                   <span className="skill-tile-name">{d.name}</span>
-                  {isTraining && <span className="skill-tile-pulse">Training</span>}
+                  {pulse > 0 && <span className="skill-tile-gain">+{pulse}</span>}
+                  {isTraining && pulse <= 0 && (
+                    <span className="skill-tile-pulse">Training</span>
+                  )}
                 </button>
               </li>
             )
@@ -68,7 +73,12 @@ export function SkillsPanel() {
 
         <div className="skill-inspect">
           <div className="skill-inspect-top">
-            <SkillIcon id={selected} level={skill.level} lit={training.includes(selected)} size="lg" />
+            <SkillIcon
+              id={selected}
+              level={skill.level}
+              lit={training.includes(selected)}
+              size="lg"
+            />
             <div className="skill-inspect-meta">
               <h3 style={{ color: def.color }}>{def.name}</h3>
               <p className="skill-inspect-lv">
@@ -82,9 +92,7 @@ export function SkillsPanel() {
           <div className="skill-xp-block">
             <div className="skill-xp-meta">
               <span>{maxed ? 'Max level' : 'Experience'}</span>
-              <span>
-                {maxed ? '—' : `${Math.floor(skill.xp)} / ${need}`}
-              </span>
+              <span>{maxed ? '—' : `${Math.floor(skill.xp)} / ${need}`}</span>
             </div>
             <div className="skill-track" aria-hidden>
               <div
@@ -127,8 +135,9 @@ export function SkillsPanel() {
           <li>Ore yield ×{bonuses.mineYieldMult.toFixed(2)}</li>
           <li>Furnace speed ×{bonuses.furnaceSpeedMult.toFixed(2)}</li>
           <li>Belt speed ×{bonuses.beltSpeedMult.toFixed(2)}</li>
-          <li>Inserter speed ×{bonuses.inserterSpeedMult.toFixed(2)}</li>
-          <li>Habit rewards ×{bonuses.habitRewardMult.toFixed(2)}</li>
+          <li>Assembler speed ×{bonuses.assemblerSpeedMult.toFixed(2)}</li>
+          <li>Hand craft ×{bonuses.handCraftSpeedMult.toFixed(2)}</li>
+          <li>Task rewards ×{bonuses.habitRewardMult.toFixed(2)}</li>
           <li>UG belt range {6 + bonuses.ugBonus}</li>
         </ul>
       </div>

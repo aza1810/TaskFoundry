@@ -129,6 +129,39 @@ function LogisticsArt() {
   )
 }
 
+function AssemblyArt() {
+  return (
+    <g>
+      {/* gear */}
+      <circle cx="28" cy="32" r="12" fill="#7ab0e0" stroke="#1a2430" strokeWidth="1.5" />
+      <circle cx="28" cy="32" r="4.5" fill="#1a2430" />
+      {[0, 45, 90, 135].map((a) => (
+        <rect
+          key={a}
+          x="26"
+          y="18"
+          width="4"
+          height="8"
+          fill="#7ab0e0"
+          stroke="#1a2430"
+          strokeWidth="0.6"
+          transform={`rotate(${a} 28 32)`}
+        />
+      ))}
+      {/* wrench */}
+      <g transform="rotate(40 42 24)">
+        <rect x="40" y="16" width="3.5" height="20" rx="1" fill="#8a8478" stroke="#2a2218" />
+        <path
+          d="M38 14 H48 L46 20 H40 Z"
+          fill="#a8b0bc"
+          stroke="#2a2218"
+          strokeWidth="0.8"
+        />
+      </g>
+    </g>
+  )
+}
+
 function FieldworkArt() {
   return (
     <g>
@@ -166,6 +199,7 @@ const ART: Record<SkillId, { bg: string; Art: () => ReactNode; grad: string }> =
   mining: { bg: '#5a4a38', Art: MiningArt, grad: 'sk-mining' },
   smelting: { bg: '#6a3a18', Art: SmeltingArt, grad: 'sk-smelting' },
   logistics: { bg: '#5a4010', Art: LogisticsArt, grad: 'sk-logistics' },
+  assembly: { bg: '#2a4058', Art: AssemblyArt, grad: 'sk-assembly' },
   fieldwork: { bg: '#2a4a28', Art: FieldworkArt, grad: 'sk-fieldwork' },
 }
 

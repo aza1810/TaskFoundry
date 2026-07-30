@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { titleForLevel, xpForLevel } from '../game/data'
+import { APP_NAME, APP_TAGLINE, titleForLevel, xpForLevel } from '../game/data'
+import { SKILL_IDS } from '../game/skills'
 import { useGame } from '../game/GameContext'
+import { SkillIcon } from '../sprites/SkillIcons'
 
 export function HeroStatus() {
   const { state, rename, reset } = useGame()
@@ -12,8 +14,8 @@ export function HeroStatus() {
   return (
     <header className="hero">
       <div className="hero-brand">
-        <p className="brand">Habitworks</p>
-        <p className="tagline">Walk. Check. Automate.</p>
+        <p className="brand">{APP_NAME}</p>
+        <p className="tagline">{APP_TAGLINE}</p>
       </div>
 
       <div className="hero-status">
@@ -52,6 +54,18 @@ export function HeroStatus() {
             <div className="xp-fill" style={{ width: `${pct}%` }} />
             <div className="belt-teeth" />
           </div>
+        </div>
+
+        <div className="hero-skills" aria-label="Skill levels">
+          {SKILL_IDS.map((id) => (
+            <SkillIcon
+              key={id}
+              id={id}
+              level={state.skills[id].level}
+              size="sm"
+              lit={(state.lastSkillGains?.[id] ?? 0) > 0}
+            />
+          ))}
         </div>
 
         <button type="button" className="ghost-btn" onClick={reset}>

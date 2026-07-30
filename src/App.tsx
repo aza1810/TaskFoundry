@@ -14,12 +14,12 @@ import type { TabId } from './game/types'
 import './index.css'
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'factory', label: 'Factory' },
+  { id: 'factory', label: 'Foundry' },
   { id: 'steps', label: 'Steps' },
   { id: 'skills', label: 'Skills' },
   { id: 'craft', label: 'Craft' },
   { id: 'research', label: 'Research' },
-  { id: 'habits', label: 'Habits' },
+  { id: 'habits', label: 'Tasks' },
 ]
 
 function Toast() {

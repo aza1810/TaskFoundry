@@ -138,7 +138,12 @@ export interface FactoryStats {
   itemsMoved: number
 }
 
-export type SkillId = 'mining' | 'smelting' | 'logistics' | 'fieldwork'
+export type SkillId =
+  | 'mining'
+  | 'smelting'
+  | 'logistics'
+  | 'assembly'
+  | 'fieldwork'
 
 export interface SkillState {
   xp: number
@@ -176,6 +181,8 @@ export interface GameState {
   /** First corner while copying */
   copyCorner: { x: number; y: number } | null
   skills: SkillsState
+  /** Latest skill XP from a step batch (UI pulse) */
+  lastSkillGains: Partial<Record<SkillId, number>> | null
 }
 
 export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research' | 'skills'

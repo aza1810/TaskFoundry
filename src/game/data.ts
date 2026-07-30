@@ -8,8 +8,10 @@ import type {
   Placeable,
 } from './types'
 
-export const SAVE_KEY = 'habitworks-grid-v7'
-export const GAME_VERSION = 7
+export const SAVE_KEY = 'task-foundry-v8'
+export const GAME_VERSION = 8
+export const APP_NAME = 'Task Foundry'
+export const APP_TAGLINE = 'Walk. Task. Automate.'
 export const GRID_W = 24
 export const GRID_H = 16
 export const MAX_CRAFT_QUEUE = 8
@@ -377,12 +379,12 @@ export function xpForLevel(level: number): number {
 }
 
 export function titleForLevel(level: number): string {
-  if (level >= 20) return 'Factory Magnate'
-  if (level >= 15) return 'Chief Engineer'
-  if (level >= 10) return 'Plant Supervisor'
-  if (level >= 7) return 'Senior Technician'
-  if (level >= 4) return 'Line Operator'
-  if (level >= 2) return 'Apprentice Fitter'
+  if (level >= 20) return 'Foundry Magnate'
+  if (level >= 15) return 'Chief Foundrywright'
+  if (level >= 10) return 'Shift Superintendent'
+  if (level >= 7) return 'Senior Line Boss'
+  if (level >= 4) return 'Floor Operator'
+  if (level >= 2) return 'Apprentice Smelter'
   return 'Greenhorn'
 }
 

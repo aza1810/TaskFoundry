@@ -29,6 +29,7 @@ import { createEntity, createTiles, getTile } from './grid'
 import { TECHS } from './research'
 import {
   emptySkills,
+  formatSkillGains,
   grantSkillXp,
   normalizeSkills,
   skillBonuses,
@@ -67,7 +68,8 @@ export function createInitialState(): GameState {
     placeDir: 'E',
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
-    unlockedToast: 'Goal: place a burner drill on iron ore. Steps power every drill.',
+    unlockedToast:
+      'Welcome to Task Foundry — place a burner drill on iron ore. Steps power every drill.',
     stats: emptyStats(),
     completedGoals: [],
     tipIndex: 0,
@@ -76,18 +78,26 @@ export function createInitialState(): GameState {
     blueprint: null,
     copyCorner: null,
     skills: emptySkills(),
+    lastSkillGains: null,
   }
 }
 
 export function loadState(): GameState {
   try {
-    const raw = localStorage.getItem(SAVE_KEY)
+    // Prefer current key; also try previous Habitworks keys once
+    const raw =
+      localStorage.getItem(SAVE_KEY) ??
+      localStorage.getItem('habitworks-grid-v7') ??
+      localStorage.getItem('habitworks-grid-v6')
     if (!raw) return createInitialState()
-    const parsed = JSON.parse(raw) as GameState
-    if (!parsed || parsed.version !== GAME_VERSION) return createInitialState()
-    return {
+    const parsed = JSON.parse(raw) as GameState & { version?: number }
+    if (!parsed || typeof parsed.version !== 'number' || parsed.version < 6) {
+      return createInitialState()
+    }
+    const next = {
       ...createInitialState(),
       ...parsed,
+      version: GAME_VERSION,
       inventory: { ...EMPTY_INVENTORY(), ...parsed.inventory },
       stats: { ...emptyStats(), ...parsed.stats },
       tiles: parsed.tiles?.length === GRID_W * GRID_H ? parsed.tiles : createTiles(),
@@ -99,7 +109,10 @@ export function loadState(): GameState {
       blueprint: parsed.blueprint ?? null,
       copyCorner: parsed.copyCorner ?? null,
       skills: normalizeSkills(parsed.skills),
+      lastSkillGains: null,
     }
+    localStorage.setItem(SAVE_KEY, JSON.stringify(next))
+    return next
   } catch {
     return createInitialState()
   }
@@ -574,7 +587,7 @@ export function logSteps(state: GameState, amount: number): GameState {
   const bonuses = skillBonuses(next.skills)
   const gains = stepSkillGains(next, add)
   const { skills, leveled } = grantSkillXp(next.skills, gains)
-  next = { ...next, skills }
+  next = { ...next, skills, lastSkillGains: gains }
 
   const opXp = Math.floor((add / 400) * bonuses.stepOperatorXpMult)
   next = addXp(next, opXp)
@@ -587,6 +600,11 @@ export function logSteps(state: GameState, amount: number): GameState {
     next = {
       ...next,
       unlockedToast: `${def.name} → Lv ${lvl}${perk ? ` — ${perk.label}` : ''}`,
+    }
+  } else {
+    const summary = formatSkillGains(gains)
+    if (summary && add >= 10) {
+      next = { ...next, unlockedToast: summary }
     }
   }
 
@@ -669,11 +687,13 @@ export function craftRecipe(state: GameState, recipeId: string): GameState {
   }
   if (!canAfford(state.inventory, recipe.inputs)) return state
 
+  const craftMult = skillBonuses(state.skills).handCraftSpeedMult
+  const duration = Math.max(0.8, recipe.handSeconds / craftMult)
   const job: CraftJob = {
     id: `craft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     recipeId: recipe.id,
     elapsed: 0,
-    duration: recipe.handSeconds,
+    duration,
   }
 
   return {
@@ -682,7 +702,7 @@ export function craftRecipe(state: GameState, recipeId: string): GameState {
     craftQueue: [...state.craftQueue, job],
     unlockedToast:
       state.craftQueue.length === 0
-        ? `Hand-crafting ${recipe.name} (${recipe.handSeconds}s)`
+        ? `Hand-crafting ${recipe.name} (${duration.toFixed(1)}s)`
         : `Queued ${recipe.name} (#${state.craftQueue.length + 1})`,
   }
 }

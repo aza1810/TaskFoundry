@@ -25,10 +25,10 @@ export function HabitsPanel() {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Habit Line</h2>
+        <h2>Daily Tasks</h2>
         <p>
-          Daily checks stock your inventory — ore, plates, belts, inserters — so you can
-          expand the floor.
+          Check off daily tasks to restock the foundry — ore, plates, belts, inserters —
+          so you can expand the floor.
         </p>
         <p className="panel-stat">
           Today {done}/{state.habits.length} · Lifetime {state.totalHabitsCompleted}
