@@ -215,4 +215,11 @@ export interface GameState {
   tutorialComplete: boolean
 }
 
-export type TabId = 'factory' | 'habits' | 'steps' | 'craft' | 'research' | 'skills'
+export type TabId =
+  | 'factory'
+  | 'inventory'
+  | 'habits'
+  | 'steps'
+  | 'craft'
+  | 'research'
+  | 'skills'

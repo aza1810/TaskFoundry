@@ -2,28 +2,31 @@ import { useCallback, useState } from 'react'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { saveKeyForAccount } from './auth/auth'
 import { AuthScreen } from './components/AuthScreen'
+import { BuildToolbar } from './components/BuildToolbar'
 import { CraftPanel } from './components/CraftPanel'
 import { FactoryGrid } from './components/FactoryGrid'
 import { GoalsBar } from './components/GoalsBar'
 import { HabitsPanel } from './components/HabitsPanel'
-import { HeroStatus } from './components/HeroStatus'
-import { InventoryBar } from './components/InventoryBar'
+import { InventoryPanel } from './components/InventoryPanel'
 import { ResearchPanel } from './components/ResearchPanel'
 import { SkillsPanel } from './components/SkillsPanel'
 import { StepsPanel } from './components/StepsPanel'
+import { TopStatusBar } from './components/TopStatusBar'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { GameProvider, useGame } from './game/GameContext'
 import { usePedometer } from './hooks/usePedometer'
+import { activeGoal } from './game/goals'
 import type { TabId } from './game/types'
 import './index.css'
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'factory', label: 'Foundry' },
-  { id: 'steps', label: 'Steps' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'craft', label: 'Craft' },
-  { id: 'research', label: 'Research' },
-  { id: 'habits', label: 'Tasks' },
+const TABS: { id: TabId; label: string; short: string }[] = [
+  { id: 'factory', label: 'Floor', short: 'Floor' },
+  { id: 'inventory', label: 'Inventory', short: 'Inv' },
+  { id: 'steps', label: 'Steps', short: 'Steps' },
+  { id: 'craft', label: 'Craft', short: 'Craft' },
+  { id: 'research', label: 'Research', short: 'Lab' },
+  { id: 'skills', label: 'Skills', short: 'Skills' },
+  { id: 'habits', label: 'Tasks', short: 'Tasks' },
 ]
 
 function Toast() {
@@ -61,6 +64,18 @@ function PedometerChip({
   )
 }
 
+function ObjectiveChip({ onOpenTasks }: { onOpenTasks: () => void }) {
+  const { state } = useGame()
+  const goal = activeGoal(state)
+  if (!goal) return null
+  return (
+    <button type="button" className="objective-chip" onClick={onOpenTasks}>
+      <span className="objective-chip-label">Objective</span>
+      <span className="objective-chip-title">{goal.title}</span>
+    </button>
+  )
+}
+
 function Shell() {
   const [tab, setTab] = useState<TabId>('factory')
   const { logSteps } = useGame()
@@ -68,7 +83,7 @@ function Shell() {
   const requestTab = useCallback((t: TabId) => setTab(t), [])
 
   return (
-    <div className="app">
+    <div className="app app-sections">
       <div className="atmosphere" aria-hidden>
         <div className="belt-strip" />
         <div className="haze" />
@@ -76,33 +91,45 @@ function Shell() {
       </div>
 
       <div className="shell">
-        <HeroStatus />
-        <GoalsBar />
-        <InventoryBar />
-
-        <nav className="tabs" aria-label="Factory stations">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={tab === t.id ? 'tab is-active' : 'tab'}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-              {t.id === 'steps' && pedometer.status === 'listening' ? ' · live' : ''}
-            </button>
-          ))}
-        </nav>
+        <TopStatusBar />
 
         <main className="main" key={tab}>
-          {tab === 'factory' && <FactoryGrid />}
+          {tab === 'factory' && (
+            <div className="section-floor">
+              <ObjectiveChip onOpenTasks={() => setTab('habits')} />
+              <BuildToolbar />
+              <FactoryGrid />
+            </div>
+          )}
+          {tab === 'inventory' && <InventoryPanel />}
           {tab === 'steps' && <StepsPanel pedometer={pedometer} />}
           {tab === 'skills' && <SkillsPanel />}
           {tab === 'craft' && <CraftPanel />}
           {tab === 'research' && <ResearchPanel />}
-          {tab === 'habits' && <HabitsPanel />}
+          {tab === 'habits' && (
+            <div className="section-tasks">
+              <GoalsBar />
+              <HabitsPanel />
+            </div>
+          )}
         </main>
       </div>
+
+      <nav className="bottom-nav" aria-label="Sections">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={tab === t.id ? 'bottom-nav-btn is-active' : 'bottom-nav-btn'}
+            onClick={() => setTab(t.id)}
+          >
+            <span className="bottom-nav-label">{t.short}</span>
+            {t.id === 'steps' && pedometer.status === 'listening' && (
+              <span className="bottom-nav-live">live</span>
+            )}
+          </button>
+        ))}
+      </nav>
 
       {pedometer.status === 'listening' && tab !== 'steps' && (
         <PedometerChip

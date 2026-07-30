@@ -26,7 +26,7 @@ const STEPS: {
   {
     id: 'placeDrill',
     title: 'Sink a burner drill',
-    body: 'On the Foundry tab, keep Drill selected and tap an iron ore patch (brown tiles). The drill must face a belt or chest later — for now just place it.',
+    body: 'On the Floor tab, keep Drill selected and tap an iron ore patch (brown tiles). The drill must face a belt or chest later — for now just place it.',
     tab: 'factory',
     action: 'Place a burner drill on ore to continue',
   },
@@ -40,13 +40,13 @@ const STEPS: {
   {
     id: 'belts',
     title: 'Move the ore',
-    body: 'Back on the Foundry floor: place belts facing away from the drill, then an inserter and furnace when you can. Drag to paint belts quickly. Rotate with R.',
+    body: 'Back on the Floor: place belts facing away from the drill, then an inserter and furnace when you can. Drag to paint belts quickly. Rotate with R. Check Inventory for stocks.',
     tab: 'factory',
   },
   {
     id: 'tasks',
     title: 'Daily tasks & contracts',
-    body: 'Tasks restock materials. Daily contracts (top of the screen) pay extra when you hit step or production quotas — claim them for rewards.',
+    body: 'Open Tasks for daily checklists and contracts. Completing them restocks materials and pays bonuses.',
     tab: 'habits',
   },
   {
@@ -58,7 +58,7 @@ const STEPS: {
   {
     id: 'done',
     title: 'You’re on the clock',
-    body: 'Starter tip: use Starter line in the toolbar if you want an instant smelting setup. Sign out anytime from your operator header. Have fun.',
+    body: 'Use the bottom nav to jump between Floor, Inventory, Steps, Craft, Lab, Skills, and Tasks. Starter line on the Floor toolbar builds a quick smelting setup.',
   },
 ]
 

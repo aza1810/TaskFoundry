@@ -95,15 +95,11 @@ export function FactoryGrid() {
   return (
     <section className="panel factory-panel">
       <div className="panel-head">
-        <h2>Foundry Floor</h2>
-        <p>
-          Bigger map — zoom and scroll to navigate. Underground belts tunnel under lines;
-          steel furnaces smelt twice as fast. Copy a rectangle, then paste.
-        </p>
+        <h2>Factory floor</h2>
         <p className="panel-stat">
-          Mine cycles {state.mineCycles.toLocaleString()} · Facing {placeDir}{' '}
-          {dirArrow(placeDir)} · {toolLabel(selected, placeDir)}
-          {blueprint ? ` · BP ${blueprint.length}` : ''}
+          {toolLabel(selected, placeDir)} · Facing {placeDir} {dirArrow(placeDir)}
+          {blueprint ? ` · BP ${blueprint.length}` : ''} · Cycles{' '}
+          {state.mineCycles.toLocaleString()}
         </p>
       </div>
 

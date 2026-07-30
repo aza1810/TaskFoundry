@@ -18,8 +18,8 @@ export function StepsPanel({ pedometer }: { pedometer: PedometerApi }) {
       <div className="panel-head">
         <h2>Step Cycles</h2>
         <p>
-          Every step fires <strong>one mining cycle on every drill</strong>. Turn on the
-          live pedometer on your phone, then walk — ore pulls while you move.
+          Start the phone pedometer and walk with this page open, or log steps manually.
+          Each step runs one mining cycle on every drill.
         </p>
       </div>
 
