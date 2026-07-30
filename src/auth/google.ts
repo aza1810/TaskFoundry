@@ -1,6 +1,10 @@
 const CLIENT_ID_KEY = 'task-foundry-google-client-id'
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
 
+/** Public OAuth Web Client ID for Task Foundry (not a secret). */
+export const DEFAULT_GOOGLE_CLIENT_ID =
+  '769075164048-02j154eqdqlm58q5tch234bhb7hfl53b.apps.googleusercontent.com'
+
 export interface GoogleIdPayload {
   sub: string
   email?: string
@@ -60,7 +64,8 @@ export function getGoogleClientId(): string {
     /* ignore */
   }
   const fromEnv = import.meta.env.VITE_GOOGLE_CLIENT_ID
-  return typeof fromEnv === 'string' ? fromEnv.trim() : ''
+  if (typeof fromEnv === 'string' && fromEnv.trim()) return fromEnv.trim()
+  return DEFAULT_GOOGLE_CLIENT_ID
 }
 
 export function setGoogleClientId(id: string): void {

@@ -19,7 +19,7 @@ export function AuthScreen() {
   const [busy, setBusy] = useState(false)
   const [clientId, setClientId] = useState(() => getGoogleClientId())
   const [clientIdDraft, setClientIdDraft] = useState(() => getGoogleClientId())
-  const [showClientSetup, setShowClientSetup] = useState(() => !getGoogleClientId())
+  const [showClientSetup, setShowClientSetup] = useState(false)
   const [googleReady, setGoogleReady] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
   const googleBtnRef = useRef<HTMLDivElement>(null)
