@@ -8,6 +8,7 @@ import { InventoryBar } from './components/InventoryBar'
 import { ResearchPanel } from './components/ResearchPanel'
 import { StepsPanel } from './components/StepsPanel'
 import { GameProvider, useGame } from './game/GameContext'
+import { usePedometer } from './hooks/usePedometer'
 import type { TabId } from './game/types'
 import './index.css'
 
@@ -32,8 +33,32 @@ function Toast() {
   )
 }
 
+function PedometerChip({
+  sessionSteps,
+  onStop,
+  onOpen,
+}: {
+  sessionSteps: number
+  onStop: () => void
+  onOpen: () => void
+}) {
+  return (
+    <div className="pedo-chip" role="status">
+      <button type="button" className="pedo-chip-main" onClick={onOpen}>
+        <span className="pedo-chip-dot" aria-hidden />
+        Pedometer · {sessionSteps} this walk
+      </button>
+      <button type="button" className="pedo-chip-stop" onClick={onStop}>
+        Stop
+      </button>
+    </div>
+  )
+}
+
 function Shell() {
   const [tab, setTab] = useState<TabId>('factory')
+  const { logSteps } = useGame()
+  const pedometer = usePedometer(logSteps)
 
   return (
     <div className="app">
@@ -57,18 +82,27 @@ function Shell() {
               onClick={() => setTab(t.id)}
             >
               {t.label}
+              {t.id === 'steps' && pedometer.status === 'listening' ? ' · live' : ''}
             </button>
           ))}
         </nav>
 
         <main className="main" key={tab}>
           {tab === 'factory' && <FactoryGrid />}
-          {tab === 'steps' && <StepsPanel />}
+          {tab === 'steps' && <StepsPanel pedometer={pedometer} />}
           {tab === 'craft' && <CraftPanel />}
           {tab === 'research' && <ResearchPanel />}
           {tab === 'habits' && <HabitsPanel />}
         </main>
       </div>
+
+      {pedometer.status === 'listening' && tab !== 'steps' && (
+        <PedometerChip
+          sessionSteps={pedometer.sessionSteps}
+          onStop={pedometer.stop}
+          onOpen={() => setTab('steps')}
+        />
+      )}
 
       <Toast />
     </div>
