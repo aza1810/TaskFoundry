@@ -26,6 +26,23 @@
       rel="stylesheet"
     />
     <title>Task Foundry — Walk. Task. Automate.</title>
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('task-foundry-theme') || 'system'
+          var light =
+            pref === 'light' ||
+            (pref === 'system' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: light)').matches)
+          var theme = light ? 'light' : 'dark'
+          document.documentElement.dataset.theme = theme
+          document.documentElement.style.colorScheme = theme
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', light ? '#e8dfd2' : '#0e100c')
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

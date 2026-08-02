@@ -10,6 +10,13 @@ import {
   subscribeOta,
   type OtaState,
 } from '../native/ota'
+import {
+  getThemePreference,
+  setThemePreference,
+  subscribeTheme,
+  type ResolvedTheme,
+  type ThemePreference,
+} from '../theme'
 
 function formatBuiltAt(iso: string | null): string {
   if (!iso) return '—'
@@ -20,14 +27,30 @@ function formatBuiltAt(iso: string | null): string {
   }
 }
 
+const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+  { id: 'system', label: 'System' },
+]
+
 export function SettingsPanel() {
   const { reset } = useGame()
   const { session, signOut } = useAuth()
   const [ota, setOta] = useState<OtaState>(getOtaState)
   const [busy, setBusy] = useState(false)
+  const [themePref, setThemePref] = useState<ThemePreference>(getThemePreference)
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark')
   const native = Capacitor.isNativePlatform()
 
   useEffect(() => subscribeOta(setOta), [])
+  useEffect(
+    () =>
+      subscribeTheme(({ preference, resolved }) => {
+        setThemePref(preference)
+        setResolvedTheme(resolved)
+      }),
+    [],
+  )
 
   const runCheck = async (apply: boolean) => {
     setBusy(true)
@@ -42,7 +65,29 @@ export function SettingsPanel() {
     <section className="panel settings-panel">
       <div className="panel-head">
         <h2>Settings</h2>
-        <p>Account, version, and Android app updates.</p>
+        <p>Appearance, account, version, and Android app updates.</p>
+      </div>
+
+      <div className="settings-block">
+        <h3>Appearance</h3>
+        <p className="settings-hint">Switch between light and dark chrome. The factory floor stays high-contrast either way.</p>
+        <div className="settings-theme" role="group" aria-label="Theme">
+          {THEME_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              className={themePref === opt.id ? 'is-active' : ''}
+              aria-pressed={themePref === opt.id}
+              onClick={() => setThemePreference(opt.id)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="settings-theme-note">
+          Using {resolvedTheme}
+          {themePref === 'system' ? ' (follows device)' : ''}
+        </p>
       </div>
 
       <div className="settings-block">

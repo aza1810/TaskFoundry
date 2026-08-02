@@ -16,12 +16,57 @@
   --shadow: rgba(26, 22, 18, 0.18);
   --font-display: 'Oxanium', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* App chrome (dark default — matches current factory UI) */
+  --bg-app: #0e100c;
+  --bg-sheet: #1a1612;
+  --bg-sheet-bar: rgba(18, 16, 12, 0.96);
+  --bg-dock: linear-gradient(180deg, rgba(22, 20, 14, 0.98), rgba(10, 10, 8, 0.99));
+  --bg-hud: rgba(14, 16, 12, 0.72);
+  --bg-card: rgba(245, 239, 230, 0.96);
+  --bg-auth-card: #1a1612;
+  --text-chrome: #e8e0d4;
+  --text-chrome-muted: #a89878;
+  --text-chrome-bright: #f0e6d2;
+  --border-chrome: #3a3020;
+  --btn-chrome-bg: #2a2218;
+  --btn-chrome-border: #4a3a24;
+  --btn-chrome-text: #f0e0a0;
+  --atmosphere-gradient: linear-gradient(165deg, #2a241c 0%, #1a1612 42%, #12100e 100%);
+  --atmosphere-glow-a: rgba(240, 160, 32, 0.16);
+  --atmosphere-glow-b: rgba(47, 111, 237, 0.1);
+
   color: var(--oil);
   background: var(--concrete);
+  color-scheme: dark;
   font-family: var(--font-display);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --bg-app: #e4dcd0;
+  --bg-sheet: #f3ece2;
+  --bg-sheet-bar: rgba(243, 236, 226, 0.98);
+  --bg-dock: linear-gradient(180deg, rgba(243, 236, 226, 0.98), rgba(220, 212, 198, 0.99));
+  --bg-hud: rgba(243, 236, 226, 0.88);
+  --bg-card: #fffaf2;
+  --bg-auth-card: #f7f0e6;
+  --text-chrome: #241e18;
+  --text-chrome-muted: #5a5046;
+  --text-chrome-bright: #1a1612;
+  --border-chrome: #c4b8a4;
+  --btn-chrome-bg: #efe6d8;
+  --btn-chrome-border: #b7aea0;
+  --btn-chrome-text: #3a2e20;
+  --atmosphere-gradient: linear-gradient(165deg, #e8dfd2 0%, #cfc4b4 42%, #b9ae9d 100%);
+  --atmosphere-glow-a: rgba(240, 160, 32, 0.22);
+  --atmosphere-glow-b: rgba(47, 111, 237, 0.14);
+  --shadow: rgba(26, 22, 18, 0.12);
+  --panel: rgba(255, 250, 242, 0.92);
+  --panel-solid: #fffaf2;
 }
 
 *,
@@ -45,7 +90,7 @@ body,
 }
 
 body {
-  background: #0e100c;
+  background: var(--bg-app);
   position: fixed;
   inset: 0;
 }
@@ -76,9 +121,9 @@ button {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 50% at 10% 0%, rgba(240, 160, 32, 0.22), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(47, 111, 237, 0.14), transparent 50%),
-    linear-gradient(165deg, #e8dfd2 0%, #cfc4b4 42%, #b9ae9d 100%);
+    radial-gradient(ellipse 80% 50% at 10% 0%, var(--atmosphere-glow-a), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, var(--atmosphere-glow-b), transparent 50%),
+    var(--atmosphere-gradient);
 }
 
 .grid-floor {
@@ -373,16 +418,17 @@ button {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.2rem;
   padding: 0.45rem 0.35rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
-  background: rgba(12, 12, 10, 0.98);
+  background: var(--bg-dock);
   border-top: 2px solid #c9a227;
-  box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -10px 32px var(--shadow);
+  color: var(--text-chrome);
 }
 
 .bottom-nav-btn {
   appearance: none;
   border: 1px solid transparent;
   background: transparent;
-  color: #a89878;
+  color: var(--text-chrome-muted);
   padding: 0.45rem 0.1rem 0.35rem;
   display: grid;
   gap: 0.2rem;
@@ -396,7 +442,7 @@ button {
 }
 
 .bottom-nav-btn.is-active {
-  color: #f0e0a0;
+  color: var(--btn-chrome-text);
   background: rgba(201, 162, 39, 0.16);
   border-color: rgba(201, 162, 39, 0.45);
 }
@@ -2545,7 +2591,7 @@ button {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
-  background: #0e100c;
+  background: var(--bg-app);
   overscroll-behavior: none;
 }
 
@@ -2586,10 +2632,10 @@ button {
   display: grid;
   grid-template-rows: auto 1fr;
   background:
-    linear-gradient(180deg, rgba(20, 18, 14, 0.92), rgba(36, 30, 22, 0.96)),
-    #1a1612;
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-sheet) 92%, transparent), var(--bg-sheet)),
+    var(--bg-sheet);
   animation: sheet-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-  color: #e8e0d4;
+  color: var(--text-chrome);
 }
 
 @keyframes sheet-rise {
@@ -2609,14 +2655,14 @@ button {
   align-items: center;
   padding: 0.55rem 0.7rem 0.55rem;
   padding-top: calc(0.55rem + env(safe-area-inset-top, 0px));
-  background: rgba(18, 16, 12, 0.96);
-  border-bottom: 1px solid #3a3020;
+  background: var(--bg-sheet-bar);
+  border-bottom: 1px solid var(--border-chrome);
 }
 
 .game-sheet-back {
-  border: 1px solid #4a3a24;
-  background: #2a2218;
-  color: #f0e0a0;
+  border: 1px solid var(--btn-chrome-border);
+  background: var(--btn-chrome-bg);
+  color: var(--btn-chrome-text);
   font: inherit;
   font-weight: 700;
   font-size: 0.85rem;
@@ -2632,14 +2678,14 @@ button {
 .game-sheet-title {
   margin: 0;
   font-size: 1.1rem;
-  color: #f0e6d2;
+  color: var(--text-chrome-bright);
 }
 
 .game-sheet-sub {
   margin: 0.1rem 0 0;
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  color: #a89878;
+  color: var(--text-chrome-muted);
 }
 
 .game-sheet-body {
@@ -2653,14 +2699,15 @@ button {
 .game-sheet-body .panel,
 .game-sheet-body .goals-bar,
 .game-sheet-body .section-tasks {
-  background: rgba(245, 239, 230, 0.96);
+  background: var(--bg-card);
   color: var(--oil);
   border-radius: 10px;
 }
 
 .bottom-nav.game-dock {
-  background: linear-gradient(180deg, rgba(22, 20, 14, 0.98), rgba(10, 10, 8, 0.99));
+  background: var(--bg-dock);
   border-top-color: #c9a227;
+  color: var(--text-chrome);
 }
 
 .bottom-nav-btn.is-floor-btn.is-active {
@@ -2685,9 +2732,8 @@ button {
   gap: 0.28rem;
   padding: 0.3rem 0.45rem 0.35rem;
   padding-top: calc(0.25rem + env(safe-area-inset-top, 0px));
-  background:
-    linear-gradient(180deg, rgba(10, 12, 8, 0.96), rgba(16, 18, 12, 0.88));
-  border-bottom: 1px solid #2a3220;
+  background: var(--bg-hud);
+  border-bottom: 1px solid var(--border-chrome);
 }
 
 .game-hud-top {
@@ -3929,7 +3975,8 @@ button {
   padding: 1.5rem;
   position: relative;
   overflow: hidden;
-  color: #e8e0d4;
+  color: var(--text-chrome);
+  background: var(--bg-app);
 }
 
 .auth-atmosphere {
@@ -3944,20 +3991,20 @@ button {
   z-index: 1;
   width: min(420px, 100%);
   padding: 1.4rem 1.35rem 1.25rem;
-  border: 2px solid #3a3020;
-  color: #e8e0d4;
+  border: 2px solid var(--border-chrome);
+  color: var(--text-chrome);
   background:
     linear-gradient(180deg, rgba(201, 162, 39, 0.08), transparent 40%),
-    #1a1612;
+    var(--bg-auth-card);
   box-shadow:
-    inset 0 0 0 1px #4a3a24,
-    0 18px 50px rgba(0, 0, 0, 0.45);
+    inset 0 0 0 1px var(--btn-chrome-border),
+    0 18px 50px var(--shadow);
 }
 
 .auth-brand .brand {
   margin: 0;
-  color: #f5ecd8;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  color: var(--text-chrome-bright);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
 }
 
 .auth-brand .tagline {
@@ -4343,4 +4390,149 @@ button {
   50% {
     transform: translateY(-1px);
   }
+}
+
+/* —— Light theme chrome overrides —— */
+html[data-theme='light'] .game-hud-brand {
+  color: #8a5a10;
+}
+
+html[data-theme='light'] .game-hud-lv,
+html[data-theme='light'] .game-hud-rates,
+html[data-theme='light'] .game-hud-steps-label {
+  color: #6a5a48;
+}
+
+html[data-theme='light'] .game-hud-steps,
+html[data-theme='light'] .game-hud-settings {
+  border-color: #b7aea0;
+  background: linear-gradient(180deg, #fffaf2, #efe6d8);
+  color: #241e18;
+}
+
+html[data-theme='light'] .game-hud-steps-num {
+  color: #1a1612;
+}
+
+html[data-theme='light'] .game-hud-xp {
+  background: #ddd4c6;
+  border-color: #b7aea0;
+}
+
+html[data-theme='light'] .game-objective {
+  background: rgba(255, 250, 242, 0.92);
+  border-color: #c4b8a4;
+  color: #241e18;
+}
+
+html[data-theme='light'] .game-objective strong {
+  color: #1a1612;
+}
+
+html[data-theme='light'] .game-walk-banner {
+  background: rgba(255, 250, 242, 0.94);
+  color: #241e18;
+  border-color: #c4b8a4;
+}
+
+html[data-theme='light'] .fab-btn {
+  background: #fffaf2;
+  border-color: #b7aea0;
+  color: #241e18;
+}
+
+html[data-theme='light'] .build-console {
+  background: linear-gradient(180deg, rgba(255, 250, 242, 0.96), rgba(232, 223, 208, 0.98));
+  border-top-color: #c4b8a4;
+  color: #241e18;
+}
+
+html[data-theme='light'] .build-console-toggle,
+html[data-theme='light'] .build-mode-row button,
+html[data-theme='light'] .build-icon-dock .tool,
+html[data-theme='light'] .build-quick .ghost-btn {
+  color: #241e18;
+  border-color: #c4b8a4;
+  background: #fffaf2;
+}
+
+html[data-theme='light'] .build-mode-row button.is-active,
+html[data-theme='light'] .build-icon-dock .tool.is-selected {
+  border-color: #c47a12;
+  background: rgba(240, 160, 32, 0.18);
+}
+
+html[data-theme='light'] .goals-bar {
+  background: linear-gradient(135deg, #fffaf2, #efe6d8);
+  color: #241e18;
+  border-left-color: var(--belt-dark);
+}
+
+html[data-theme='light'] .goals-detail,
+html[data-theme='light'] .goals-stats,
+html[data-theme='light'] .goals-tip {
+  color: #5a5046;
+}
+
+html[data-theme='light'] .goals-reward {
+  color: #2f6a42;
+}
+
+html[data-theme='light'] .auth-brand .tagline,
+html[data-theme='light'] .auth-pitch,
+html[data-theme='light'] .auth-google-status {
+  color: #5a5046;
+}
+
+html[data-theme='light'] .auth-brand .tagline {
+  color: #a06a12;
+}
+
+html[data-theme='light'] .toast {
+  background: #241e18;
+  color: #f3ece2;
+}
+
+html[data-theme='light'] .bottom-nav-btn.is-floor-btn.is-active {
+  color: #8a5a10;
+}
+
+html[data-theme='light'] .settings-theme {
+  background: rgba(26, 22, 18, 0.04);
+}
+
+/* Theme picker */
+.settings-theme {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(26, 22, 18, 0.1);
+  background: rgba(26, 22, 18, 0.06);
+}
+
+.settings-theme button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.55rem 0.35rem;
+  min-height: 2.6rem;
+}
+
+.settings-theme button.is-active {
+  background: var(--panel-solid);
+  border-color: rgba(196, 120, 58, 0.55);
+  color: var(--oil);
+  box-shadow: 0 1px 0 rgba(26, 22, 18, 0.08);
+}
+
+.settings-theme-note {
+  margin: 0.45rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--steel);
 }
