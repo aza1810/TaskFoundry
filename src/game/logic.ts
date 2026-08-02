@@ -795,6 +795,34 @@ export function fuelAllDrills(state: GameState): GameState {
   return { ...next, unlockedToast: 'Fueled burner drills from inventory' }
 }
 
+/** Top up a single burner drill from inventory coal. */
+export function fuelDrillAt(state: GameState, x: number, y: number): GameState {
+  const tile = state.tiles[idx(x, y)]
+  if (!tile?.entityId) return state
+  const ent = state.entities[tile.entityId]
+  if (!ent || ent.kind !== 'drill') return state
+  const have = ent.store.coal ?? 0
+  if (have >= 5) {
+    return { ...state, unlockedToast: 'Drill already fueled' }
+  }
+  const need = Math.min(5 - Math.floor(have), state.inventory.coal)
+  if (need <= 0) {
+    return { ...state, unlockedToast: 'Need coal in inventory' }
+  }
+  return {
+    ...state,
+    inventory: { ...state.inventory, coal: state.inventory.coal - need },
+    entities: {
+      ...state.entities,
+      [ent.id]: {
+        ...ent,
+        store: { ...ent.store, coal: have + need },
+      },
+    },
+    unlockedToast: `Fueled drill (+${need} coal)`,
+  }
+}
+
 export function cycleTip(state: GameState): GameState {
   return { ...state, tipIndex: (state.tipIndex + 1) % TIPS.length }
 }

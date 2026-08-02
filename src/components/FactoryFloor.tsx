@@ -6,9 +6,21 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
 } from 'react'
-import { ITEM_META, PLACEABLE_META, idx, isFurnaceKind, storeTotal } from '../game/data'
+import {
+  APP_NAME,
+  ITEM_META,
+  PLACEABLE_META,
+  formatNum,
+  idx,
+  isFurnaceKind,
+  storeTotal,
+  titleForLevel,
+  xpForLevel,
+} from '../game/data'
 import { useGame } from '../game/GameContext'
+import { activeGoal } from '../game/goals'
 import {
   EntitySprite,
   GroundTexture,
@@ -16,16 +28,42 @@ import {
   OreTexture,
   ToolIcon,
 } from '../sprites/Sprites'
-import type { Entity, GameState, OreId, Placeable, ToolId } from '../game/types'
+import { useProductionRates } from '../hooks/useProductionRates'
+import type { PedometerApi } from '../hooks/usePedometer'
+import type { Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
 
 const CELL = 56
 const ZOOM_MIN = 0.45
 const ZOOM_MAX = 2.2
+const HUD_RESOURCES: ItemId[] = [
+  'ironOre',
+  'copperOre',
+  'coal',
+  'ironPlate',
+  'copperPlate',
+  'gear',
+  'steel',
+]
 
 type Highlight = 'ore' | 'drillTool' | 'beltTool' | 'manualSteps' | 'habit' | null
 type ToolTab = 'build' | 'belts' | 'edit'
 
-const BUILD_TOOLS: ToolId[] = ['drill', 'electricDrill', 'furnace', 'steelFurnace', 'chest', 'assembler']
+type Floater = {
+  id: number
+  x: number
+  y: number
+  text: string
+  tone: 'ore' | 'place' | 'good' | 'warn'
+}
+
+const BUILD_TOOLS: ToolId[] = [
+  'drill',
+  'electricDrill',
+  'furnace',
+  'steelFurnace',
+  'chest',
+  'assembler',
+]
 const BELT_TOOLS: ToolId[] = [
   'belt',
   'fastBelt',
@@ -97,7 +135,19 @@ function buzz(ms = 12) {
   }
 }
 
-export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
+let floaterSeq = 0
+
+export function FactoryFloor({
+  highlight = null,
+  pedometer,
+  onOpenTasks,
+  onOpenSteps,
+}: {
+  highlight?: Highlight
+  pedometer: PedometerApi
+  onOpenTasks: () => void
+  onOpenSteps: () => void
+}) {
   const {
     state,
     place,
@@ -106,21 +156,34 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
     selectTool,
     rotateDir,
     fuelDrills,
+    fuelAt,
     buildStarter,
     selected,
     placeDir,
   } = useGame()
   const { width, height, tiles, entities, copyCorner, blueprint } = state
+  const rates = useProductionRates(state.stats)
+  const goal = activeGoal(state)
+  const xpNeeded = xpForLevel(state.level)
+  const xpPct = Math.min(100, (state.xp / xpNeeded) * 100)
 
   const [toolTab, setToolTab] = useState<ToolTab>('build')
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 16, y: 16 })
+  const [zoom, setZoom] = useState(0.85)
+  const [pan, setPan] = useState({ x: 12, y: 48 })
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
   const [inspect, setInspect] = useState<{ x: number; y: number } | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const [floaters, setFloaters] = useState<Floater[]>([])
+  const [stepPulse, setStepPulse] = useState(false)
+  const [dockOpen, setDockOpen] = useState(true)
   const viewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
+  const velocity = useRef({ x: 0, y: 0 })
+  const inertiaRaf = useRef(0)
+  const prevSteps = useRef(state.stepsToday)
+  const prevOre = useRef(state.stats.oreMined)
+  const prevCycles = useRef(state.mineCycles)
   const gesture = useRef<{
     kind: 'none' | 'pan' | 'paint' | 'pinch'
     startZoom: number
@@ -143,10 +206,73 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
     return id ? entities[id] ?? null : null
   }, [inspect, tiles, entities])
 
+  const spawnFloater = useCallback(
+    (x: number, y: number, text: string, tone: Floater['tone'] = 'good') => {
+      const id = ++floaterSeq
+      setFloaters((list) => [...list.slice(-18), { id, x, y, text, tone }])
+      window.setTimeout(() => {
+        setFloaters((list) => list.filter((f) => f.id !== id))
+      }, 900)
+    },
+    [],
+  )
+
+  // Step pulse + ore floaters when the factory mines
+  useEffect(() => {
+    if (state.stepsToday > prevSteps.current) {
+      setStepPulse(true)
+      window.setTimeout(() => setStepPulse(false), 420)
+    }
+    prevSteps.current = state.stepsToday
+  }, [state.stepsToday])
+
+  useEffect(() => {
+    const oreDelta = state.stats.oreMined - prevOre.current
+    const cycleDelta = state.mineCycles - prevCycles.current
+    prevOre.current = state.stats.oreMined
+    prevCycles.current = state.mineCycles
+    if (oreDelta <= 0 && cycleDelta <= 0) return
+
+    const drills = Object.values(entities).filter(
+      (e) => e.kind === 'drill' || e.kind === 'electricDrill',
+    )
+    if (!drills.length) return
+    const sample = drills.slice(0, Math.min(4, drills.length))
+    for (const d of sample) {
+      const tile = tiles[idx(d.x, d.y)]
+      const label = tile?.ore ? ITEM_META[tile.ore].short : '+'
+      spawnFloater(d.x, d.y, `+${label}`, 'ore')
+    }
+  }, [state.stats.oreMined, state.mineCycles, entities, tiles, spawnFloater])
+
   useEffect(() => {
     if (highlight === 'beltTool') setToolTab('belts')
     if (highlight === 'ore' || highlight === 'drillTool') setToolTab('build')
   }, [highlight])
+
+  // Camera inertia after pan
+  useEffect(() => {
+    return () => {
+      if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
+    }
+  }, [])
+
+  const runInertia = useCallback(() => {
+    const tick = () => {
+      const vx = velocity.current.x
+      const vy = velocity.current.y
+      if (Math.abs(vx) < 0.2 && Math.abs(vy) < 0.2) {
+        velocity.current = { x: 0, y: 0 }
+        inertiaRaf.current = 0
+        return
+      }
+      setPan((p) => ({ x: p.x + vx, y: p.y + vy }))
+      velocity.current = { x: vx * 0.9, y: vy * 0.9 }
+      inertiaRaf.current = requestAnimationFrame(tick)
+    }
+    if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
+    inertiaRaf.current = requestAnimationFrame(tick)
+  }, [])
 
   const toolsForTab = toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS
 
@@ -189,17 +315,55 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
       const key = `${x},${y}`
       if (gesture.current.lastCell === key) return
       gesture.current.lastCell = key
+      const before = state.tiles[idx(x, y)]?.entityId
       place(x, y)
       setFlash(key)
       window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
       buzz(8)
+      if (selected && selected !== 'remove' && selected !== 'copy' && selected !== 'paste') {
+        spawnFloater(x, y, PLACEABLE_META[selected].label.split(' ')[0], 'place')
+      } else if (selected === 'remove' && before) {
+        spawnFloater(x, y, 'scrap', 'warn')
+      }
     },
-    [place],
+    [place, selected, spawnFloater, state.tiles],
   )
+
+  const centerOn = useCallback(
+    (gx: number, gy: number) => {
+      const vp = viewportRef.current
+      if (!vp) return
+      const rect = vp.getBoundingClientRect()
+      setPan({
+        x: rect.width / 2 - (gx + 0.5) * CELL * zoom,
+        y: rect.height / 2 - (gy + 0.5) * CELL * zoom,
+      })
+      velocity.current = { x: 0, y: 0 }
+    },
+    [zoom],
+  )
+
+  const recenter = useCallback(() => {
+    const drills = Object.values(entities).filter(
+      (e) => e.kind === 'drill' || e.kind === 'electricDrill',
+    )
+    if (drills.length) {
+      const ax = drills.reduce((s, d) => s + d.x, 0) / drills.length
+      const ay = drills.reduce((s, d) => s + d.y, 0) / drills.length
+      centerOn(ax, ay)
+      return
+    }
+    centerOn(width / 2, height / 2)
+  }, [entities, width, height, centerOn])
 
   const onPointerDown = (e: ReactPointerEvent) => {
     const vp = viewportRef.current
     if (!vp) return
+    if (inertiaRaf.current) {
+      cancelAnimationFrame(inertiaRaf.current)
+      inertiaRaf.current = 0
+    }
+    velocity.current = { x: 0, y: 0 }
     vp.setPointerCapture(e.pointerId)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
@@ -261,6 +425,10 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
 
     if (gesture.current.kind === 'pan' && pointers.current.size === 1) {
       setPan((p) => ({ x: p.x + e.movementX, y: p.y + e.movementY }))
+      velocity.current = {
+        x: e.movementX * 0.85 + velocity.current.x * 0.15,
+        y: e.movementY * 0.85 + velocity.current.y * 0.15,
+      }
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 0) gesture.current.moved = true
       return
     }
@@ -301,11 +469,15 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
     }
 
     if (pointers.current.size === 0) {
+      if (wasPan && moved) runInertia()
       if (wasPan && !moved && !selected) {
         const cell = cellFromPoint(e.clientX, e.clientY)
         if (cell) {
           const entId = tiles[idx(cell.x, cell.y)]?.entityId
           setInspect(entId ? cell : null)
+          if (entId) buzz(6)
+        } else {
+          setInspect(null)
         }
       }
       if (wasPaint && !moved) {
@@ -319,54 +491,105 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
   }
 
   const toolLabel = !selected
-    ? 'Hand — drag to pan, tap machines'
+    ? 'Hand — drag map, tap machines'
     : selected === 'remove'
       ? 'Demolish — drag to clear'
       : selected === 'copy'
         ? 'Copy — tap two corners'
         : selected === 'paste'
           ? 'Paste — tap origin'
-          : `Place ${PLACEABLE_META[selected].label} ${dirArrow(placeDir)}`
+          : `Build ${PLACEABLE_META[selected].label} ${dirArrow(placeDir)}`
+
+  const activeMachines = useMemo(() => {
+    let n = 0
+    for (const e of Object.values(entities)) {
+      if (e.kind === 'drill' && (e.store.coal ?? 0) > 0) n++
+      else if (e.kind === 'electricDrill') n++
+      else if ((isFurnaceKind(e.kind) || e.kind === 'assembler') && e.smelting) n++
+    }
+    return n
+  }, [entities])
+
+  const rateLine =
+    rates.ore > 0.05
+      ? `${rates.ore.toFixed(1)} ore/s`
+      : rates.moved > 0.05
+        ? `${rates.moved.toFixed(1)} flow/s`
+        : activeMachines > 0
+          ? `${activeMachines} running`
+          : 'idle'
 
   return (
-    <section className="factory-floor">
-      <div className="factory-hud">
-        <div className="factory-hud-main">
-          <strong>{toolLabel}</strong>
-          <span>
-            Cycles {state.mineCycles.toLocaleString()}
-            {blueprint ? ` · BP ${blueprint.length}` : ''}
-          </span>
-        </div>
-        <div className="factory-hud-actions">
+    <section className="factory-floor is-playable">
+      <div className="game-hud">
+        <div className="game-hud-top">
+          <div className="game-hud-identity">
+            <strong className="game-hud-brand">{APP_NAME}</strong>
+            <span className="game-hud-operator">
+              {state.playerName} · Lv {state.level} {titleForLevel(state.level)}
+            </span>
+            <div className="game-hud-xp" aria-hidden>
+              <div className="game-hud-xp-fill" style={{ width: `${xpPct}%` }} />
+            </div>
+          </div>
           <button
             type="button"
-            className="fab-btn"
-            onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - 0.15) * 100) / 100))}
-            aria-label="Zoom out"
+            className={`game-hud-steps ${stepPulse ? 'is-pulse' : ''} ${
+              pedometer.status === 'listening' ? 'is-live' : ''
+            }`}
+            onClick={onOpenSteps}
           >
-            −
-          </button>
-          <button
-            type="button"
-            className="fab-btn"
-            onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + 0.15) * 100) / 100))}
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            className="fab-btn fab-rotate"
-            onClick={() => {
-              rotateDir()
-              buzz(6)
-            }}
-            aria-label="Rotate"
-          >
-            {dirArrow(placeDir)}
+            <span className="game-hud-steps-label">Steps</span>
+            <span className="game-hud-steps-num">{formatNum(state.stepsToday)}</span>
+            {pedometer.status === 'listening' ? (
+              <span className="game-hud-steps-live">+{pedometer.sessionSteps}</span>
+            ) : (
+              <span className="game-hud-steps-sub">today</span>
+            )}
           </button>
         </div>
+
+        <div className="game-hud-resources" aria-label="Inventory">
+          {HUD_RESOURCES.map((id) => {
+            const n = state.inventory[id] ?? 0
+            if (n <= 0 && id !== 'ironOre' && id !== 'coal' && id !== 'ironPlate') return null
+            return (
+              <span key={id} className="game-res" style={{ '--res': ITEM_META[id].color } as CSSProperties}>
+                <ItemSprite item={id} />
+                <em>{formatNum(n)}</em>
+              </span>
+            )
+          })}
+        </div>
+
+        <div className="game-hud-meta">
+          {goal ? (
+            <button type="button" className="game-objective" onClick={onOpenTasks}>
+              <span>Objective</span>
+              <strong>{goal.title}</strong>
+            </button>
+          ) : (
+            <button type="button" className="game-objective is-clear" onClick={onOpenTasks}>
+              <span>Contracts</span>
+              <strong>All clear — expand</strong>
+            </button>
+          )}
+          <div className="game-hud-rates">
+            <span className={rates.ore > 0.05 ? 'is-hot' : ''}>{rateLine}</span>
+            {rates.plates > 0.02 && <span>plates {rates.plates.toFixed(1)}/s</span>}
+            {rates.gears > 0.02 && <span>gears {rates.gears.toFixed(1)}/s</span>}
+          </div>
+        </div>
+
+        {pedometer.status === 'listening' && (
+          <div className="game-walk-banner">
+            <span className="game-walk-dot" aria-hidden />
+            Walking — drills mine with each step
+            <button type="button" onClick={pedometer.stop}>
+              Stop
+            </button>
+          </div>
+        )}
       </div>
 
       <div
@@ -378,6 +601,7 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
         onPointerCancel={onPointerUp}
         onContextMenu={(e) => e.preventDefault()}
       >
+        <div className="factory-vignette" aria-hidden />
         <div
           className="factory-world"
           ref={worldRef}
@@ -450,6 +674,8 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
                       showGhost ? (valid ? 'is-valid-ghost' : 'is-invalid-ghost') : '',
                       isInspect ? 'is-inspect' : '',
                       isFlash ? 'is-flash' : '',
+                      active ? 'is-active-machine' : '',
+                      lit ? 'is-lit' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
@@ -527,6 +753,71 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
               }),
             )}
           </div>
+
+          {floaters.map((f) => (
+            <span
+              key={f.id}
+              className={`world-floater tone-${f.tone}`}
+              style={{
+                left: f.x * CELL + CELL * 0.2,
+                top: f.y * CELL + CELL * 0.15,
+              }}
+            >
+              {f.text}
+            </span>
+          ))}
+        </div>
+
+        <div className="viewport-fabs">
+          <button
+            type="button"
+            className="fab-btn"
+            onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - 0.15) * 100) / 100))}
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="fab-btn"
+            onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + 0.15) * 100) / 100))}
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="fab-btn fab-rotate"
+            onClick={() => {
+              rotateDir()
+              buzz(6)
+            }}
+            aria-label="Rotate"
+          >
+            {dirArrow(placeDir)}
+          </button>
+          <button type="button" className="fab-btn" onClick={recenter} aria-label="Recenter">
+            ⌖
+          </button>
+        </div>
+
+        <Minimap
+          width={width}
+          height={height}
+          tiles={tiles}
+          entities={entities}
+          pan={pan}
+          zoom={zoom}
+          viewportRef={viewportRef}
+          onJump={centerOn}
+        />
+
+        <div className="mode-banner" aria-live="polite">
+          <strong>{toolLabel}</strong>
+          <span>
+            {formatNum(state.mineCycles)} cycles
+            {blueprint ? ` · BP ${blueprint.length}` : ''}
+          </span>
         </div>
       </div>
 
@@ -556,12 +847,27 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
             >
               Rotate
             </button>
+            {inspectEnt.kind === 'drill' && (
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={state.inventory.coal < 1}
+                onClick={() => {
+                  fuelAt(inspect.x, inspect.y)
+                  spawnFloater(inspect.x, inspect.y, '+fuel', 'good')
+                  buzz(10)
+                }}
+              >
+                Fuel
+              </button>
+            )}
             {inspectEnt.kind === 'chest' && (
               <button
                 type="button"
                 className="primary-btn"
                 onClick={() => {
                   collect(inspect.x, inspect.y)
+                  spawnFloater(inspect.x, inspect.y, 'loot', 'good')
                   buzz(10)
                 }}
               >
@@ -585,105 +891,232 @@ export function FactoryFloor({ highlight = null }: { highlight?: Highlight }) {
         </div>
       )}
 
-      <div className="build-console">
-        <div className="build-mode-row" role="tablist" aria-label="Tool groups">
-          <button
-            type="button"
-            className={!selected ? 'is-active' : ''}
-            onClick={() => selectTool(null)}
-          >
-            Hand
-          </button>
-          {(
-            [
-              ['build', 'Build'],
-              ['belts', 'Belts'],
-              ['edit', 'Edit'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={toolTab === id && selected ? 'is-active' : ''}
-              onClick={() => {
-                setToolTab(id)
-                const list = id === 'build' ? BUILD_TOOLS : id === 'belts' ? BELT_TOOLS : EDIT_TOOLS
-                const first = list.find((t) => isUnlocked(t, state.researched))
-                if (first) selectTool(first)
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className={`build-console ${dockOpen ? 'is-open' : 'is-collapsed'}`}>
+        <button
+          type="button"
+          className="build-console-toggle"
+          onClick={() => setDockOpen((v) => !v)}
+          aria-expanded={dockOpen}
+        >
+          {dockOpen ? 'Hide tools' : 'Show tools'}
+          <span>{selected ? PLACEABLE_META[selected as Placeable]?.label ?? selected : 'Hand'}</span>
+        </button>
 
-        <div className="build-icon-dock" role="toolbar" aria-label="Build tools">
-          {toolsForTab.map((tool) => {
-            const unlocked = isUnlocked(tool, state.researched)
-            if (!unlocked) {
-              if (tool === 'copy' || tool === 'paste' || tool === 'remove') return null
-              if ((state.inventory[tool as Placeable] ?? 0) <= 0) return null
-            }
-            const label =
-              tool === 'remove'
-                ? 'Demolish'
-                : tool === 'copy'
-                  ? 'Copy'
-                  : tool === 'paste'
-                    ? 'Paste'
-                    : PLACEABLE_META[tool].label
-            const count =
-              tool === 'remove' || tool === 'copy' || tool === 'paste'
-                ? tool === 'paste' && state.blueprint
-                  ? state.blueprint.length
-                  : null
-                : state.inventory[PLACEABLE_META[tool].inventoryKey]
-            const pulse =
-              (highlight === 'drillTool' && tool === 'drill') ||
-              (highlight === 'ore' && tool === 'drill') ||
-              (highlight === 'beltTool' && tool === 'belt')
-            const affordable =
-              tool === 'remove' ||
-              tool === 'copy' ||
-              tool === 'paste' ||
-              (count !== null && count > 0)
-            return (
+        {dockOpen && (
+          <>
+            <div className="build-mode-row" role="tablist" aria-label="Tool groups">
               <button
-                key={tool}
                 type="button"
-                className={[
-                  'build-icon',
-                  selected === tool ? 'is-active' : '',
-                  !affordable ? 'is-empty' : '',
-                  pulse ? 'is-tutorial-pulse' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => {
-                  selectTool(selected === tool ? null : tool)
-                  setInspect(null)
-                  buzz(6)
-                }}
-                title={label}
+                className={!selected ? 'is-active' : ''}
+                onClick={() => selectTool(null)}
               >
-                <ToolIcon kind={tool} />
-                <span className="build-icon-name">{label}</span>
-                {count !== null && <span className="build-icon-count">{count}</span>}
+                Hand
               </button>
-            )
-          })}
-        </div>
+              {(
+                [
+                  ['build', 'Build'],
+                  ['belts', 'Belts'],
+                  ['edit', 'Edit'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={toolTab === id && selected ? 'is-active' : ''}
+                  onClick={() => {
+                    setToolTab(id)
+                    const list =
+                      id === 'build' ? BUILD_TOOLS : id === 'belts' ? BELT_TOOLS : EDIT_TOOLS
+                    const first = list.find((t) => isUnlocked(t, state.researched))
+                    if (first) selectTool(first)
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-        <div className="build-quick">
-          <button type="button" className="ghost-btn" onClick={() => fuelDrills()}>
-            Fuel drills
-          </button>
-          <button type="button" className="ghost-btn" onClick={() => buildStarter()}>
-            Starter line
-          </button>
-          <span className="build-hint">Pinch zoom · Hand pans · Drag paints belts</span>
-        </div>
+            <div className="build-icon-dock" role="toolbar" aria-label="Build tools">
+              {toolsForTab.map((tool) => {
+                const unlocked = isUnlocked(tool, state.researched)
+                if (!unlocked) {
+                  if (tool === 'copy' || tool === 'paste' || tool === 'remove') return null
+                  if ((state.inventory[tool as Placeable] ?? 0) <= 0) return null
+                }
+                const label =
+                  tool === 'remove'
+                    ? 'Demolish'
+                    : tool === 'copy'
+                      ? 'Copy'
+                      : tool === 'paste'
+                        ? 'Paste'
+                        : PLACEABLE_META[tool].label
+                const count =
+                  tool === 'remove' || tool === 'copy' || tool === 'paste'
+                    ? tool === 'paste' && state.blueprint
+                      ? state.blueprint.length
+                      : null
+                    : state.inventory[PLACEABLE_META[tool].inventoryKey]
+                const pulse =
+                  (highlight === 'drillTool' && tool === 'drill') ||
+                  (highlight === 'ore' && tool === 'drill') ||
+                  (highlight === 'beltTool' && tool === 'belt')
+                const affordable =
+                  tool === 'remove' ||
+                  tool === 'copy' ||
+                  tool === 'paste' ||
+                  (count !== null && count > 0)
+                return (
+                  <button
+                    key={tool}
+                    type="button"
+                    className={[
+                      'build-icon',
+                      selected === tool ? 'is-active' : '',
+                      !affordable ? 'is-empty' : '',
+                      pulse ? 'is-tutorial-pulse' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => {
+                      selectTool(selected === tool ? null : tool)
+                      setInspect(null)
+                      buzz(6)
+                    }}
+                    title={label}
+                  >
+                    <ToolIcon kind={tool} />
+                    <span className="build-icon-name">{label}</span>
+                    {count !== null && <span className="build-icon-count">{count}</span>}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="build-quick">
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  fuelDrills()
+                  buzz(10)
+                }}
+              >
+                Fuel all
+              </button>
+              {!state.tutorialComplete && (
+                <button type="button" className="ghost-btn" onClick={() => buildStarter()}>
+                  Starter line
+                </button>
+              )}
+              {pedometer.status !== 'listening' && pedometer.supported && (
+                <button
+                  type="button"
+                  className="ghost-btn walk-btn"
+                  onClick={() => {
+                    void pedometer.start()
+                    buzz(12)
+                  }}
+                >
+                  Start walk
+                </button>
+              )}
+              <span className="build-hint">Pinch · drag · paint belts</span>
+            </div>
+          </>
+        )}
       </div>
     </section>
+  )
+}
+
+function Minimap({
+  width,
+  height,
+  tiles,
+  entities,
+  pan,
+  zoom,
+  viewportRef,
+  onJump,
+}: {
+  width: number
+  height: number
+  tiles: GameState['tiles']
+  entities: GameState['entities']
+  pan: { x: number; y: number }
+  zoom: number
+  viewportRef: RefObject<HTMLDivElement | null>
+  onJump: (x: number, y: number) => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const scale = 3
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    canvas.width = width * scale
+    canvas.height = height * scale
+    ctx.fillStyle = '#1a2214'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const tile = tiles[idx(x, y)]
+        if (tile.ore === 'ironOre') ctx.fillStyle = '#8B7355'
+        else if (tile.ore === 'copperOre') ctx.fillStyle = '#C4783A'
+        else if (tile.ore === 'coal') ctx.fillStyle = '#2A2A2A'
+        else ctx.fillStyle = '#3a4a28'
+        ctx.fillRect(x * scale, y * scale, scale, scale)
+        if (tile.entityId && entities[tile.entityId]) {
+          const kind = entities[tile.entityId].kind
+          if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
+          else if (kind.includes('drill')) ctx.fillStyle = '#7dff9a'
+          else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
+          else ctx.fillStyle = '#7b8792'
+          ctx.fillRect(x * scale, y * scale, scale, scale)
+        }
+      }
+    }
+  }, [width, height, tiles, entities])
+
+  const view = useMemo(() => {
+    const vp = viewportRef.current
+    if (!vp) return null
+    const rect = vp.getBoundingClientRect()
+    const left = Math.max(0, Math.min(width, -pan.x / (CELL * zoom)))
+    const top = Math.max(0, Math.min(height, -pan.y / (CELL * zoom)))
+    const w = Math.min(width - left, rect.width / (CELL * zoom))
+    const h = Math.min(height - top, rect.height / (CELL * zoom))
+    return { left, top, w, h }
+  }, [pan, zoom, width, height, viewportRef])
+
+  return (
+    <button
+      type="button"
+      className="minimap"
+      aria-label="Minimap — tap to jump"
+      onClick={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect()
+        const x = ((e.clientX - rect.left) / rect.width) * width
+        const y = ((e.clientY - rect.top) / rect.height) * height
+        onJump(x, y)
+        buzz(6)
+      }}
+    >
+      <canvas ref={canvasRef} />
+      {view && (
+        <span
+          className="minimap-view"
+          style={{
+            left: `${(view.left / width) * 100}%`,
+            top: `${(view.top / height) * 100}%`,
+            width: `${(view.w / width) * 100}%`,
+            height: `${(view.h / height) * 100}%`,
+          }}
+        />
+      )}
+    </button>
   )
 }

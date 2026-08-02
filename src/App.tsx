@@ -14,7 +14,6 @@ import { TopStatusBar } from './components/TopStatusBar'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { GameProvider, useGame } from './game/GameContext'
 import { usePedometer } from './hooks/usePedometer'
-import { activeGoal } from './game/goals'
 import { getTutorialStep, unlockedTabsFor } from './game/tutorial'
 import type { TabId } from './game/types'
 import './index.css'
@@ -42,45 +41,12 @@ function Toast() {
   )
 }
 
-function PedometerChip({
-  sessionSteps,
-  onStop,
-  onOpen,
-}: {
-  sessionSteps: number
-  onStop: () => void
-  onOpen: () => void
-}) {
-  return (
-    <div className="pedo-chip" role="status">
-      <button type="button" className="pedo-chip-main" onClick={onOpen}>
-        <span className="pedo-chip-dot" aria-hidden />
-        Pedometer · {sessionSteps} this walk
-      </button>
-      <button type="button" className="pedo-chip-stop" onClick={onStop}>
-        Stop
-      </button>
-    </div>
-  )
-}
-
-function ObjectiveChip({ onOpenTasks }: { onOpenTasks: () => void }) {
-  const { state } = useGame()
-  const goal = activeGoal(state)
-  if (!goal) return null
-  return (
-    <button type="button" className="objective-chip" onClick={onOpenTasks}>
-      <span className="objective-chip-label">Objective</span>
-      <span className="objective-chip-title">{goal.title}</span>
-    </button>
-  )
-}
-
 function Shell() {
   const [tab, setTab] = useState<TabId>('factory')
   const { state, logSteps } = useGame()
   const pedometer = usePedometer(logSteps)
   const requestTab = useCallback((t: TabId) => setTab(t), [])
+  const playing = tab === 'factory'
 
   const tutorialStep = getTutorialStep(
     state.tutorialComplete ? null : state.tutorialStep,
@@ -100,11 +66,18 @@ function Shell() {
     [unlocked],
   )
 
+  const sheetLabel = TABS.find((t) => t.id === tab)?.label ?? ''
+
   return (
     <div
-      className={`app app-sections ${coaching ? 'is-coaching' : ''} ${
-        tab === 'factory' ? 'is-floor-tab' : ''
-      }`}
+      className={[
+        'app',
+        'app-game',
+        playing ? 'is-playing' : 'has-sheet',
+        coaching ? 'is-coaching' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       <div className="atmosphere" aria-hidden>
         <div className="belt-strip" />
@@ -112,33 +85,53 @@ function Shell() {
         <div className="grid-floor" />
       </div>
 
-      <div className="shell">
-        <TopStatusBar />
-
-        <main className="main" key={tab}>
-          {tab === 'factory' && (
-            <div className="section-floor is-game">
-              <ObjectiveChip onOpenTasks={() => setTabSafe('habits')} />
-              <FactoryFloor highlight={highlight} />
-            </div>
-          )}
-          {tab === 'inventory' && <InventoryPanel />}
-          {tab === 'steps' && (
-            <StepsPanel pedometer={pedometer} highlightManual={highlight === 'manualSteps'} />
-          )}
-          {tab === 'skills' && <SkillsPanel />}
-          {tab === 'craft' && <CraftPanel />}
-          {tab === 'research' && <ResearchPanel />}
-          {tab === 'habits' && (
-            <div className="section-tasks">
-              <GoalsBar />
-              <HabitsPanel highlightHabit={highlight === 'habit'} />
-            </div>
-          )}
-        </main>
+      {/* Floor stays mounted so the world keeps feeling alive under sheets */}
+      <div className={`game-stage ${playing ? 'is-front' : 'is-back'}`}>
+        <FactoryFloor
+          highlight={highlight}
+          pedometer={pedometer}
+          onOpenTasks={() => setTabSafe('habits')}
+          onOpenSteps={() => setTabSafe('steps')}
+        />
       </div>
 
-      <nav className="bottom-nav" aria-label="Sections">
+      {!playing && (
+        <div className="game-sheet" role="dialog" aria-label={sheetLabel}>
+          <header className="game-sheet-bar">
+            <button
+              type="button"
+              className="game-sheet-back"
+              onClick={() => setTabSafe('factory')}
+            >
+              ← Floor
+            </button>
+            <h2 className="game-sheet-title">{sheetLabel}</h2>
+            <div className="game-sheet-status">
+              <TopStatusBar />
+            </div>
+          </header>
+          <main className="game-sheet-body" key={tab}>
+            {tab === 'inventory' && <InventoryPanel />}
+            {tab === 'steps' && (
+              <StepsPanel
+                pedometer={pedometer}
+                highlightManual={highlight === 'manualSteps'}
+              />
+            )}
+            {tab === 'skills' && <SkillsPanel />}
+            {tab === 'craft' && <CraftPanel />}
+            {tab === 'research' && <ResearchPanel />}
+            {tab === 'habits' && (
+              <div className="section-tasks">
+                <GoalsBar />
+                <HabitsPanel highlightHabit={highlight === 'habit'} />
+              </div>
+            )}
+          </main>
+        </div>
+      )}
+
+      <nav className="bottom-nav game-dock" aria-label="Game sections">
         {TABS.map((t) => {
           const locked = !unlocked.includes(t.id)
           const focus = tutorialStep?.tab === t.id
@@ -151,6 +144,7 @@ function Shell() {
                 tab === t.id ? 'is-active' : '',
                 locked ? 'is-locked' : '',
                 focus ? 'is-tour-focus' : '',
+                t.id === 'factory' ? 'is-floor-btn' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
@@ -166,14 +160,6 @@ function Shell() {
           )
         })}
       </nav>
-
-      {pedometer.status === 'listening' && tab !== 'steps' && (
-        <PedometerChip
-          sessionSteps={pedometer.sessionSteps}
-          onStop={pedometer.stop}
-          onOpen={() => setTabSafe('steps')}
-        />
-      )}
 
       <TutorialOverlay onRequestTab={requestTab} />
       <Toast />

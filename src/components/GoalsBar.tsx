@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import { formatNum } from '../game/data'
 import { GOALS, TIPS, activeGoal } from '../game/goals'
 import {
@@ -6,6 +5,7 @@ import {
   contractProgress,
 } from '../game/contracts'
 import { useGame } from '../game/GameContext'
+import { useProductionRates } from '../hooks/useProductionRates'
 
 export function GoalsBar() {
   const { state, claimContract } = useGame()
@@ -13,33 +13,7 @@ export function GoalsBar() {
   const done = state.completedGoals.length
   const total = GOALS.length
   const tip = TIPS[state.tipIndex % TIPS.length]
-
-  const prev = useRef(state.stats)
-  const prevAt = useRef(Date.now())
-  const ema = useRef({ ore: 0, plates: 0, gears: 0, moved: 0 })
-  const [rates, setRates] = useState({ ore: 0, plates: 0, gears: 0, moved: 0 })
-
-  useEffect(() => {
-    const now = Date.now()
-    const dt = Math.max(0.25, (now - prevAt.current) / 1000)
-    const instant = {
-      ore: Math.max(0, (state.stats.oreMined - prev.current.oreMined) / dt),
-      plates: Math.max(0, (state.stats.platesSmelted - prev.current.platesSmelted) / dt),
-      gears: Math.max(0, (state.stats.gearsMade - prev.current.gearsMade) / dt),
-      moved: Math.max(0, (state.stats.itemsMoved - prev.current.itemsMoved) / dt),
-    }
-    const a = 0.35
-    ema.current = {
-      ore: ema.current.ore * (1 - a) + instant.ore * a,
-      plates: ema.current.plates * (1 - a) + instant.plates * a,
-      gears: ema.current.gears * (1 - a) + instant.gears * a,
-      moved: ema.current.moved * (1 - a) + instant.moved * a,
-    }
-    setRates({ ...ema.current })
-    prev.current = state.stats
-    prevAt.current = now
-  }, [state.stats])
-
+  const rates = useProductionRates(state.stats)
   const contracts = state.contracts ?? []
 
   return (

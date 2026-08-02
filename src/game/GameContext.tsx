@@ -18,6 +18,7 @@ import {
   buildStarterLine as buildStarterLineLogic,
   researchTech as researchTechLogic,
   fuelAllDrills as fuelAllDrillsLogic,
+  fuelDrillAt as fuelDrillAtLogic,
   loadState,
   logSteps as logStepsLogic,
   placeEntity as placeEntityLogic,
@@ -53,6 +54,7 @@ type Action =
   | { type: 'RESEARCH'; id: TechId }
   | { type: 'STARTER' }
   | { type: 'FUEL' }
+  | { type: 'FUEL_AT'; x: number; y: number }
   | { type: 'CLEAR_TOAST' }
   | { type: 'RESET' }
   | { type: 'RENAME'; name: string }
@@ -94,6 +96,8 @@ function reducer(state: GameState, action: Action): GameState {
       return buildStarterLineLogic(state)
     case 'FUEL':
       return fuelAllDrillsLogic(state)
+    case 'FUEL_AT':
+      return fuelDrillAtLogic(state, action.x, action.y)
     case 'CLEAR_TOAST':
       return clearToastLogic(state)
     case 'RESET':
@@ -131,6 +135,7 @@ interface GameContextValue {
   research: (id: TechId) => void
   buildStarter: () => void
   fuelDrills: () => void
+  fuelAt: (x: number, y: number) => void
   clearToast: () => void
   reset: () => void
   rename: (name: string) => void
@@ -254,6 +259,10 @@ export function GameProvider({
   )
   const buildStarter = useCallback(() => dispatch({ type: 'STARTER' }), [])
   const fuelDrills = useCallback(() => dispatch({ type: 'FUEL' }), [])
+  const fuelAt = useCallback(
+    (x: number, y: number) => dispatch({ type: 'FUEL_AT', x, y }),
+    [],
+  )
   const clearToast = useCallback(() => dispatch({ type: 'CLEAR_TOAST' }), [])
   const reset = useCallback(() => {
     if (window.confirm('Scrap the factory and start over?')) dispatch({ type: 'RESET' })
@@ -294,6 +303,7 @@ export function GameProvider({
       research,
       buildStarter,
       fuelDrills,
+      fuelAt,
       clearToast,
       reset,
       rename,
@@ -321,6 +331,7 @@ export function GameProvider({
       research,
       buildStarter,
       fuelDrills,
+      fuelAt,
       clearToast,
       reset,
       rename,
