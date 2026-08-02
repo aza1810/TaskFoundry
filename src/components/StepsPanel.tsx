@@ -1,33 +1,119 @@
 import { useState } from 'react'
 import { formatNum } from '../game/data'
 import { useGame } from '../game/GameContext'
+import type { HealthStepsApi } from '../hooks/useHealthSteps'
 import type { PedometerApi } from '../hooks/usePedometer'
 
 const PRESETS = [1, 10, 50, 100, 500, 1000]
 
 export function StepsPanel({
   pedometer,
+  healthSteps,
   highlightManual = false,
 }: {
   pedometer: PedometerApi
+  healthSteps: HealthStepsApi
   highlightManual?: boolean
 }) {
-  const { state, logSteps } = useGame()
+  const { state, logSteps, importHealthSteps } = useGame()
   const [custom, setCustom] = useState('100')
+  const [syncBusy, setSyncBusy] = useState(false)
   const drills = Object.values(state.entities).filter(
     (e) => e.kind === 'drill' || e.kind === 'electricDrill',
   ).length
   const listening = pedometer.status === 'listening'
+  const healthReady =
+    healthSteps.isNative &&
+    (healthSteps.status === 'ready' ||
+      healthSteps.status === 'syncing' ||
+      healthSteps.status === 'checking')
+
+  async function syncFromHealth() {
+    setSyncBusy(true)
+    try {
+      if (healthSteps.status === 'denied' || healthSteps.status === 'unavailable') {
+        await healthSteps.connect()
+      }
+      const total = await healthSteps.readTodaySteps()
+      if (total != null) importHealthSteps(total)
+    } finally {
+      setSyncBusy(false)
+    }
+  }
 
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Step Cycles</h2>
         <p>
-          Start the phone pedometer and walk with this page open, or log steps manually.
-          Each step runs one mining cycle on every drill.
+          {healthSteps.isNative
+            ? 'Sync steps from Apple Health / Health Connect, or use the live pedometer. Each step runs one mining cycle on every drill.'
+            : 'Start the phone pedometer and walk with this page open, or log steps manually. For Health / Fit sync, install the native Task Foundry app.'}
         </p>
       </div>
+
+      {healthSteps.isNative ? (
+        <div className={`pedo-card ${healthReady ? 'is-live' : ''}`}>
+          <div className="pedo-head">
+            <h3>{healthSteps.platformLabel}</h3>
+            <span className={`pedo-status status-${healthSteps.status}`}>
+              {healthSteps.status === 'ready' && 'Connected'}
+              {healthSteps.status === 'checking' && 'Checking…'}
+              {healthSteps.status === 'syncing' && 'Syncing…'}
+              {healthSteps.status === 'denied' && 'Permission needed'}
+              {healthSteps.status === 'unavailable' && 'Unavailable'}
+              {healthSteps.status === 'error' && 'Error'}
+              {healthSteps.status === 'web' && 'Web'}
+            </span>
+          </div>
+          <p className="pedo-copy">
+            Reads today&apos;s steps from {healthSteps.platformLabel}. Only new steps since the last
+            sync are imported — manual logs stay separate.
+          </p>
+          <div className="pedo-session">
+            <span className="pedo-session-num">
+              {healthSteps.healthStepsToday == null
+                ? '—'
+                : formatNum(healthSteps.healthStepsToday)}
+            </span>
+            <span className="pedo-session-label">steps in health today</span>
+          </div>
+          <div className="pedo-actions">
+            <button
+              type="button"
+              className="primary-btn pedo-start"
+              onClick={() => void syncFromHealth()}
+              disabled={syncBusy || healthSteps.status === 'unavailable'}
+            >
+              {syncBusy
+                ? 'Syncing…'
+                : healthSteps.status === 'denied'
+                  ? 'Allow & sync steps'
+                  : 'Sync health steps'}
+            </button>
+          </div>
+          {healthSteps.lastError && (
+            <p className="hint pedo-hint">{healthSteps.lastError}</p>
+          )}
+          {healthSteps.status === 'unavailable' && (
+            <p className="hint pedo-hint">
+              On Android, install Health Connect and grant step access. On iPhone, enable Health
+              permissions for Task Foundry.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="pedo-card">
+          <div className="pedo-head">
+            <h3>Native health sync</h3>
+            <span className="pedo-status status-web">Web only</span>
+          </div>
+          <p className="pedo-copy">
+            This browser site cannot read Apple Health or Google Health Connect. Use the native
+            Android / iOS app for that — or the live pedometer / manual log below.
+          </p>
+        </div>
+      )}
 
       <div className={`pedo-card ${listening ? 'is-live' : ''}`}>
         <div className="pedo-head">
@@ -41,8 +127,8 @@ export function StepsPanel({
           </span>
         </div>
         <p className="pedo-copy">
-          Uses your phone’s motion sensors (not Apple Health / Google Fit history). Keep
-          this page open while you walk — screen stay-awake is requested automatically.
+          Uses your phone’s motion sensors while this page stays open. Useful as a backup when
+          health sync isn’t available.
         </p>
         <div className="pedo-session">
           <span className="pedo-session-num">{formatNum(pedometer.sessionSteps)}</span>

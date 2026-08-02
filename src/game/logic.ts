@@ -74,6 +74,8 @@ export function createInitialState(): GameState {
     stepsToday: 0,
     stepsLifetime: 0,
     stepsDate: todayKey(),
+    healthImportedToday: 0,
+    healthImportDate: todayKey(),
     mineCycles: 0,
     selected: null,
     placeDir: 'E',
@@ -132,6 +134,8 @@ export function loadState(accountSaveKey?: string): GameState {
       focusSkills: (parsed.focusSkills ?? []).slice(0, 2),
       contractsDate: parsed.contractsDate ?? '',
       contracts: parsed.contracts ?? [],
+      healthImportedToday: parsed.healthImportedToday ?? 0,
+      healthImportDate: parsed.healthImportDate ?? parsed.stepsDate ?? todayKey(),
       tutorialStep:
         parsed.tutorialComplete === true
           ? null
@@ -207,6 +211,8 @@ function refreshDaily(state: GameState): GameState {
     habits,
     stepsToday: 0,
     stepsDate: today,
+    healthImportedToday: 0,
+    healthImportDate: today,
     contractsDate: '',
     contracts: [],
   })
@@ -662,6 +668,42 @@ export function logSteps(state: GameState, amount: number): GameState {
   }
 
   return claimGoals(next)
+}
+
+/**
+ * Import today's Apple Health / Health Connect total into the game.
+ * Only the delta since the last import is applied, so manual logs stay separate
+ * and re-syncing does not double-count.
+ */
+export function importHealthSteps(
+  state: GameState,
+  healthStepsToday: number,
+): GameState {
+  let next = refreshDaily(state)
+  const today = todayKey()
+  const imported =
+    next.healthImportDate === today ? (next.healthImportedToday ?? 0) : 0
+  const total = Math.max(0, Math.floor(healthStepsToday))
+  const delta = Math.max(0, total - imported)
+  if (delta <= 0) {
+    return {
+      ...next,
+      healthImportedToday: Math.max(imported, total),
+      healthImportDate: today,
+      unlockedToast:
+        total > 0
+          ? `Health already synced (${total.toLocaleString()} steps today)`
+          : 'No new health steps yet today',
+    }
+  }
+
+  next = logSteps(next, delta)
+  return {
+    ...next,
+    healthImportedToday: total,
+    healthImportDate: today,
+    unlockedToast: `Synced +${delta.toLocaleString()} steps from health`,
+  }
 }
 
 export function completeHabit(state: GameState, habitId: string): GameState {

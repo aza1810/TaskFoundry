@@ -9,11 +9,44 @@ npm install
 npm run dev
 ```
 
-## Live
+## Live (web)
 
 https://azztech.online/apps/tf/
 
-## Deploy
+The website keeps the browser pedometer + manual step log. Browsers cannot read Apple Health or Health Connect.
+
+## Native app (Apple Health / Health Connect)
+
+Same React app, wrapped with [Capacitor](https://capacitorjs.com/). On device it can sync today’s steps from:
+
+- **iOS** — Apple Health (HealthKit)
+- **Android** — Health Connect
+
+```bash
+npm install
+npm run cap:sync          # build web assets + sync native projects
+npm run cap:android       # open Android Studio
+npm run cap:ios           # open Xcode (macOS)
+```
+
+### First-time native setup
+
+1. Install Android Studio (and Xcode on a Mac for iOS).
+2. `npm run cap:sync`
+3. **Android:** open the `android/` project, run on a device/emulator with Health Connect installed, grant step permission, then **Steps → Sync health steps**.
+4. **iOS:** open `ios/App/App.xcworkspace`, enable the **HealthKit** capability for the app target if Xcode didn’t already, run on a device, grant Health access, then sync.
+
+App id: `online.azztech.taskfoundry`
+
+Privacy policy asset for Health Connect: `public/privacypolicy.html` (copied into the web build).
+
+### What syncs
+
+- Native app reads today’s step total from Health / Health Connect.
+- Only the **delta** since the last import is applied to the game (no double-counting).
+- Manual logs and the live accelerometer pedometer still work as backups.
+
+## Deploy (web)
 
 CI publishes on push (`main` or the factory branch) via [.github/workflows/deploy-azz.yml](.github/workflows/deploy-azz.yml).
 
@@ -30,7 +63,7 @@ Then run **Actions → Deploy azztech.online/apps/tf → Run workflow**, or push
 **Manual / local:**
 
 ```bash
-# copy .env.example → .env and set FTP_* 
+# copy .env.example → .env and set FTP_*
 npm run deploy:azz
 ```
 

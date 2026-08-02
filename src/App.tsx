@@ -12,6 +12,7 @@ import { SkillsPanel } from './components/SkillsPanel'
 import { StepsPanel } from './components/StepsPanel'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { GameProvider, useGame } from './game/GameContext'
+import { useHealthSteps } from './hooks/useHealthSteps'
 import { usePedometer } from './hooks/usePedometer'
 import { getTutorialStep, unlockedTabsFor } from './game/tutorial'
 import type { TabId } from './game/types'
@@ -114,6 +115,7 @@ function Shell() {
   const [tab, setTab] = useState<TabId>('factory')
   const { state, logSteps } = useGame()
   const pedometer = usePedometer(logSteps)
+  const healthSteps = useHealthSteps()
   const requestTab = useCallback((t: TabId) => setTab(t), [])
   const playing = tab === 'factory'
 
@@ -186,6 +188,7 @@ function Shell() {
             {tab === 'steps' && (
               <StepsPanel
                 pedometer={pedometer}
+                healthSteps={healthSteps}
                 highlightManual={highlight === 'manualSteps'}
               />
             )}

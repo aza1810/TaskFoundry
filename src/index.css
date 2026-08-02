@@ -1020,13 +1020,22 @@ button {
   color: #8a8070;
 }
 
-.pedo-status.status-listening {
+.pedo-status.status-listening,
+.pedo-status.status-ready,
+.pedo-status.status-syncing {
   color: #7dff9a;
 }
 
 .pedo-status.status-denied,
-.pedo-status.status-unsupported {
+.pedo-status.status-unsupported,
+.pedo-status.status-unavailable,
+.pedo-status.status-error {
   color: #e07060;
+}
+
+.pedo-status.status-web,
+.pedo-status.status-checking {
+  color: #a89878;
 }
 
 .pedo-copy {

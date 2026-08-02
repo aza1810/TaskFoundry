@@ -189,6 +189,9 @@ export interface GameState {
   stepsToday: number
   stepsLifetime: number
   stepsDate: string
+  /** Watermark: health/Fit steps already imported into the game today */
+  healthImportedToday: number
+  healthImportDate: string
   mineCycles: number
   selected: ToolId | null
   placeDir: Dir

@@ -19,6 +19,7 @@ import {
   researchTech as researchTechLogic,
   fuelAllDrills as fuelAllDrillsLogic,
   fuelDrillAt as fuelDrillAtLogic,
+  importHealthSteps as importHealthStepsLogic,
   loadState,
   logSteps as logStepsLogic,
   placeEntity as placeEntityLogic,
@@ -46,6 +47,7 @@ type Action =
   | { type: 'ROTATE_AT'; x: number; y: number }
   | { type: 'COLLECT'; x: number; y: number }
   | { type: 'LOG_STEPS'; amount: number }
+  | { type: 'IMPORT_HEALTH_STEPS'; healthStepsToday: number }
   | { type: 'COMPLETE_HABIT'; id: string }
   | { type: 'ADD_HABIT'; title: string; category: HabitCategory }
   | { type: 'REMOVE_HABIT'; id: string }
@@ -80,6 +82,8 @@ function reducer(state: GameState, action: Action): GameState {
       return collectChestLogic(state, action.x, action.y)
     case 'LOG_STEPS':
       return logStepsLogic(state, action.amount)
+    case 'IMPORT_HEALTH_STEPS':
+      return importHealthStepsLogic(state, action.healthStepsToday)
     case 'COMPLETE_HABIT':
       return completeHabitLogic(state, action.id)
     case 'ADD_HABIT':
@@ -127,6 +131,7 @@ interface GameContextValue {
   rotateAt: (x: number, y: number) => void
   collect: (x: number, y: number) => void
   logSteps: (amount: number) => void
+  importHealthSteps: (healthStepsToday: number) => void
   completeHabit: (id: string) => void
   addHabit: (title: string, category: HabitCategory) => void
   removeHabit: (id: string) => void
@@ -232,6 +237,11 @@ export function GameProvider({
     (amount: number) => dispatch({ type: 'LOG_STEPS', amount }),
     [],
   )
+  const importHealthSteps = useCallback(
+    (healthStepsToday: number) =>
+      dispatch({ type: 'IMPORT_HEALTH_STEPS', healthStepsToday }),
+    [],
+  )
   const completeHabit = useCallback(
     (id: string) => dispatch({ type: 'COMPLETE_HABIT', id }),
     [],
@@ -295,6 +305,7 @@ export function GameProvider({
       rotateAt,
       collect,
       logSteps,
+      importHealthSteps,
       completeHabit,
       addHabit,
       removeHabit,
@@ -323,6 +334,7 @@ export function GameProvider({
       rotateAt,
       collect,
       logSteps,
+      importHealthSteps,
       completeHabit,
       addHabit,
       removeHabit,

@@ -46,7 +46,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'logSteps',
     title: 'Feed the drills',
-    body: 'Every step runs one mining cycle on every drill. Tap +10 below, or Start live pedometer on your phone and walk with this page open.',
+    body: 'Every step runs one mining cycle on every drill. Tap +10 below, sync Apple Health / Health Connect in the native app, or start the live pedometer.',
     mode: 'coach',
     tab: 'steps',
     action: 'Log at least 10 steps',
