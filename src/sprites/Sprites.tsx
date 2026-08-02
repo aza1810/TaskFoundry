@@ -12,26 +12,31 @@ function inserterArmAngle(progress: number): number {
 }
 
 export function GroundTexture({ seed = 0 }: { seed?: number }) {
-  const base = seed % 3 === 0 ? '#4f6436' : seed % 3 === 1 ? '#465c30' : '#526a38'
+  const base =
+    seed % 3 === 0
+      ? 'var(--ground-a)'
+      : seed % 3 === 1
+        ? 'var(--ground-b)'
+        : 'var(--ground-c)'
   const dots = Array.from({ length: 7 }, (_, i) => {
     const x = ((seed * 17 + i * 37) % 90) + 5
     const y = ((seed * 29 + i * 53) % 90) + 5
     const r = 1 + ((seed + i) % 3)
-    const shade = (seed + i) % 2 === 0 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.07)'
+    const shade = (seed + i) % 2 === 0 ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.16)'
     return <circle key={i} cx={x} cy={y} r={r} fill={shade} />
   })
   return (
     <svg className="tex tex-ground" viewBox="0 0 100 100" aria-hidden>
       <rect width="100" height="100" fill={base} />
-      <rect x="0" y="0" width="100" height="100" fill="#3a4a28" opacity="0.15" />
+      <rect x="0" y="0" width="100" height="100" fill="var(--ground-shade)" opacity="0.14" />
       {dots}
       <rect
         x={(seed * 13) % 70}
         y={(seed * 19) % 70}
         width="8"
         height="3"
-        fill="#3d5228"
-        opacity="0.5"
+        fill="var(--ground-tuft)"
+        opacity="0.45"
       />
     </svg>
   )
@@ -40,17 +45,17 @@ export function GroundTexture({ seed = 0 }: { seed?: number }) {
 export function OreTexture({ ore, amount }: { ore: OreId; amount: number | null }) {
   const colors =
     ore === 'ironOre'
-      ? { base: '#6b6358', spark: '#c4b8a8', deep: '#3d3830' }
+      ? { base: '#8a7e6e', spark: '#d8cfc0', deep: '#5a5248' }
       : ore === 'copperOre'
-        ? { base: '#8a4a28', spark: '#e8913a', deep: '#4a2818' }
-        : { base: '#2a2a2a', spark: '#555', deep: '#111' }
+        ? { base: '#b86838', spark: '#f0a050', deep: '#6a3a20' }
+        : { base: '#4a4a4a', spark: '#7a7a7a', deep: '#2a2a2a' }
 
   const density = amount === null ? 8 : Math.max(3, Math.min(12, Math.floor(amount / 40)))
 
   return (
     <svg className="tex tex-ore" viewBox="0 0 100 100" aria-hidden>
-      <rect width="100" height="100" fill="#4a5c32" />
-      <rect width="100" height="100" fill={colors.deep} opacity="0.55" />
+      <rect width="100" height="100" fill="var(--ground-cell)" />
+      <rect width="100" height="100" fill={colors.deep} opacity="0.42" />
       {Array.from({ length: density }, (_, i) => {
         const x = 12 + ((i * 47) % 76)
         const y = 10 + ((i * 31) % 78)

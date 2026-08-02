@@ -33,6 +33,7 @@ import {
 } from '../sprites/Sprites'
 import { useProductionRates } from '../hooks/useProductionRates'
 import type { PedometerApi } from '../hooks/usePedometer'
+import { resolveTheme, subscribeTheme } from '../theme'
 import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
 
 const CELL = 56
@@ -1247,36 +1248,40 @@ function Minimap({
   onJump: (x: number, y: number) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [theme, setTheme] = useState(resolveTheme)
   const scale = 3
+
+  useEffect(() => subscribeTheme(({ resolved }) => setTheme(resolved)), [])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+    const light = theme === 'light'
     canvas.width = width * scale
     canvas.height = height * scale
-    ctx.fillStyle = '#1a2214'
+    ctx.fillStyle = light ? '#d4c8b0' : '#1a2214'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const tile = tiles[idx(x, y)]
-        if (tile.ore === 'ironOre') ctx.fillStyle = '#8B7355'
+        if (tile.ore === 'ironOre') ctx.fillStyle = light ? '#a09078' : '#8B7355'
         else if (tile.ore === 'copperOre') ctx.fillStyle = '#C4783A'
-        else if (tile.ore === 'coal') ctx.fillStyle = '#2A2A2A'
-        else ctx.fillStyle = '#3a4a28'
+        else if (tile.ore === 'coal') ctx.fillStyle = light ? '#5a5a5a' : '#2A2A2A'
+        else ctx.fillStyle = light ? '#9bb262' : '#3a4a28'
         ctx.fillRect(x * scale, y * scale, scale, scale)
         if (tile.entityId && entities[tile.entityId]) {
           const kind = entities[tile.entityId].kind
           if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
-          else if (kind.includes('drill')) ctx.fillStyle = '#7dff9a'
+          else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
           else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
           else ctx.fillStyle = '#7b8792'
           ctx.fillRect(x * scale, y * scale, scale, scale)
         }
       }
     }
-  }, [width, height, tiles, entities])
+  }, [width, height, tiles, entities, theme])
 
   const view = useMemo(() => {
     const vp = viewportRef.current

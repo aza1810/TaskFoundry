@@ -36,6 +36,21 @@
   --atmosphere-glow-a: rgba(240, 160, 32, 0.16);
   --atmosphere-glow-b: rgba(47, 111, 237, 0.1);
 
+  /* Factory floor ground (dark default) */
+  --ground-a: #4f6436;
+  --ground-b: #465c30;
+  --ground-c: #526a38;
+  --ground-shade: #3a4a28;
+  --ground-tuft: #3d5228;
+  --ground-cell: #4a5c32;
+  --ground-grid: #2a3520;
+  --viewport-bg: #141610;
+  --viewport-border: #2a3220;
+  --vignette-edge: rgba(0, 0, 0, 0.45);
+  --vignette-bar: rgba(0, 0, 0, 0.28);
+  --minimap-ground: #3a4a28;
+  --minimap-bg: #1a2214;
+
   color: var(--oil);
   background: var(--concrete);
   color-scheme: dark;
@@ -67,6 +82,21 @@ html[data-theme='light'] {
   --shadow: rgba(26, 22, 18, 0.12);
   --panel: rgba(255, 250, 242, 0.92);
   --panel-solid: #fffaf2;
+
+  /* Sunny factory floor — matches light chrome */
+  --ground-a: #a8bc6e;
+  --ground-b: #9bb262;
+  --ground-c: #b3c57a;
+  --ground-shade: #8aa050;
+  --ground-tuft: #7f9648;
+  --ground-cell: #a0b468;
+  --ground-grid: #c5b89a;
+  --viewport-bg: #d8cfc0;
+  --viewport-border: #b7aea0;
+  --vignette-edge: rgba(90, 80, 60, 0.18);
+  --vignette-bar: rgba(90, 80, 60, 0.1);
+  --minimap-ground: #9bb262;
+  --minimap-bg: #d4c8b0;
 }
 
 *,
@@ -3009,11 +3039,11 @@ button {
   background:
     radial-gradient(ellipse at 30% 20%, rgba(201, 162, 39, 0.1), transparent 50%),
     radial-gradient(ellipse at 80% 80%, rgba(61, 122, 82, 0.08), transparent 45%),
-    #141610;
+    var(--viewport-bg);
   border: none;
-  border-top: 1px solid #0a0c08;
-  border-bottom: 1px solid #0a0c08;
-  box-shadow: inset 0 0 0 1px #2a3220;
+  border-top: 1px solid color-mix(in srgb, var(--viewport-border) 70%, #000);
+  border-bottom: 1px solid color-mix(in srgb, var(--viewport-border) 70%, #000);
+  box-shadow: inset 0 0 0 1px var(--viewport-border);
   touch-action: none;
   cursor: grab;
 }
@@ -3024,8 +3054,8 @@ button {
   z-index: 2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.2), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.35));
+    radial-gradient(ellipse at center, transparent 55%, var(--vignette-edge) 100%),
+    linear-gradient(180deg, var(--vignette-bar), transparent 18%, transparent 82%, var(--vignette-bar));
 }
 
 .factory-viewport.is-build {
@@ -3048,8 +3078,8 @@ button {
 .factory-floor .factory-grid {
   display: grid;
   gap: 0;
-  background: #2a3520;
-  border: 1px solid #0a0c08;
+  background: var(--ground-grid);
+  border: 1px solid color-mix(in srgb, var(--viewport-border) 80%, #000);
   user-select: none;
   image-rendering: pixelated;
 }
@@ -3060,7 +3090,7 @@ button {
   height: 56px;
   border: none;
   padding: 0;
-  background: #4a5c32;
+  background: var(--ground-cell);
   overflow: hidden;
 }
 
@@ -3251,10 +3281,10 @@ button {
   height: 56px;
   padding: 0;
   border: 1px solid #c9a227;
-  background: #12160e;
+  background: var(--minimap-bg);
   border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 16px var(--shadow);
 }
 
 .minimap canvas {
