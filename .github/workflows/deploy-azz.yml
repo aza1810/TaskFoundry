@@ -1,0 +1,105 @@
+# Build Task Foundry and publish to https://azztech.online/apps/tf/
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   FTP_HOST = FTP.fasthosts.co.uk
+#   FTP_USER = azztech.online
+#   FTP_PASS = <Fasthosts FTP password>
+#
+# Remote path is apps/tf/ under the FTP login home (/htdocs on Fasthosts).
+name: Deploy azztech.online/apps/tf
+
+on:
+  push:
+    branches:
+      - main
+      - cursor/factory-mobile-game-981d
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - 'scripts/deploy-ftp.mjs'
+      - '.github/workflows/deploy-azz.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-azztech-tf
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build + FTP
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build (/apps/tf/)
+        run: npm run build:azz
+
+      - name: Verify dist
+        run: |
+          test -f dist/index.html
+          ls -la dist dist/assets
+
+      # Primary: SamKirkland sync (works well from GitHub-hosted runners)
+      - name: FTP sync
+        id: ftp
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        continue-on-error: true
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          protocol: ftp
+          port: 21
+          local-dir: ./dist/
+          server-dir: apps/tf/
+          dangerous-clean-slate: true
+          timeout: 600000
+          log-level: verbose
+
+      # Fallback: reconnect-per-file uploader (handles Fasthosts 425 PASV flakes)
+      - name: FTP resilient fallback
+        if: steps.ftp.outcome != 'success'
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_REMOTE_DIR: apps/tf
+          FTP_ATTEMPTS: '16'
+        run: |
+          npm install --no-save basic-ftp
+          node scripts/deploy-ftp.mjs
+
+      - name: Smoke check live site
+        run: |
+          set -e
+          sleep 3
+          code=$(curl -sS -o /tmp/tf.html -w '%{http_code}' https://azztech.online/apps/tf/)
+          echo "HTTP $code"
+          test "$code" = "200"
+          grep -q 'Task Foundry' /tmp/tf.html
+          js=$(basename dist/assets/*.js)
+          css=$(basename dist/assets/*.css)
+          grep -q "$js" /tmp/tf.html
+          grep -q "$css" /tmp/tf.html
+          js_code=$(curl -sS -o /dev/null -w '%{http_code}' "https://azztech.online/apps/tf/assets/$js")
+          css_code=$(curl -sS -o /dev/null -w '%{http_code}' "https://azztech.online/apps/tf/assets/$css")
+          echo "js $js_code  css $css_code"
+          test "$js_code" = "200"
+          test "$css_code" = "200"
+          echo "Live OK → https://azztech.online/apps/tf/"
