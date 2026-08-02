@@ -35,6 +35,9 @@ import type { Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../gam
 const CELL = 56
 const ZOOM_MIN = 0.45
 const ZOOM_MAX = 2.2
+/** Touch browsers often report movementX/Y as 0 — use client deltas instead. */
+const PAN_SLOP = 10
+const PAINT_HOLD_MS = 280
 const HUD_RESOURCES: ItemId[] = [
   'ironOre',
   'copperOre',
@@ -196,13 +199,16 @@ export function FactoryFloor({
   const prevSteps = useRef(state.stepsToday)
   const prevOre = useRef(state.stats.oreMined)
   const prevCycles = useRef(state.mineCycles)
+  const holdTimer = useRef(0)
   const gesture = useRef<{
-    kind: 'none' | 'pan' | 'paint' | 'pinch'
+    kind: 'none' | 'pending' | 'pan' | 'paint' | 'pinch'
     startZoom: number
     startDist: number
     moved: boolean
     lastCell: string | null
     origin: { x: number; y: number } | null
+    last: { x: number; y: number } | null
+    pointerId: number | null
   }>({
     kind: 'none',
     startZoom: 1,
@@ -210,7 +216,17 @@ export function FactoryFloor({
     moved: false,
     lastCell: null,
     origin: null,
+    last: null,
+    pointerId: null,
   })
+
+  const isDragPaintTool = (tool: ToolId | null) =>
+    tool === 'belt' ||
+    tool === 'fastBelt' ||
+    tool === 'undergroundBelt' ||
+    tool === 'remove' ||
+    tool === 'inserter' ||
+    tool === 'longInserter'
 
   const inspectEnt = useMemo(() => {
     if (!inspect) return null
@@ -266,6 +282,7 @@ export function FactoryFloor({
   useEffect(() => {
     return () => {
       if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
+      if (holdTimer.current) window.clearTimeout(holdTimer.current)
     }
   }, [])
 
@@ -369,6 +386,13 @@ export function FactoryFloor({
     centerOn(width / 2, height / 2)
   }, [entities, width, height, centerOn])
 
+  const clearHoldTimer = () => {
+    if (holdTimer.current) {
+      window.clearTimeout(holdTimer.current)
+      holdTimer.current = 0
+    }
+  }
+
   const onPointerDown = (e: ReactPointerEvent) => {
     const vp = viewportRef.current
     if (!vp) return
@@ -377,6 +401,7 @@ export function FactoryFloor({
       inertiaRaf.current = 0
     }
     velocity.current = { x: 0, y: 0 }
+    clearHoldTimer()
     vp.setPointerCapture(e.pointerId)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
@@ -390,34 +415,42 @@ export function FactoryFloor({
         moved: false,
         lastCell: null,
         origin: null,
+        last: { x: e.clientX, y: e.clientY },
+        pointerId: e.pointerId,
       }
       return
     }
 
     const cell = cellFromPoint(e.clientX, e.clientY)
+    if (cell) setHover(cell)
 
-    if (selected) {
-      gesture.current = {
-        kind: 'paint',
-        startZoom: zoom,
-        startDist: 0,
-        moved: false,
-        lastCell: null,
-        origin: { x: e.clientX, y: e.clientY },
-      }
-      if (cell) {
-        setHover(cell)
-        paintCell(cell.x, cell.y)
-      }
-    } else {
-      gesture.current = {
-        kind: 'pan',
-        startZoom: zoom,
-        startDist: 0,
-        moved: false,
-        lastCell: null,
-        origin: { x: e.clientX, y: e.clientY },
-      }
+    // Don't place yet — wait for tap vs drag. Drag always pans the map.
+    gesture.current = {
+      kind: 'pending',
+      startZoom: zoom,
+      startDist: 0,
+      moved: false,
+      lastCell: null,
+      origin: { x: e.clientX, y: e.clientY },
+      last: { x: e.clientX, y: e.clientY },
+      pointerId: e.pointerId,
+    }
+
+    // Long-press then drag = paint belts / demolish (keeps one-finger pan free)
+    if (isDragPaintTool(selected)) {
+      holdTimer.current = window.setTimeout(() => {
+        if (gesture.current.kind !== 'pending' || gesture.current.pointerId !== e.pointerId) return
+        gesture.current.kind = 'paint'
+        buzz(10)
+        const c = cellFromPoint(
+          gesture.current.last?.x ?? e.clientX,
+          gesture.current.last?.y ?? e.clientY,
+        )
+        if (c) {
+          setHover(c)
+          paintCell(c.x, c.y)
+        }
+      }, PAINT_HOLD_MS)
     }
   }
 
@@ -436,13 +469,29 @@ export function FactoryFloor({
       return
     }
 
-    if (gesture.current.kind === 'pan' && pointers.current.size === 1) {
-      setPan((p) => ({ x: p.x + e.movementX, y: p.y + e.movementY }))
-      velocity.current = {
-        x: e.movementX * 0.85 + velocity.current.x * 0.15,
-        y: e.movementY * 0.85 + velocity.current.y * 0.15,
+    const last = gesture.current.last ?? { x: e.clientX, y: e.clientY }
+    const dx = e.clientX - last.x
+    const dy = e.clientY - last.y
+    gesture.current.last = { x: e.clientX, y: e.clientY }
+
+    // Resolve pending → pan once the finger moves past slop
+    if (gesture.current.kind === 'pending' && gesture.current.origin) {
+      const ox = e.clientX - gesture.current.origin.x
+      const oy = e.clientY - gesture.current.origin.y
+      if (Math.hypot(ox, oy) > PAN_SLOP) {
+        clearHoldTimer()
+        gesture.current.kind = 'pan'
+        gesture.current.moved = true
       }
-      if (Math.abs(e.movementX) + Math.abs(e.movementY) > 0) gesture.current.moved = true
+    }
+
+    if (gesture.current.kind === 'pan' && pointers.current.size === 1) {
+      setPan((p) => ({ x: p.x + dx, y: p.y + dy }))
+      velocity.current = {
+        x: dx * 0.85 + velocity.current.x * 0.15,
+        y: dy * 0.85 + velocity.current.y * 0.15,
+      }
+      gesture.current.moved = true
       return
     }
 
@@ -450,68 +499,64 @@ export function FactoryFloor({
       const cell = cellFromPoint(e.clientX, e.clientY)
       if (!cell) return
       setHover(cell)
-      const dragPaint =
-        selected === 'belt' ||
-        selected === 'fastBelt' ||
-        selected === 'undergroundBelt' ||
-        selected === 'remove' ||
-        selected === 'inserter' ||
-        selected === 'longInserter'
-      if (dragPaint) {
-        gesture.current.moved = true
-        paintCell(cell.x, cell.y)
-      } else if (gesture.current.origin) {
-        const dx = e.clientX - gesture.current.origin.x
-        const dy = e.clientY - gesture.current.origin.y
-        if (Math.hypot(dx, dy) > 18) {
-          gesture.current.moved = true
-          paintCell(cell.x, cell.y)
-        }
-      }
+      gesture.current.moved = true
+      paintCell(cell.x, cell.y)
     }
   }
 
   const onPointerUp = (e: ReactPointerEvent) => {
-    const wasPaint = gesture.current.kind === 'paint'
-    const wasPan = gesture.current.kind === 'pan'
+    const kind = gesture.current.kind
     const moved = gesture.current.moved
+    const origin = gesture.current.origin
+    clearHoldTimer()
     pointers.current.delete(e.pointerId)
 
-    if (pointers.current.size < 2 && gesture.current.kind === 'pinch') {
+    if (pointers.current.size < 2 && kind === 'pinch') {
       gesture.current.kind = 'none'
     }
 
     if (pointers.current.size === 0) {
-      if (wasPan && moved) runInertia()
-      if (wasPan && !moved && !selected) {
+      if (kind === 'pan' && moved) runInertia()
+
+      // Tap (no drag / no long-press paint): place with tool, or inspect in hand mode
+      const wasTap =
+        kind === 'pending' &&
+        origin &&
+        Math.hypot(e.clientX - origin.x, e.clientY - origin.y) <= PAN_SLOP
+
+      if (wasTap) {
         const cell = cellFromPoint(e.clientX, e.clientY)
-        if (cell) {
+        if (selected && cell) {
+          paintCell(cell.x, cell.y)
+        } else if (!selected && cell) {
           const entId = tiles[idx(cell.x, cell.y)]?.entityId
           setInspect(entId ? cell : null)
           if (entId) buzz(6)
-        } else {
+        } else if (!selected) {
           setInspect(null)
         }
       }
-      if (wasPaint && !moved) {
-        /* single tap already painted */
-      }
+
       gesture.current.kind = 'none'
       gesture.current.moved = false
       gesture.current.lastCell = null
       gesture.current.origin = null
+      gesture.current.last = null
+      gesture.current.pointerId = null
     }
   }
 
   const toolLabel = !selected
-    ? 'Hand — drag map, tap machines'
+    ? 'Drag to pan · tap machines'
     : selected === 'remove'
-      ? 'Demolish — drag to clear'
+      ? 'Tap / hold-drag to demolish · drag to pan'
       : selected === 'copy'
-        ? 'Copy — tap two corners'
+        ? 'Tap two corners · drag to pan'
         : selected === 'paste'
-          ? 'Paste — tap origin'
-          : `Build ${PLACEABLE_META[selected].label} ${dirArrow(placeDir)}`
+          ? 'Tap origin · drag to pan'
+          : isDragPaintTool(selected)
+            ? `Tap to place · hold-drag to paint · drag pans`
+            : `Tap to place ${PLACEABLE_META[selected].label} · drag pans`
 
   const activeMachines = useMemo(() => {
     let n = 0
@@ -601,7 +646,7 @@ export function FactoryFloor({
       </div>
 
       <div
-        className={`factory-viewport ${selected ? 'is-build' : 'is-pan'}`}
+        className={`factory-viewport is-pan ${selected ? 'is-build' : ''}`}
         ref={viewportRef}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -1040,7 +1085,7 @@ export function FactoryFloor({
                   Start walk
                 </button>
               )}
-              <span className="build-hint">Pinch · drag · paint belts</span>
+              <span className="build-hint">Drag pans · tap places · hold-drag paints belts</span>
             </div>
           </>
         )}

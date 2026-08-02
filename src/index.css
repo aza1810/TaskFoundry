@@ -2254,10 +2254,12 @@ button {
 }
 
 .factory-viewport.is-build {
-  cursor: crosshair;
+  /* still pan-first; crosshair only as a hint that a tool is armed */
+  cursor: grab;
 }
 
-.factory-viewport.is-pan:active {
+.factory-viewport.is-pan:active,
+.factory-viewport.is-build:active {
   cursor: grabbing;
 }
 
