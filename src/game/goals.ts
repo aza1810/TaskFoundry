@@ -98,7 +98,7 @@ export const GOALS: GoalDef[] = [
   {
     id: 'first-research',
     title: 'Open the lab',
-    detail: 'Complete any research project.',
+    detail: 'Research Automation to open the tech tree.',
     reward: { ironPlate: 20, gear: 10 },
     rewardLabel: '20 plates + 10 gears',
     check: (s) => s.researched.length >= 1,

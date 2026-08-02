@@ -38,6 +38,8 @@ export type EntityKind =
   | 'splitter'
 
 export type TechId =
+  | 'automation'
+  | 'logistics'
   | 'logistics2'
   | 'electricMining'
   | 'splitters'

@@ -30,7 +30,7 @@ import {
 } from './data'
 import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
-import { TECHS } from './research'
+import { TECH_MAP, TECHS, prereqsMet, withImpliedResearched } from './research'
 import {
   emptySkills,
   formatSkillGains,
@@ -126,7 +126,9 @@ export function loadState(accountSaveKey?: string): GameState {
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
       completedGoals: parsed.completedGoals ?? [],
       craftQueue: parsed.craftQueue ?? [],
-      researched: parsed.researched ?? [],
+      researched: withImpliedResearched(
+        (parsed.researched ?? []) as TechId[],
+      ),
       blueprint: parsed.blueprint ?? null,
       copyCorner: parsed.copyCorner ?? null,
       skills: normalizeSkills(parsed.skills),
@@ -963,10 +965,20 @@ export function claimContract(state: GameState, contractId: string): GameState {
 }
 
 export function researchTech(state: GameState, techId: TechId): GameState {
-  const tech = TECHS.find((t) => t.id === techId)
+  const tech = TECH_MAP[techId] ?? TECHS.find((t) => t.id === techId)
   if (!tech) return state
   if (state.researched.includes(techId)) {
     return { ...state, unlockedToast: `${tech.name} already researched` }
+  }
+  if (!prereqsMet(tech, state.researched)) {
+    const missing = tech.prerequisites
+      .filter((id) => !state.researched.includes(id))
+      .map((id) => TECH_MAP[id]?.name ?? id)
+      .join(', ')
+    return {
+      ...state,
+      unlockedToast: `Research ${missing} first`,
+    }
   }
   if (!canAfford(state.inventory, tech.cost)) {
     return { ...state, unlockedToast: `Need more materials for ${tech.name}` }
