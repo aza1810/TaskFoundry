@@ -240,18 +240,15 @@ export function CraftPanel() {
                     title={
                       locked
                         ? `${recipe.name} — research required`
-                        : `${recipe.name} (${canMake} craftable)`
+                        : `${recipe.name} (${canMake} craftable) — tap for details`
                     }
                     aria-label={
                       locked
                         ? `${recipe.name}, research required`
-                        : `${recipe.name}, ${canMake} craftable`
+                        : `${recipe.name}, ${canMake} craftable, tap for details`
                     }
                     aria-pressed={isSelected}
-                    onClick={() => {
-                      setSelectedId(recipe.id)
-                      if (!locked && ok) craft(recipe.id)
-                    }}
+                    onClick={() => setSelectedId(recipe.id)}
                   >
                     <span className="craft-slot" aria-hidden>
                       <ItemSprite item={outId} />
