@@ -89,7 +89,10 @@ const latest = {
 }
 
 fs.writeFileSync(path.join(outDir, 'latest.json'), JSON.stringify(latest, null, 2))
-fs.copyFileSync(path.join(root, 'ota', 'update.php'), path.join(outDir, 'update.php'))
+for (const name of ['update.php', 'latest.php', '.htaccess']) {
+  const src = path.join(root, 'ota', name)
+  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(outDir, name))
+}
 // Stable alias for the zip so latest.json can optionally use a fixed name too
 fs.copyFileSync(zipPath, path.join(outDir, 'bundle.zip'))
 

@@ -1953,6 +1953,100 @@ button {
   }
 }
 
+/* —— Settings —— */
+.settings-panel .settings-block {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(26, 22, 18, 0.1);
+}
+
+.settings-panel .settings-block h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+}
+
+.settings-meta {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.settings-meta > div {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.settings-meta dt {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.settings-meta dd {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.settings-status {
+  margin: 0.7rem 0 0;
+  padding: 0.55rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  background: rgba(26, 22, 18, 0.05);
+  border: 1px solid rgba(26, 22, 18, 0.08);
+}
+
+.settings-status.is-ok {
+  background: rgba(61, 122, 82, 0.12);
+  border-color: rgba(61, 122, 82, 0.35);
+  color: var(--moss);
+}
+
+.settings-status.is-warn {
+  background: rgba(240, 160, 32, 0.14);
+  border-color: rgba(196, 120, 58, 0.4);
+  color: var(--copper);
+}
+
+.settings-status.is-error {
+  background: rgba(179, 58, 43, 0.1);
+  border-color: rgba(179, 58, 43, 0.35);
+  color: var(--danger);
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.settings-hint {
+  margin: 0;
+  color: var(--steel);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.settings-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.ghost-btn.is-danger {
+  color: var(--danger);
+  border-color: rgba(179, 58, 43, 0.35);
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -2687,6 +2781,27 @@ button {
 
 .game-hud-steps-live {
   color: #7dff9a;
+}
+
+.game-hud-settings {
+  flex: 0 0 auto;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid #3a4a30;
+  background: linear-gradient(180deg, #1c2418, #121810);
+  color: #e8e0d4;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border-radius: 8px;
+  line-height: 1;
+}
+
+.game-hud-settings:active {
+  transform: translateY(1px);
 }
 
 .game-hud-resources {

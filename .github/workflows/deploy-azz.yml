@@ -155,9 +155,18 @@ jobs:
           test "$ota_code" = "200"
           grep -q '"version"' /tmp/ota.json
           grep -q '"url"' /tmp/ota.json
+          php_code=$(curl -sS -o /tmp/ota-php.json -w '%{http_code}' \
+            -H 'Origin: https://localhost' \
+            https://azztech.online/apps/tf/ota/latest.php)
+          echo "OTA latest.php HTTP $php_code"
+          test "$php_code" = "200"
+          grep -q '"version"' /tmp/ota-php.json
+          cors=$(curl -sSI -H 'Origin: https://localhost' https://azztech.online/apps/tf/ota/latest.php | tr -d '\r' | grep -i 'access-control-allow-origin' || true)
+          echo "CORS: $cors"
+          echo "$cors" | grep -qi 'access-control-allow-origin'
           bundle_url=$(python3 -c 'import json; print(json.load(open("/tmp/ota.json"))["url"])')
           bundle_code=$(curl -sS -o /dev/null -w '%{http_code}' -I "$bundle_url")
           echo "OTA bundle HTTP $bundle_code → $bundle_url"
           test "$bundle_code" = "200"
           echo "Live OK → https://azztech.online/apps/tf/"
-          echo "OTA OK → https://azztech.online/apps/tf/ota/latest.json"
+          echo "OTA OK → https://azztech.online/apps/tf/ota/latest.php"

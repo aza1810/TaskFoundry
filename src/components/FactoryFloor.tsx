@@ -152,11 +152,13 @@ export function FactoryFloor({
   pedometer,
   onOpenTasks,
   onOpenSteps,
+  onOpenSettings,
 }: {
   highlight?: Highlight
   pedometer: PedometerApi
   onOpenTasks: () => void
   onOpenSteps: () => void
+  onOpenSettings: () => void
 }) {
   const {
     state,
@@ -618,6 +620,15 @@ export function FactoryFloor({
             {pedometer.status === 'listening' && (
               <span className="game-hud-steps-live">+{pedometer.sessionSteps}</span>
             )}
+          </button>
+          <button
+            type="button"
+            className="game-hud-settings"
+            onClick={onOpenSettings}
+            aria-label="Settings"
+            title="Settings"
+          >
+            ···
           </button>
         </div>
 

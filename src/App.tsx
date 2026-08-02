@@ -8,6 +8,7 @@ import { GoalsBar } from './components/GoalsBar'
 import { HabitsPanel } from './components/HabitsPanel'
 import { InventoryPanel } from './components/InventoryPanel'
 import { ResearchPanel } from './components/ResearchPanel'
+import { SettingsPanel } from './components/SettingsPanel'
 import { SkillsPanel } from './components/SkillsPanel'
 import { StepsPanel } from './components/StepsPanel'
 import { TutorialOverlay } from './components/TutorialOverlay'
@@ -131,13 +132,16 @@ function Shell() {
 
   const setTabSafe = useCallback(
     (t: TabId) => {
-      if (!unlocked.includes(t)) return
+      if (t !== 'settings' && !unlocked.includes(t)) return
       setTab(t)
     },
     [unlocked],
   )
 
-  const sheetLabel = TABS.find((t) => t.id === tab)?.label ?? ''
+  const sheetLabel =
+    tab === 'settings'
+      ? 'Settings'
+      : (TABS.find((t) => t.id === tab)?.label ?? '')
 
   return (
     <div
@@ -163,6 +167,7 @@ function Shell() {
           pedometer={pedometer}
           onOpenTasks={() => setTabSafe('habits')}
           onOpenSteps={() => setTabSafe('steps')}
+          onOpenSettings={() => setTabSafe('settings')}
         />
       </div>
 
@@ -195,6 +200,7 @@ function Shell() {
             {tab === 'skills' && <SkillsPanel />}
             {tab === 'craft' && <CraftPanel />}
             {tab === 'research' && <ResearchPanel />}
+            {tab === 'settings' && <SettingsPanel />}
             {tab === 'habits' && (
               <div className="section-tasks">
                 <GoalsBar />

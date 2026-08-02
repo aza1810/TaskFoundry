@@ -44,8 +44,9 @@ Privacy policy asset for Health Connect: `public/privacypolicy.html` (copied int
 
 The Android APK uses [Capgo Capacitor Updater](https://capgo.app/) against static files on azztech (no Capgo cloud account).
 
-- On launch / resume it fetches `https://azztech.online/apps/tf/ota/latest.json`
+- On launch / resume it fetches `https://azztech.online/apps/tf/ota/latest.php` (CORS-enabled)
 - If a newer web bundle was published by CI, it downloads the zip, applies it, and reloads
+- In the app: **··· → Settings → Check for update** / **Download & install**
 - The last downloaded bundle is cached on the phone (works offline after update)
 - CI bumps OTA versions to `1.1.<run_number>` on each deploy
 

@@ -228,3 +228,4 @@ export type TabId =
   | 'craft'
   | 'research'
   | 'skills'
+  | 'settings'
