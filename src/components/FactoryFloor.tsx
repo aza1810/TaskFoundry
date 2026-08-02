@@ -90,6 +90,24 @@ function dirArrow(dir: Entity['dir']): string {
   return { N: '↑', E: '→', S: '↓', W: '←' }[dir]
 }
 
+/** Bold chevron overlay so inserter facing reads at a glance. */
+function InserterDirOverlay({ dir }: { dir: Dir }) {
+  return (
+    <span className={`cell-inserter-dir is-${dir}`} aria-hidden>
+      <svg viewBox="0 0 32 32" className="cell-inserter-dir-svg">
+        <path
+          d="M6 16 H20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+        <path d="M18 8 L28 16 L18 24 Z" fill="currentColor" stroke="#1a1612" strokeWidth="1" />
+      </svg>
+    </span>
+  )
+}
+
 function storeSummary(e: Entity): string {
   const parts: string[] = []
   for (const [id, n] of Object.entries(e.store)) {
@@ -836,11 +854,20 @@ export function FactoryFloor({
                       </span>
                     )}
 
+                    {ent && isInserterKind(ent.kind) && (
+                      <InserterDirOverlay dir={ent.dir} />
+                    )}
+
                     {showGhost && (
                       <span className="cell-ghost">
                         <EntitySprite kind={selected as Placeable} dir={placeDir} />
                       </span>
                     )}
+
+                    {showGhost &&
+                      (selected === 'inserter' || selected === 'longInserter') && (
+                        <InserterDirOverlay dir={placeDir} />
+                      )}
 
                     {bpGhost && !ent && (
                       <span className="cell-ghost cell-bp">

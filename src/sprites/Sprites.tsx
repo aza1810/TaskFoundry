@@ -181,8 +181,25 @@ export function InserterSprite({
       <g transform={`rotate(${facing} 32 32)`}>
         <circle cx="32" cy="32" r="11" fill="#6b655c" stroke="#1a1612" strokeWidth="2" />
         <circle cx="32" cy="32" r="4.5" fill="#2a2620" />
-        {/* Subtle facing notch toward drop */}
-        <path d="M32 18 L36 26 L28 26 Z" fill="#3a3630" opacity="0.85" />
+        {/* Fixed flow arrow: pickup (down) → drop (up) in local space */}
+        <g className="inserter-flow">
+          <path
+            d="M32 50 L32 24"
+            fill="none"
+            stroke="#1a1612"
+            strokeWidth="6"
+            strokeLinecap="round"
+            opacity="0.45"
+          />
+          <path
+            d="M32 50 L32 24"
+            fill="none"
+            stroke="#7dff9a"
+            strokeWidth="3.2"
+            strokeLinecap="round"
+          />
+          <polygon points="32,14 41,27 23,27" fill="#7dff9a" stroke="#1a1612" strokeWidth="1.2" />
+        </g>
         <g className="inserter-arm" transform={`rotate(${armDeg} 32 32)`}>
           <rect
             x="28"
