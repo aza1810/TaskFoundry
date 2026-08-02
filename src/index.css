@@ -2396,8 +2396,19 @@ button {
   overflow: visible;
 }
 
-.sprite-belt .belt-stripes {
-  animation: belt-scroll 0.55s linear infinite;
+.sprite-belt .belt-stripes,
+.sprite-splitter.is-moving .belt-stripes,
+.sprite-ug.is-moving .belt-stripes {
+  animation: belt-scroll 0.48s linear infinite;
+  will-change: transform;
+}
+
+.sprite-belt.is-fast .belt-stripes {
+  animation-duration: 0.22s;
+}
+
+.sprite-belt:not(.is-moving) .belt-stripes {
+  animation-play-state: paused;
 }
 
 @keyframes belt-scroll {
@@ -2405,7 +2416,53 @@ button {
     transform: translateX(0);
   }
   to {
-    transform: translateX(-14px);
+    transform: translateX(-16px);
+  }
+}
+
+.sprite-ug .ug-glow {
+  animation: ug-glow 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes ug-glow {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+.sprite-belt.is-moving .belt-chevron {
+  animation: belt-chevron-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes belt-chevron-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.sprite-belt .belt-roller {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.sprite-belt.is-moving .belt-roller {
+  animation: belt-roller-spin 0.48s linear infinite;
+}
+
+.sprite-belt.is-fast.is-moving .belt-roller {
+  animation-duration: 0.22s;
+}
+
+@keyframes belt-roller-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -2466,17 +2523,46 @@ button {
 
 .cargo-item {
   position: absolute;
-  width: 42%;
-  height: 42%;
+  left: 50%;
+  top: 50%;
+  width: 46%;
+  height: 46%;
   z-index: 4;
   pointer-events: none;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
-  transition: left 0.12s linear, top 0.12s linear;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+  /* Match sim tick (200ms) so items glide instead of hopping */
+  transition:
+    transform 0.2s linear,
+    opacity 0.2s linear;
+  will-change: transform, opacity;
+}
+
+.cargo-item.is-fast {
+  transition-duration: 0.12s, 0.12s;
+}
+
+.cargo-item.is-ug {
+  width: 40%;
+  height: 40%;
 }
 
 .cargo-item .sprite {
   width: 100%;
   height: 100%;
+  animation: cargo-bob 0.45s ease-in-out infinite alternate;
+}
+
+.cargo-item.is-fast .sprite {
+  animation-duration: 0.28s;
+}
+
+@keyframes cargo-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-6%);
+  }
 }
 
 .cell-store {

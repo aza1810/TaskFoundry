@@ -117,12 +117,37 @@ function storeSummary(e: Entity): string {
   return parts.join(' ')
 }
 
-function cargoOffset(dir: Entity['dir'], p: number): CSSProperties {
+function cargoOffset(
+  dir: Entity['dir'],
+  p: number,
+  opts?: { underground?: boolean },
+): CSSProperties {
   const t = Math.min(1, Math.max(0, p))
-  if (dir === 'E') return { left: `${8 + t * 60}%`, top: '36%' }
-  if (dir === 'W') return { left: `${68 - t * 60}%`, top: '36%' }
-  if (dir === 'S') return { left: '36%', top: `${8 + t * 60}%` }
-  return { left: '36%', top: `${68 - t * 60}%` }
+  // GPU-friendly transform from cell center; matches belt lane.
+  let x = 0
+  let y = 0
+  if (dir === 'E') {
+    x = -42 + t * 84
+    y = 0
+  } else if (dir === 'W') {
+    x = 42 - t * 84
+    y = 0
+  } else if (dir === 'S') {
+    x = 0
+    y = -42 + t * 84
+  } else {
+    x = 0
+    y = 42 - t * 84
+  }
+  // Fade into / out of underground mouths.
+  let opacity = 1
+  if (opts?.underground) {
+    opacity = t < 0.25 ? t / 0.25 : t > 0.75 ? (1 - t) / 0.25 : 1
+  }
+  return {
+    transform: `translate(-50%, -50%) translate(${x}%, ${y}%)`,
+    opacity,
+  }
 }
 
 function isUnlocked(tool: ToolId, researched: string[]): boolean {
@@ -885,11 +910,16 @@ export function FactoryFloor({
 
                     {(ent?.kind === 'belt' ||
                       ent?.kind === 'fastBelt' ||
-                      ent?.kind === 'undergroundBelt') &&
+                      ent?.kind === 'undergroundBelt' ||
+                      ent?.kind === 'splitter') &&
                       ent.cargo && (
                         <span
-                          className="cargo-item"
-                          style={cargoOffset(ent.dir, ent.cargo.progress)}
+                          className={`cargo-item${
+                            ent.kind === 'fastBelt' ? ' is-fast' : ''
+                          }${ent.kind === 'undergroundBelt' ? ' is-ug' : ''}`}
+                          style={cargoOffset(ent.dir, ent.cargo.progress, {
+                            underground: ent.kind === 'undergroundBelt',
+                          })}
                         >
                           <ItemSprite item={ent.cargo.item} />
                         </span>

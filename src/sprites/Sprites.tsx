@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { INSERTER_COOLDOWN } from '../game/data'
 import type { Dir, EntityKind, ItemId, OreId } from '../game/types'
 
@@ -79,9 +80,21 @@ export function OreTexture({ ore, amount }: { ore: OreId; amount: number | null 
 }
 
 export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; fast?: boolean }) {
-  const a = fast ? '#E05050' : '#c47a12'
-  const b = fast ? '#f08080' : '#f0a020'
-  const c = fast ? '#8a2020' : '#8a5a10'
+  const clipId = `belt-clip-${useId().replace(/:/g, '')}`
+  const deck = fast ? '#b83838' : '#c47a12'
+  const tooth = fast ? '#f09090' : '#f0b040'
+  const gap = fast ? '#7a1818' : '#8a5010'
+  const rail = fast ? '#4a1010' : '#5c3a08'
+  // Seamless 16px period — CSS scrolls by the same distance.
+  const stripes = Array.from({ length: 10 }, (_, i) => {
+    const x = i * 16 - 16
+    return (
+      <g key={i}>
+        <rect x={x} y="20" width="9" height="24" rx="1" fill={tooth} />
+        <rect x={x + 9} y="20" width="7" height="24" fill={gap} />
+      </g>
+    )
+  })
   return (
     <svg
       className={`sprite sprite-belt ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
@@ -89,18 +102,42 @@ export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; 
       style={{ transform: `rotate(${ROT[dir]}deg)` }}
       aria-hidden
     >
-      <rect x="2" y="14" width="60" height="36" rx="2" fill="#1a1612" />
-      <rect x="4" y="16" width="56" height="32" fill={a} />
-      <g className="belt-stripes">
-        <rect x="0" y="18" width="10" height="28" fill={b} />
-        <rect x="14" y="18" width="10" height="28" fill={c} />
-        <rect x="28" y="18" width="10" height="28" fill={b} />
-        <rect x="42" y="18" width="10" height="28" fill={c} />
-        <rect x="56" y="18" width="10" height="28" fill={b} />
+      {/* Frame / side rails */}
+      <rect x="1" y="12" width="62" height="40" rx="3" fill="#1a1612" />
+      <rect x="3" y="14" width="58" height="36" rx="2" fill={deck} />
+      <rect x="3" y="14" width="58" height="6" fill={rail} opacity="0.85" />
+      <rect x="3" y="44" width="58" height="6" fill={rail} opacity="0.85" />
+      {/* Moving belt surface */}
+      <defs>
+        <clipPath id={clipId}>
+          <rect x="5" y="20" width="54" height="24" rx="1" />
+        </clipPath>
+      </defs>
+      <g className="belt-stripes" clipPath={`url(#${clipId})`}>
+        {stripes}
       </g>
-      <rect x="4" y="16" width="56" height="4" fill="#5c3a08" opacity="0.5" />
-      <rect x="4" y="44" width="56" height="4" fill="#5c3a08" opacity="0.5" />
-      <polygon points="50,32 40,24 40,40" fill="#1a1612" opacity="0.55" />
+      {/* Rollers — spin when belt is moving */}
+      {[10, 32, 54].map((cx) => (
+        <g key={cx} className="belt-roller">
+          <circle cx={cx} cy="32" r="3.2" fill="#2a2620" stroke="#0a0806" strokeWidth="1" />
+          <line x1={cx - 2.2} y1="32" x2={cx + 2.2} y2="32" stroke="#c4b8a0" strokeWidth="1.1" />
+          <line x1={cx} y1="29.8" x2={cx} y2="34.2" stroke="#6a6258" strokeWidth="0.9" />
+          <circle cx={cx} cy="32" r="1.15" fill="#c4b8a0" />
+        </g>
+      ))}
+      {/* Direction chevron */}
+      <polygon
+        className="belt-chevron"
+        points="48,32 36,23 36,29 28,29 28,35 36,35 36,41"
+        fill="#1a1612"
+        opacity="0.55"
+      />
+      <polygon
+        className="belt-chevron"
+        points="47,32 37,25 37,30 30,30 30,34 37,34 37,39"
+        fill={fast ? '#ffe0e0' : '#ffe8a0'}
+        opacity="0.9"
+      />
     </svg>
   )
 }
@@ -137,20 +174,48 @@ export function DrillSprite({ dir, active, electric }: { dir: Dir; active?: bool
   )
 }
 
-export function SplitterSprite({ dir }: { dir: Dir }) {
+export function SplitterSprite({ dir, moving }: { dir: Dir; moving?: boolean }) {
+  const uid = useId().replace(/:/g, '')
+  const clipA = `split-a-${uid}`
+  const clipB = `split-b-${uid}`
+  const laneStripes = (offset: number) =>
+    Array.from({ length: 6 }, (_, i) => {
+      const x = offset + i * 16 - 16
+      return (
+        <g key={i}>
+          <rect x={x} y="22" width="9" height="20" rx="1" fill="#f0b040" />
+          <rect x={x + 9} y="22" width="7" height="20" fill="#8a5010" />
+        </g>
+      )
+    })
   return (
     <svg
-      className="sprite sprite-splitter"
+      className={`sprite sprite-splitter ${moving ? 'is-moving' : ''}`}
       viewBox="0 0 64 64"
       style={{ transform: `rotate(${ROT[dir]}deg)` }}
       aria-hidden
     >
-      <rect x="4" y="16" width="56" height="32" fill="#c4a035" stroke="#1a1612" strokeWidth="2" />
-      <rect x="8" y="20" width="20" height="24" fill="#8a7020" />
-      <rect x="36" y="20" width="20" height="24" fill="#8a7020" />
-      <polygon points="18,32 12,26 12,38" fill="#1a1612" />
-      <polygon points="46,32 40,26 40,38" fill="#1a1612" />
-      <rect x="28" y="22" width="8" height="20" fill="#e8c84a" />
+      <defs>
+        <clipPath id={clipA}>
+          <rect x="6" y="20" width="22" height="24" rx="1" />
+        </clipPath>
+        <clipPath id={clipB}>
+          <rect x="36" y="20" width="22" height="24" rx="1" />
+        </clipPath>
+      </defs>
+      <rect x="2" y="14" width="60" height="36" rx="2" fill="#1a1612" />
+      <rect x="4" y="16" width="56" height="32" fill="#c4a035" stroke="#6a5010" strokeWidth="1" />
+      <rect x="6" y="20" width="22" height="24" fill="#8a7020" />
+      <rect x="36" y="20" width="22" height="24" fill="#8a7020" />
+      <g className="belt-stripes splitter-lane" clipPath={`url(#${clipA})`}>
+        {laneStripes(0)}
+      </g>
+      <g className="belt-stripes splitter-lane" clipPath={`url(#${clipB})`}>
+        {laneStripes(32)}
+      </g>
+      <rect x="28" y="18" width="8" height="28" fill="#e8c84a" stroke="#1a1612" strokeWidth="1" />
+      <polygon points="20,32 12,25 12,39" fill="#1a1612" />
+      <polygon points="52,32 44,25 44,39" fill="#1a1612" />
     </svg>
   )
 }
@@ -300,24 +365,62 @@ export function UndergroundBeltSprite({
   exit?: boolean
   moving?: boolean
 }) {
+  const clipId = `ug-clip-${useId().replace(/:/g, '')}`
+  const mouthX = exit ? 46 : 18
+  const stripes = Array.from({ length: 8 }, (_, i) => {
+    const x = i * 16 - 16
+    return (
+      <g key={i}>
+        <rect x={x} y="24" width="9" height="16" rx="1" fill="#f0a020" />
+        <rect x={x + 9} y="24" width="7" height="16" fill="#8a5010" />
+      </g>
+    )
+  })
   return (
     <svg
-      className={`sprite sprite-ug ${moving ? 'is-moving' : ''}`}
+      className={`sprite sprite-ug ${moving ? 'is-moving' : ''} ${exit ? 'is-exit' : 'is-entry'}`}
       viewBox="0 0 64 64"
       style={{ transform: `rotate(${ROT[dir]}deg)` }}
       aria-hidden
     >
-      <rect x="2" y="18" width="60" height="28" rx="2" fill="#1a1612" />
-      <rect x="4" y="20" width="56" height="24" fill="#c4783a" />
-      <rect x="8" y="24" width="20" height="16" fill="#5a3a20" />
-      <ellipse cx={exit ? 48 : 16} cy="32" rx="10" ry="8" fill="#1a1210" />
-      <ellipse cx={exit ? 48 : 16} cy="32" rx="6" ry="5" fill="#0a0806" />
+      <defs>
+        <clipPath id={clipId}>
+          <rect x="6" y="23" width="52" height="18" rx="1" />
+        </clipPath>
+      </defs>
+      <rect x="2" y="16" width="60" height="32" rx="3" fill="#1a1612" />
+      <rect x="4" y="18" width="56" height="28" rx="2" fill="#c4783a" />
+      <rect x="4" y="18" width="56" height="5" fill="#8a4a20" opacity="0.7" />
+      <rect x="4" y="41" width="56" height="5" fill="#8a4a20" opacity="0.7" />
+      <g className="belt-stripes ug-stripes" clipPath={`url(#${clipId})`}>
+        {stripes}
+      </g>
+      <ellipse className="ug-mouth" cx={mouthX} cy="32" rx="11" ry="9" fill="#1a1210" />
+      <ellipse cx={mouthX} cy="32" rx="7" ry="5.5" fill="#0a0806" />
+      <ellipse
+        className="ug-glow"
+        cx={mouthX}
+        cy="32"
+        rx="5"
+        ry="3.5"
+        fill="#f0a020"
+        opacity="0.35"
+      />
       {exit ? (
-        <polygon points="58,32 48,24 48,40" fill="#f0a020" />
+        <polygon points="60,32 50,24 50,40" fill="#ffe08a" />
       ) : (
-        <polygon points="6,32 16,24 16,40" fill="#f0a020" />
+        <polygon points="4,32 14,24 14,40" fill="#ffe08a" />
       )}
-      <rect x="28" y="26" width="8" height="12" fill="#8a5a30" />
+      {/* Entry/exit marker on the non-mouth side */}
+      <rect
+        x={exit ? 10 : 42}
+        y="28"
+        width="12"
+        height="8"
+        rx="1"
+        fill="#1a1612"
+        opacity="0.35"
+      />
     </svg>
   )
 }
@@ -533,7 +636,7 @@ export function EntitySprite({
     case 'assembler':
       return <AssemblerSprite active={active || lit} />
     case 'splitter':
-      return <SplitterSprite dir={dir} />
+      return <SplitterSprite dir={dir} moving={moving} />
   }
 }
 
