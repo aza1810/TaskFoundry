@@ -27,6 +27,76 @@ const TABS: { id: TabId; label: string; short: string }[] = [
   { id: 'habits', label: 'Tasks', short: 'Tasks' },
 ]
 
+function TabIcon({ id }: { id: TabId }) {
+  const common = {
+    viewBox: '0 0 24 24',
+    width: 22,
+    height: 22,
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  }
+  switch (id) {
+    case 'factory':
+      return (
+        <svg {...common}>
+          <path d="M3 20V9l5 3V9l5 3V5l8 4v11H3z" />
+          <path d="M7 20v-3M12 20v-2M17 20v-4" />
+        </svg>
+      )
+    case 'inventory':
+      return (
+        <svg {...common}>
+          <rect x="4" y="6" width="16" height="13" rx="1.5" />
+          <path d="M4 10h16M9 6V4h6v2" />
+        </svg>
+      )
+    case 'steps':
+      return (
+        <svg {...common}>
+          <path d="M7 20c1.5-3 2-6 2-9M12 20c1-2.5 1.5-5 1.5-8M17 19c.8-2 1.2-4.2 1.2-7" />
+          <circle cx="9" cy="8" r="1.2" fill="currentColor" stroke="none" />
+          <circle cx="13.5" cy="9" r="1.2" fill="currentColor" stroke="none" />
+          <circle cx="18.2" cy="9.5" r="1.2" fill="currentColor" stroke="none" />
+        </svg>
+      )
+    case 'craft':
+      return (
+        <svg {...common}>
+          <path d="M14.5 5.5 18 9l-8.5 8.5H6v-3.5L14.5 5.5z" />
+          <path d="M12.5 7.5 16 11" />
+          <path d="M4 20h16" />
+        </svg>
+      )
+    case 'research':
+      return (
+        <svg {...common}>
+          <circle cx="10" cy="10" r="5.5" />
+          <path d="M14.5 14.5 20 20" />
+          <path d="M8 10h4M10 8v4" />
+        </svg>
+      )
+    case 'skills':
+      return (
+        <svg {...common}>
+          <path d="M12 3 14.2 8.5 20 9.2l-4.2 3.8L17 19l-5-2.8L7 19l1.2-6L4 9.2l5.8-.7L12 3z" />
+        </svg>
+      )
+    case 'habits':
+      return (
+        <svg {...common}>
+          <path d="M5 6h14M5 12h14M5 18h10" />
+          <path d="M16.5 16.5 18 18l3-3.5" />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
+
 function Toast() {
   const { state, clearToast } = useGame()
   if (!state.unlockedToast) return null
@@ -153,6 +223,9 @@ function Shell() {
               disabled={locked}
               title={locked ? 'Finish the tour to unlock' : t.label}
             >
+              <span className="bottom-nav-icon">
+                <TabIcon id={t.id} />
+              </span>
               <span className="bottom-nav-label">{t.short}</span>
               {t.id === 'steps' && pedometer.status === 'listening' && (
                 <span className="bottom-nav-live">live</span>
