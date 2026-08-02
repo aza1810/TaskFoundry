@@ -164,7 +164,9 @@ export function CraftPanel() {
                             <span className="craft-slot craft-slot-xs" aria-hidden>
                               <ItemSprite item={id} />
                             </span>
-                            <span className="craft-ingredient-count">{formatNum(n)}</span>
+                            <span className="craft-ingredient-count">
+                              {formatNum(have)}/{formatNum(n)}
+                            </span>
                           </span>
                         )
                       },
@@ -202,7 +204,13 @@ export function CraftPanel() {
             disabled={!selectedOk}
             onClick={() => craft(selected.id)}
           >
-            {queueFull ? 'Queue full' : selectedLocked ? 'Locked' : 'Craft'}
+            {queueFull
+              ? 'Queue full'
+              : selectedLocked
+                ? 'Locked'
+                : selectedOk
+                  ? 'Craft'
+                  : 'Need mats'}
           </button>
         </div>
       )}

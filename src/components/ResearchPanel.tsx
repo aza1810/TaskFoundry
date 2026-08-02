@@ -181,7 +181,9 @@ export function ResearchPanel() {
                           <span className="craft-slot craft-slot-xs" aria-hidden>
                             <ItemSprite item={id} />
                           </span>
-                          <span className="research-cost-count">{n}</span>
+                          <span className="research-cost-count">
+                            {Math.floor(have)}/{n}
+                          </span>
                         </span>
                       )
                     },

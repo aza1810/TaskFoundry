@@ -2132,6 +2132,7 @@ button {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  max-width: min(92vw, 28rem);
   padding: 0.75rem 1rem;
   background: var(--oil);
   color: var(--concrete);
@@ -2139,6 +2140,20 @@ button {
   font-size: 0.85rem;
   box-shadow: 0 12px 40px var(--shadow);
   animation: toast-in 0.35s ease both;
+  border-left: 4px solid var(--belt);
+}
+
+.toast.is-ok {
+  border-left-color: #7dff9a;
+}
+
+.toast.is-warn {
+  border-left-color: #e07060;
+  background: #2a1814;
+}
+
+.toast.is-info {
+  border-left-color: var(--belt);
 }
 
 .toast button {
@@ -3312,16 +3327,34 @@ button {
   justify-items: center;
   max-width: min(92%, 22rem);
   padding: 0.3rem 0.7rem;
-  background: rgba(12, 14, 10, 0.78);
+  background: color-mix(in srgb, var(--bg-sheet) 82%, transparent);
   border: 1px solid rgba(201, 162, 39, 0.45);
   border-radius: 999px;
   backdrop-filter: blur(6px);
   pointer-events: none;
+  color: var(--text-chrome);
+}
+
+.mode-banner.is-painting {
+  border-color: #7dff9a;
+  background: rgba(40, 80, 48, 0.88);
+  color: #e8ffe8;
+  animation: paint-banner-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes paint-banner-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(125, 255, 154, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(125, 255, 154, 0.18);
+  }
 }
 
 .mode-banner strong {
   font-size: 0.72rem;
-  color: #f0e6d2;
+  color: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3331,18 +3364,24 @@ button {
 .mode-banner span {
   font-family: var(--font-mono);
   font-size: 0.58rem;
-  color: #a89878;
+  color: var(--text-chrome-muted);
+}
+
+.mode-banner.is-painting span {
+  color: #b8f0c4;
 }
 
 .machine-sheet {
   z-index: 7;
   padding: 0.7rem 0.8rem;
-  background: rgba(26, 22, 18, 0.97);
-  border: 1px solid #c9a227;
+  background: var(--bg-sheet);
+  border: 1px solid var(--border-chrome);
   border-left: none;
   border-right: none;
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  border-top-color: #c9a227;
+  box-shadow: 0 -8px 24px var(--shadow);
   animation: rise-in 0.2s ease-out;
+  color: var(--text-chrome);
 }
 
 .machine-sheet-head {
@@ -3350,14 +3389,21 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  color: #f0e6d2;
+  color: var(--text-chrome-bright);
+}
+
+.machine-sheet-hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--text-chrome-muted);
 }
 
 .machine-sheet-meta {
   margin: 0.25rem 0 0.55rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: #a89878;
+  color: var(--text-chrome-muted);
 }
 
 .machine-sheet-actions {
@@ -4571,4 +4617,73 @@ html[data-theme='light'] .settings-theme {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--steel);
+}
+
+.settings-name-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: end;
+  margin-top: 0.35rem;
+}
+
+.settings-name-form label {
+  display: grid;
+  gap: 0.25rem;
+  flex: 1 1 10rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.settings-name-form input {
+  border: 1px solid rgba(26, 22, 18, 0.18);
+  background: var(--panel-solid);
+  color: var(--oil);
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  font-size: 1rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.habit-reward {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--moss);
+}
+
+.inv-section {
+  margin-top: 0.9rem;
+}
+
+.inv-section h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+}
+
+.inventory-panel .resource.is-zero {
+  opacity: 0.42;
+}
+
+.inventory-panel .resource {
+  background: color-mix(in srgb, var(--bg-card) 88%, var(--oil) 6%);
+  border: 1px solid rgba(26, 22, 18, 0.1);
+  color: var(--oil);
+}
+
+html[data-theme='light'] .toast.is-warn {
+  background: #3a2018;
+}
+
+html[data-theme='light'] .mode-banner.is-painting {
+  background: rgba(61, 122, 82, 0.92);
+}
+
+html[data-theme='light'] .machine-sheet .ghost-btn,
+html[data-theme='light'] .machine-sheet .primary-btn {
+  color: inherit;
 }

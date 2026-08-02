@@ -131,18 +131,19 @@ export const GOALS: GoalDef[] = [
 
 export const TIPS = [
   'Drills auto-drop ore onto the belt or chest they face — aim the arrow at your line.',
-  'Drag across empty tiles to paint belts quickly. Hold Q for bulldoze.',
-  'Inserters pull from behind and push forward. Yellow arm = facing.',
+  'Hold on a tile, then drag to paint belts. Edit → Demolish clears buildings.',
+  'Inserters pull from behind and push forward — green arrow shows drop direction.',
   'Furnaces need ore + coal. Use a second inserter to pull plates out.',
   'Assemblers turn iron plates into gears while you walk.',
   'Research fast belts, electric drills, and splitters when you have plates to spare.',
   'Starter line auto-builds a basic drill → furnace → chest setup.',
-  'Habits restock belts and fuel so the factory keeps growing.',
+  'Daily tasks restock belts and fuel so the factory keeps growing.',
   'Skills level from steps: drills train Mining, furnaces Smelting, belts Logistics.',
   'Assemblers and the craft bench train Assembly while you walk.',
   'Task Foundry: check daily tasks, walk to mine, automate the rest.',
   'Daily contracts refresh each day — claim them for mats.',
   'Focus up to two skills on the Skills tab for ×1.5 step XP.',
+  '··· opens Settings for theme, updates, and account.',
 ]
 
 export function emptyStats(): FactoryStats {

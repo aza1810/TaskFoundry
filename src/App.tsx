@@ -99,11 +99,30 @@ function TabIcon({ id }: { id: TabId }) {
   }
 }
 
+function toastTone(message: string): 'ok' | 'warn' | 'info' {
+  if (
+    /need |required|full|fail|blocked|nothing|no |already |not finished|skip/i.test(
+      message,
+    )
+  ) {
+    return 'warn'
+  }
+  if (
+    /complete|researched|fueled|finished|queued|pasted|copied|hand-crafting|synced|planted|tour complete|claimed/i.test(
+      message,
+    )
+  ) {
+    return 'ok'
+  }
+  return 'info'
+}
+
 function Toast() {
   const { state, clearToast } = useGame()
   if (!state.unlockedToast) return null
+  const tone = toastTone(state.unlockedToast)
   return (
-    <div className="toast" role="status">
+    <div className={`toast is-${tone}`} role="status">
       <span>{state.unlockedToast}</span>
       <button type="button" onClick={clearToast} aria-label="Dismiss">
         ×

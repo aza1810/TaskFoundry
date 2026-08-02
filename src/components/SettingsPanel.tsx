@@ -34,15 +34,22 @@ const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
 ]
 
 export function SettingsPanel() {
-  const { reset } = useGame()
+  const { state, reset, rename } = useGame()
   const { session, signOut } = useAuth()
   const [ota, setOta] = useState<OtaState>(getOtaState)
   const [busy, setBusy] = useState(false)
   const [themePref, setThemePref] = useState<ThemePreference>(getThemePreference)
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark')
+  const [name, setName] = useState(state.playerName)
   const native = Capacitor.isNativePlatform()
+  const platform = native
+    ? Capacitor.getPlatform() === 'ios'
+      ? 'iOS app'
+      : 'Android APK'
+    : 'Web browser'
 
   useEffect(() => subscribeOta(setOta), [])
+  useEffect(() => setName(state.playerName), [state.playerName])
   useEffect(
     () =>
       subscribeTheme(({ preference, resolved }) => {
@@ -69,8 +76,34 @@ export function SettingsPanel() {
       </div>
 
       <div className="settings-block">
+        <h3>Operator</h3>
+        <form
+          className="settings-name-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            rename(name)
+          }}
+        >
+          <label>
+            Name
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={24}
+              aria-label="Operator name"
+            />
+          </label>
+          <button type="submit" className="ghost-btn">
+            Save name
+          </button>
+        </form>
+      </div>
+
+      <div className="settings-block">
         <h3>Appearance</h3>
-        <p className="settings-hint">Switch between light and dark chrome. The factory floor stays high-contrast either way.</p>
+        <p className="settings-hint">
+          Light mode brightens the chrome and factory floor. Dark keeps the night-shift look.
+        </p>
         <div className="settings-theme" role="group" aria-label="Theme">
           {THEME_OPTIONS.map((opt) => (
             <button
@@ -103,7 +136,7 @@ export function SettingsPanel() {
           </div>
           <div>
             <dt>Platform</dt>
-            <dd>{native ? 'Android APK' : 'Web browser'}</dd>
+            <dd>{platform}</dd>
           </div>
           <div>
             <dt>Latest on server</dt>

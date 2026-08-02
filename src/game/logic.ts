@@ -7,6 +7,7 @@ import {
   GRID_W,
   HABIT_REWARDS,
   HAND_RECIPES,
+  ITEM_META,
   MAX_CRAFT_QUEUE,
   MAX_UNDERGROUND,
   OFFLINE_CAP_SECONDS,
@@ -476,7 +477,7 @@ function handleCopyClick(state: GameState, x: number, y: number): GameState {
     return {
       ...state,
       copyCorner: { x, y },
-      unlockedToast: 'Copy: click the opposite corner of the selection',
+      unlockedToast: 'Copy: tap the opposite corner of the selection',
     }
   }
 
@@ -514,7 +515,7 @@ function handleCopyClick(state: GameState, x: number, y: number): GameState {
     blueprint,
     copyCorner: null,
     selected: 'paste',
-    unlockedToast: `Copied ${blueprint.length} buildings — click to paste`,
+    unlockedToast: `Copied ${blueprint.length} buildings — tap to paste`,
   }
 }
 
@@ -787,7 +788,22 @@ export function craftRecipe(state: GameState, recipeId: string): GameState {
       unlockedToast: `Craft queue full (${MAX_CRAFT_QUEUE}) — wait for the bench`,
     }
   }
-  if (!canAfford(state.inventory, recipe.inputs)) return state
+  if (!canAfford(state.inventory, recipe.inputs)) {
+    const missing = (Object.entries(recipe.inputs) as [keyof typeof state.inventory, number][])
+      .filter(([id, n]) => (state.inventory[id] ?? 0) < n)
+      .map(([id, n]) => {
+        const have = Math.floor(state.inventory[id] ?? 0)
+        return `${n - have} more ${ITEM_META[id].label}`
+      })
+      .slice(0, 2)
+      .join(', ')
+    return {
+      ...state,
+      unlockedToast: missing
+        ? `Need ${missing} for ${recipe.name}`
+        : `Need more materials for ${recipe.name}`,
+    }
+  }
 
   const craftMult = skillBonuses(state.skills).handCraftSpeedMult
   const duration = Math.max(0.8, recipe.handSeconds / craftMult)
@@ -843,8 +859,26 @@ export function collectChest(state: GameState, x: number, y: number): GameState 
 }
 
 export function fuelAllDrills(state: GameState): GameState {
+  const beforeCoal = asItemCount(state.inventory.coal)
+  const drills = Object.values(state.entities).filter((e) => e.kind === 'drill')
+  if (drills.length === 0) {
+    return { ...state, unlockedToast: 'No burner drills on the floor' }
+  }
   const next = topUpDrillFuel(state)
-  return { ...next, unlockedToast: 'Fueled burner drills from inventory' }
+  const used = beforeCoal - asItemCount(next.inventory.coal)
+  if (used <= 0) {
+    const anyHungry = drills.some((e) => (e.store.coal ?? 0) < 2)
+    return {
+      ...state,
+      unlockedToast: anyHungry
+        ? 'Need coal in inventory to fuel drills'
+        : 'All burner drills already fueled',
+    }
+  }
+  return {
+    ...next,
+    unlockedToast: `Fueled drills (−${used} coal)`,
+  }
 }
 
 /** Top up a single burner drill from inventory coal. */

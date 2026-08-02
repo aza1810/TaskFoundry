@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import { HABIT_REWARDS } from '../game/data'
+import { HABIT_REWARDS, ITEM_META, formatNum } from '../game/data'
 import { useGame } from '../game/GameContext'
-import type { HabitCategory } from '../game/types'
+import type { HabitCategory, ItemId } from '../game/types'
+
+function rewardLabel(items: Partial<Record<ItemId, number>>): string {
+  return (Object.entries(items) as [ItemId, number][])
+    .map(([id, n]) => `+${formatNum(n)} ${ITEM_META[id].short}`)
+    .join(' · ')
+}
 
 const CATEGORIES: { id: HabitCategory; label: string }[] = [
   { id: 'mining', label: 'Mining' },
@@ -65,6 +71,7 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
                   Streak {habit.streak} · +{reward.xp} XP
                   {habit.completedToday ? ' · stamped' : ''}
                 </p>
+                <p className="habit-reward">{rewardLabel(reward.items)}</p>
               </div>
               <button
                 type="button"

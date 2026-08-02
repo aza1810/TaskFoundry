@@ -231,6 +231,7 @@ export function FactoryFloor({
   const [floaters, setFloaters] = useState<Floater[]>([])
   const [stepPulse, setStepPulse] = useState(false)
   const [dockOpen, setDockOpen] = useState(true)
+  const [paintActive, setPaintActive] = useState(false)
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -496,6 +497,7 @@ export function FactoryFloor({
       holdTimer.current = window.setTimeout(() => {
         if (gesture.current.kind !== 'pending' || gesture.current.pointerId !== e.pointerId) return
         gesture.current.kind = 'paint'
+        setPaintActive(true)
         buzz(10)
         const c = cellFromPoint(
           gesture.current.last?.x ?? e.clientX,
@@ -592,6 +594,7 @@ export function FactoryFloor({
         }
       }
 
+      setPaintActive(false)
       gesture.current.kind = 'none'
       gesture.current.moved = false
       gesture.current.lastCell = null
@@ -604,9 +607,9 @@ export function FactoryFloor({
   const toolLabel = !selected
     ? 'Drag to pan · tap machines'
     : selected === 'remove'
-      ? 'Tap / hold-drag to demolish · drag to pan'
+      ? 'Tap or hold-drag to demolish · drag pans'
       : selected === 'rotate'
-        ? 'Tap / hold-drag belts & machines to rotate · drag pans'
+        ? 'Tap or hold-drag to rotate · drag pans'
         : selected === 'copy'
           ? 'Tap two corners · drag to pan'
           : selected === 'paste'
@@ -987,11 +990,19 @@ export function FactoryFloor({
           onJump={centerOn}
         />
 
-        <div className="mode-banner" aria-live="polite">
-          <strong>{toolLabel}</strong>
+        <div
+          className={`mode-banner${paintActive ? ' is-painting' : ''}`}
+          aria-live="polite"
+        >
+          <strong>{paintActive ? 'Painting — drag to continue' : toolLabel}</strong>
           <span>
-            {formatNum(state.mineCycles)} cycles
-            {blueprint ? ` · BP ${blueprint.length}` : ''}
+            {paintActive
+              ? selected === 'remove'
+                ? 'Release to stop demolishing'
+                : 'Release to stop painting'
+              : `${formatNum(state.mineCycles)} cycles${
+                  blueprint ? ` · BP ${blueprint.length}` : ''
+                }`}
           </span>
         </div>
       </div>
@@ -1007,9 +1018,18 @@ export function FactoryFloor({
               Close
             </button>
           </div>
+          <p className="machine-sheet-hint">
+            {PLACEABLE_META[inspectEnt.kind as Placeable]?.hint ??
+              (inspectEnt.kind === 'assembler'
+                ? 'Crafts gears from iron plates.'
+                : 'Tap Rotate to turn; Demolish to remove.')}
+          </p>
           <p className="machine-sheet-meta">
             ({inspect.x},{inspect.y})
             {storeSummary(inspectEnt) ? ` · ${storeSummary(inspectEnt)}` : ''}
+            {inspectEnt.kind === 'drill'
+              ? ` · coal ${Math.floor(inspectEnt.store.coal ?? 0)}`
+              : ''}
           </p>
           <div className="machine-sheet-actions">
             <button
@@ -1219,7 +1239,9 @@ export function FactoryFloor({
                   Start walk
                 </button>
               )}
-              <span className="build-hint">Drag pans · tap places · hold-drag paints belts</span>
+              <span className="build-hint">
+                Drag pans · tap places · hold then drag paints belts
+              </span>
             </div>
           </>
         )}
