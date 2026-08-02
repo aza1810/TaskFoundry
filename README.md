@@ -40,6 +40,18 @@ App id: `online.azztech.taskfoundry`
 
 Privacy policy asset for Health Connect: `public/privacypolicy.html` (copied into the web build).
 
+### Google Sign-In (native Android)
+
+The website uses Google Identity Services. The APK uses native Google Sign-In and needs an **Android** OAuth client in the same Google Cloud project as the Web client:
+
+1. [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
+2. **Create credentials → OAuth client ID → Android**
+3. Package name: `online.azztech.taskfoundry`
+4. SHA-1: `D6:73:A2:0F:34:7D:05:54:71:8F:EC:66:AE:51:96:7E:AD:13:FD:5B`
+5. Keep using the existing **Web** client ID in the app (`VITE_GOOGLE_CLIENT_ID` / default)
+
+Until that Android client exists, Google Sign-In on the APK will fail (guest / local accounts still work).
+
 ### What syncs
 
 - Native app reads today’s step total from Health / Health Connect.

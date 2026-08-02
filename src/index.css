@@ -3496,6 +3496,11 @@ button {
   justify-content: center;
 }
 
+.auth-google-native {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
 .auth-google-btn.is-ready iframe {
   color-scheme: light;
 }

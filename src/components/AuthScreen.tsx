@@ -6,6 +6,11 @@ import {
   loadGoogleIdentityScript,
   setGoogleClientId,
 } from '../auth/google'
+import {
+  formatNativeGoogleError,
+  isNativeGoogleAuth,
+  nativeGoogleSignIn,
+} from '../auth/nativeGoogle'
 
 type Mode = 'signin' | 'register'
 
@@ -23,6 +28,7 @@ export function AuthScreen() {
   const [googleReady, setGoogleReady] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
   const googleBtnRef = useRef<HTMLDivElement>(null)
+  const nativeGoogle = isNativeGoogleAuth()
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -44,7 +50,27 @@ export function AuthScreen() {
     setError(null)
   }
 
+  async function onNativeGoogle() {
+    setGoogleBusy(true)
+    setError(null)
+    try {
+      const credential = await nativeGoogleSignIn()
+      const err = await signInGoogleCredential(credential)
+      if (err) setError(err)
+    } catch (err) {
+      setError(formatNativeGoogleError(err))
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
   useEffect(() => {
+    // Native app uses Credential Manager / Google Sign-In SDK — skip GIS web button.
+    if (nativeGoogle) {
+      setGoogleReady(Boolean(clientId))
+      return
+    }
+
     if (!clientId) {
       setGoogleReady(false)
       return
@@ -90,7 +116,9 @@ export function AuthScreen() {
       } catch {
         if (!cancelled) {
           setGoogleReady(false)
-          setError('Could not load Google Sign-In. Check your connection and try again.')
+          setError(
+            'Could not load Google Sign-In in this browser. Use Continue as guest, or open https://azztech.online/apps/tf/ in Chrome/Safari.',
+          )
         }
       }
     })()
@@ -98,7 +126,7 @@ export function AuthScreen() {
     return () => {
       cancelled = true
     }
-  }, [clientId, signInGoogleCredential])
+  }, [clientId, signInGoogleCredential, nativeGoogle])
 
   const origin =
     typeof window !== 'undefined' ? window.location.origin : 'https://your-app-url'
@@ -123,21 +151,36 @@ export function AuthScreen() {
         <div className="auth-google">
           {clientId ? (
             <>
-              <div
-                ref={googleBtnRef}
-                className={`auth-google-btn ${googleReady ? 'is-ready' : ''}`}
-                aria-busy={!googleReady || googleBusy}
-              />
-              {!googleReady && (
-                <p className="auth-google-status">Loading Google Sign-In…</p>
+              {nativeGoogle ? (
+                <button
+                  type="button"
+                  className="primary-btn auth-google-native"
+                  onClick={() => void onNativeGoogle()}
+                  disabled={googleBusy || !googleReady}
+                >
+                  {googleBusy ? 'Signing you in…' : 'Continue with Google'}
+                </button>
+              ) : (
+                <>
+                  <div
+                    ref={googleBtnRef}
+                    className={`auth-google-btn ${googleReady ? 'is-ready' : ''}`}
+                    aria-busy={!googleReady || googleBusy}
+                  />
+                  {!googleReady && (
+                    <p className="auth-google-status">Loading Google Sign-In…</p>
+                  )}
+                </>
               )}
-              {googleBusy && <p className="auth-google-status">Signing you in…</p>}
+              {googleBusy && !nativeGoogle && (
+                <p className="auth-google-status">Signing you in…</p>
+              )}
               <button
                 type="button"
                 className="ghost-btn auth-google-setup-toggle"
                 onClick={() => setShowClientSetup((v) => !v)}
               >
-                {showClientSetup ? 'Hide Client ID' : 'Change Google Client ID'}
+                {showClientSetup ? 'Hide Client ID' : 'Google setup help'}
               </button>
             </>
           ) : (
@@ -149,7 +192,7 @@ export function AuthScreen() {
           {showClientSetup && (
             <div className="auth-google-setup">
               <label>
-                Google OAuth Client ID
+                Google OAuth Web Client ID
                 <input
                   value={clientIdDraft}
                   onChange={(e) => setClientIdDraft(e.target.value)}
@@ -158,11 +201,26 @@ export function AuthScreen() {
                   spellCheck={false}
                 />
               </label>
-              <p className="auth-google-hint">
-                Create a Web client in Google Cloud Console → APIs &amp; Services →
-                Credentials. Add this origin under Authorized JavaScript origins:
-              </p>
-              <code className="auth-origin">{origin}</code>
+              {nativeGoogle ? (
+                <>
+                  <p className="auth-google-hint">
+                    Native Android also needs an <strong>Android</strong> OAuth client in the
+                    same Google Cloud project:
+                  </p>
+                  <code className="auth-origin">Package: online.azztech.taskfoundry</code>
+                  <code className="auth-origin">
+                    SHA-1: D6:73:A2:0F:34:7D:05:54:71:8F:EC:66:AE:51:96:7E:AD:13:FD:5B
+                  </code>
+                </>
+              ) : (
+                <>
+                  <p className="auth-google-hint">
+                    Create a Web client in Google Cloud Console → APIs &amp; Services →
+                    Credentials. Add this origin under Authorized JavaScript origins:
+                  </p>
+                  <code className="auth-origin">{origin}</code>
+                </>
+              )}
               <button type="button" className="primary-btn auth-client-save" onClick={saveClientId}>
                 Save Client ID
               </button>

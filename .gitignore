@@ -38,6 +38,8 @@ ios/DerivedData
 *.keystore
 *.jks
 *.mobileprovision
+# Shared debug keystore so Google OAuth SHA-1 stays stable across CI/APK builds
+!android/app/keystore/debug.keystore
 
 TaskFoundry-debug.apk
 *.apk
