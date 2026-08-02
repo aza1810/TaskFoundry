@@ -56,7 +56,7 @@ type Floater = {
   tone: 'ore' | 'place' | 'good' | 'warn'
 }
 
-const BUILD_TOOLS: ToolId[] = [
+const BUILD_TOOLS: Placeable[] = [
   'drill',
   'electricDrill',
   'furnace',
@@ -64,7 +64,7 @@ const BUILD_TOOLS: ToolId[] = [
   'chest',
   'assembler',
 ]
-const BELT_TOOLS: ToolId[] = [
+const BELT_TOOLS: Placeable[] = [
   'belt',
   'fastBelt',
   'undergroundBelt',
@@ -176,6 +176,18 @@ export function FactoryFloor({
   const [floaters, setFloaters] = useState<Floater[]>([])
   const [stepPulse, setStepPulse] = useState(false)
   const [dockOpen, setDockOpen] = useState(true)
+
+  const pickTool = useCallback(
+    (list: ToolId[]) => {
+      const unlocked = list.filter((t) => isUnlocked(t, state.researched))
+      const stocked = unlocked.find((t) => {
+        if (t === 'remove' || t === 'copy' || t === 'paste') return true
+        return (state.inventory[t as Placeable] ?? 0) > 0
+      })
+      return stocked ?? unlocked[0] ?? null
+    },
+    [state.researched, state.inventory],
+  )
   const viewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
@@ -274,7 +286,8 @@ export function FactoryFloor({
     inertiaRaf.current = requestAnimationFrame(tick)
   }, [])
 
-  const toolsForTab = toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS
+  const toolsForTab: ToolId[] =
+    toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS
 
   const selectionRect = useMemo(() => {
     if (!copyCorner || !hover || selected !== 'copy') return null
@@ -524,13 +537,16 @@ export function FactoryFloor({
       <div className="game-hud">
         <div className="game-hud-top">
           <div className="game-hud-identity">
-            <strong className="game-hud-brand">{APP_NAME}</strong>
-            <span className="game-hud-operator">
-              {state.playerName} · Lv {state.level} {titleForLevel(state.level)}
-            </span>
+            <div className="game-hud-title-row">
+              <strong className="game-hud-brand">{APP_NAME}</strong>
+              <span className="game-hud-lv">Lv{state.level}</span>
+            </div>
             <div className="game-hud-xp" aria-hidden>
               <div className="game-hud-xp-fill" style={{ width: `${xpPct}%` }} />
             </div>
+          </div>
+          <div className="game-hud-rates is-inline">
+            <span className={rates.ore > 0.05 ? 'is-hot' : ''}>{rateLine}</span>
           </div>
           <button
             type="button"
@@ -538,13 +554,12 @@ export function FactoryFloor({
               pedometer.status === 'listening' ? 'is-live' : ''
             }`}
             onClick={onOpenSteps}
+            title={`${state.playerName} · ${titleForLevel(state.level)}`}
           >
             <span className="game-hud-steps-label">Steps</span>
             <span className="game-hud-steps-num">{formatNum(state.stepsToday)}</span>
-            {pedometer.status === 'listening' ? (
+            {pedometer.status === 'listening' && (
               <span className="game-hud-steps-live">+{pedometer.sessionSteps}</span>
-            ) : (
-              <span className="game-hud-steps-sub">today</span>
             )}
           </button>
         </div>
@@ -562,24 +577,17 @@ export function FactoryFloor({
           })}
         </div>
 
-        <div className="game-hud-meta">
-          {goal ? (
-            <button type="button" className="game-objective" onClick={onOpenTasks}>
-              <span>Objective</span>
-              <strong>{goal.title}</strong>
-            </button>
-          ) : (
-            <button type="button" className="game-objective is-clear" onClick={onOpenTasks}>
-              <span>Contracts</span>
-              <strong>All clear — expand</strong>
-            </button>
-          )}
-          <div className="game-hud-rates">
-            <span className={rates.ore > 0.05 ? 'is-hot' : ''}>{rateLine}</span>
-            {rates.plates > 0.02 && <span>plates {rates.plates.toFixed(1)}/s</span>}
-            {rates.gears > 0.02 && <span>gears {rates.gears.toFixed(1)}/s</span>}
-          </div>
-        </div>
+        {goal ? (
+          <button type="button" className="game-objective" onClick={onOpenTasks}>
+            <span>Objective</span>
+            <strong>{goal.title}</strong>
+          </button>
+        ) : (
+          <button type="button" className="game-objective is-clear" onClick={onOpenTasks}>
+            <span>Contracts</span>
+            <strong>All clear — expand</strong>
+          </button>
+        )}
 
         {pedometer.status === 'listening' && (
           <div className="game-walk-banner">
@@ -918,31 +926,32 @@ export function FactoryFloor({
                   ['belts', 'Belts'],
                   ['edit', 'Edit'],
                 ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={toolTab === id && selected ? 'is-active' : ''}
-                  onClick={() => {
-                    setToolTab(id)
-                    const list =
-                      id === 'build' ? BUILD_TOOLS : id === 'belts' ? BELT_TOOLS : EDIT_TOOLS
-                    const first = list.find((t) => isUnlocked(t, state.researched))
-                    if (first) selectTool(first)
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              ).map(([id, label]) => {
+                const list =
+                  id === 'build' ? BUILD_TOOLS : id === 'belts' ? BELT_TOOLS : EDIT_TOOLS
+                const tabActive = toolTab === id && !!selected && list.includes(selected)
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={tabActive ? 'is-active' : ''}
+                    onClick={() => {
+                      setToolTab(id)
+                      setDockOpen(true)
+                      const next = pickTool(list)
+                      if (next) selectTool(next)
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
             </div>
 
             <div className="build-icon-dock" role="toolbar" aria-label="Build tools">
               {toolsForTab.map((tool) => {
                 const unlocked = isUnlocked(tool, state.researched)
-                if (!unlocked) {
-                  if (tool === 'copy' || tool === 'paste' || tool === 'remove') return null
-                  if ((state.inventory[tool as Placeable] ?? 0) <= 0) return null
-                }
+                if (!unlocked) return null
                 const label =
                   tool === 'remove'
                     ? 'Demolish'
@@ -992,6 +1001,16 @@ export function FactoryFloor({
                 )
               })}
             </div>
+            {toolTab === 'build' &&
+              BUILD_TOOLS.every(
+                (t) =>
+                  !isUnlocked(t, state.researched) ||
+                  (state.inventory[PLACEABLE_META[t].inventoryKey] ?? 0) <= 0,
+              ) && (
+                <p className="build-empty-hint">
+                  No buildings in stock — craft more on the Craft tab, or complete Tasks.
+                </p>
+              )}
 
             <div className="build-quick">
               <button

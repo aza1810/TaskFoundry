@@ -73,7 +73,7 @@ export function createInitialState(): GameState {
     stepsLifetime: 0,
     stepsDate: todayKey(),
     mineCycles: 0,
-    selected: 'drill',
+    selected: null,
     placeDir: 'E',
     lastTick: Date.now(),
     totalHabitsCompleted: 0,

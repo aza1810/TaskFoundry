@@ -10,7 +10,6 @@ import { InventoryPanel } from './components/InventoryPanel'
 import { ResearchPanel } from './components/ResearchPanel'
 import { SkillsPanel } from './components/SkillsPanel'
 import { StepsPanel } from './components/StepsPanel'
-import { TopStatusBar } from './components/TopStatusBar'
 import { TutorialOverlay } from './components/TutorialOverlay'
 import { GameProvider, useGame } from './game/GameContext'
 import { usePedometer } from './hooks/usePedometer'
@@ -105,9 +104,11 @@ function Shell() {
             >
               ← Floor
             </button>
-            <h2 className="game-sheet-title">{sheetLabel}</h2>
-            <div className="game-sheet-status">
-              <TopStatusBar />
+            <div className="game-sheet-heading">
+              <h2 className="game-sheet-title">{sheetLabel}</h2>
+              <p className="game-sheet-sub">
+                {state.playerName} · Lv {state.level} · {state.stepsToday.toLocaleString()} steps
+              </p>
             </div>
           </header>
           <main className="game-sheet-body" key={tab}>
