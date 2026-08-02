@@ -144,11 +144,13 @@ export function SplitterSprite({ dir }: { dir: Dir }) {
 export function InserterSprite({ dir, long }: { dir: Dir; long?: boolean }) {
   const arm = long ? '#e07040' : '#c4a035'
   const tip = long ? '#f0a070' : '#e8c84a'
+  // Art points north (arm up); +90° so E/S/W/N match drop direction.
+  const deg = ROT[dir] + 90
   return (
     <svg
       className={`sprite sprite-inserter ${long ? 'is-long' : ''}`}
       viewBox="0 0 64 64"
-      style={{ transform: `rotate(${ROT[dir]}deg)` }}
+      style={{ transform: `rotate(${deg}deg)` }}
       aria-hidden
     >
       <circle cx="32" cy="32" r="10" fill="#6b655c" stroke="#1a1612" strokeWidth="2" />
