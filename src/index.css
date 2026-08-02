@@ -1200,6 +1200,240 @@ button {
   margin-top: 1rem;
 }
 
+.recipe-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+@media (min-width: 520px) {
+  .recipe-icon-grid {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  }
+}
+
+.recipe-icon {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 0.35rem;
+  border: 1px solid #3a3020;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #2f2920 0%, #1c1812 100%);
+  color: #e8e0d4;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.recipe-icon:hover {
+  border-color: #c9a227;
+  transform: translateY(-1px);
+}
+
+.recipe-icon:active {
+  transform: translateY(0);
+}
+
+.recipe-icon.is-selected {
+  border-color: #f0a020;
+  box-shadow: 0 0 0 1px #f0a020, 0 0 14px rgba(240, 160, 32, 0.28);
+}
+
+.recipe-icon.is-empty {
+  opacity: 0.42;
+}
+
+.recipe-icon.is-locked {
+  opacity: 0.55;
+}
+
+.recipe-icon-lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f0a020;
+  background: rgba(10, 8, 6, 0.45);
+  border-radius: 7px;
+}
+
+.craft-slot {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+}
+
+.craft-slot .sprite,
+.craft-slot .sprite-item-entity,
+.craft-slot svg {
+  width: 40px;
+  height: 40px;
+}
+
+.craft-slot-lg {
+  width: 56px;
+  height: 56px;
+}
+
+.craft-slot-lg .sprite,
+.craft-slot-lg .sprite-item-entity,
+.craft-slot-lg svg {
+  width: 48px;
+  height: 48px;
+}
+
+.craft-slot-sm {
+  width: 32px;
+  height: 32px;
+}
+
+.craft-slot-sm .sprite,
+.craft-slot-sm .sprite-item-entity,
+.craft-slot-sm svg {
+  width: 28px;
+  height: 28px;
+}
+
+.craft-slot-xs {
+  width: 24px;
+  height: 24px;
+}
+
+.craft-slot-xs .sprite,
+.craft-slot-xs .sprite-item-entity,
+.craft-slot-xs svg {
+  width: 22px;
+  height: 22px;
+}
+
+.sprite-item-entity {
+  display: grid;
+  place-items: center;
+}
+
+.sprite-item-entity .sprite {
+  width: 100%;
+  height: 100%;
+}
+
+.craft-qty,
+.craft-avail {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #f5edd8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+}
+
+.craft-qty {
+  right: 0;
+  bottom: 0;
+}
+
+.craft-avail {
+  top: -0.1rem;
+  right: -0.1rem;
+  color: #f0e0a0;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.1rem 0.22rem;
+  border-radius: 4px;
+}
+
+.craft-recipe-detail {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgba(26, 22, 18, 0.14);
+  background: linear-gradient(180deg, #2a2418, #1a1612);
+  color: #e8e0d4;
+  border-radius: 10px;
+}
+
+.craft-recipe-detail-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.craft-recipe-detail-copy {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.craft-recipe-detail-copy strong {
+  font-size: 0.95rem;
+}
+
+.craft-ingredient-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.craft-ingredient {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #3a3020;
+  border-radius: 6px;
+  background: #15120e;
+}
+
+.craft-ingredient.is-short {
+  border-color: #b33a2b;
+  box-shadow: 0 0 0 1px rgba(179, 58, 43, 0.35);
+}
+
+.craft-ingredient-out {
+  border-color: #c47a12;
+}
+
+.craft-ingredient-count {
+  position: absolute;
+  right: 0.1rem;
+  bottom: 0.05rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #f5edd8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.craft-ingredient-arrow {
+  color: #a89878;
+  font-weight: 700;
+  padding: 0 0.1rem;
+}
+
+.craft-queue-btn {
+  min-width: 5.5rem;
+  align-self: stretch;
+}
+
+.craft-recipe-detail .recipe-time,
+.craft-recipe-detail .recipe-lock {
+  margin: 0;
+}
+
 .recipe {
   display: grid;
   gap: 0.25rem;
@@ -1301,6 +1535,20 @@ button {
   background: rgba(240, 160, 32, 0.12);
 }
 
+.craft-active-product {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.craft-queue-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
 .craft-queue-main {
   display: flex;
   justify-content: space-between;
@@ -1322,8 +1570,19 @@ button {
   grid-row: 1;
 }
 
-.craft-section .recipe-grid {
+.craft-section .recipe-grid,
+.craft-section .recipe-icon-grid {
   margin-top: 0.35rem;
+}
+
+@media (max-width: 420px) {
+  .craft-recipe-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .craft-queue-btn {
+    min-height: 2.6rem;
+  }
 }
 
 .auto-row label {

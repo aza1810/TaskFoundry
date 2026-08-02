@@ -299,37 +299,105 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   splitter: { fill: '#c4a035', edge: '#6a5010' },
 }
 
-export function ItemSprite({ item }: { item: ItemId }) {
+const PLACEABLE_ITEMS = new Set<ItemId>([
+  'belt',
+  'fastBelt',
+  'undergroundBelt',
+  'inserter',
+  'longInserter',
+  'drill',
+  'electricDrill',
+  'furnace',
+  'steelFurnace',
+  'chest',
+  'assembler',
+  'splitter',
+])
+
+function OreItemSprite({ item }: { item: 'ironOre' | 'copperOre' | 'coal' }) {
   const c = ITEM_COLORS[item]
-  if (item === 'gear') {
+  if (item === 'coal') {
     return (
       <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
-        <circle cx="16" cy="16" r="12" fill={c.fill} stroke={c.edge} strokeWidth="2" />
-        <circle cx="16" cy="16" r="4" fill="#2a2620" />
-        {[0, 45, 90, 135].map((a) => (
-          <rect
-            key={a}
-            x="14"
-            y="2"
-            width="4"
-            height="8"
-            fill={c.fill}
-            stroke={c.edge}
-            strokeWidth="0.5"
-            transform={`rotate(${a} 16 16)`}
-          />
-        ))}
+        <rect x="2" y="2" width="28" height="28" rx="3" fill="#1a1612" opacity="0.35" />
+        <path d="M8 20 L12 8 L18 14 L22 7 L27 18 L24 26 L10 26 Z" fill={c.fill} stroke={c.edge} strokeWidth="1.5" />
+        <path d="M13 12 L16 18 L11 22" fill="none" stroke="#555" strokeWidth="1.2" />
+        <ellipse cx="20" cy="16" rx="2" ry="1.4" fill="#666" opacity="0.7" />
       </svg>
     )
+  }
+  const spark = item === 'ironOre' ? '#d0c4b0' : '#f0b060'
+  return (
+    <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
+      <rect x="2" y="2" width="28" height="28" rx="3" fill="#1a1612" opacity="0.28" />
+      <ellipse cx="12" cy="20" rx="7" ry="5" fill={c.fill} stroke={c.edge} strokeWidth="1.4" />
+      <ellipse cx="21" cy="16" rx="6" ry="5" fill={c.fill} stroke={c.edge} strokeWidth="1.4" />
+      <ellipse cx="16" cy="12" rx="5.5" ry="4.5" fill={c.fill} stroke={c.edge} strokeWidth="1.4" />
+      <ellipse cx="14" cy="10" rx="2" ry="1.3" fill={spark} opacity="0.75" />
+      <ellipse cx="20" cy="14" rx="1.6" ry="1" fill={spark} opacity="0.55" />
+    </svg>
+  )
+}
+
+function PlateItemSprite({ item }: { item: 'ironPlate' | 'copperPlate' | 'steel' }) {
+  const c = ITEM_COLORS[item]
+  const sheen = item === 'steel' ? 'rgba(200,220,240,0.35)' : 'rgba(255,255,255,0.28)'
+  return (
+    <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
+      <rect x="2" y="2" width="28" height="28" rx="3" fill="#1a1612" opacity="0.28" />
+      <rect x="5" y="8" width="22" height="16" rx="1.5" fill={c.fill} stroke={c.edge} strokeWidth="1.8" />
+      <rect x="7" y="10" width="18" height="3" fill={sheen} />
+      <rect x="7" y="20" width="10" height="1.5" fill={c.edge} opacity="0.45" />
+      {item === 'steel' && (
+        <rect x="18" y="18" width="6" height="3" fill="#c4d0dc" opacity="0.55" />
+      )}
+    </svg>
+  )
+}
+
+function GearItemSprite() {
+  const c = ITEM_COLORS.gear
+  return (
+    <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
+      <rect x="2" y="2" width="28" height="28" rx="3" fill="#1a1612" opacity="0.28" />
+      <circle cx="16" cy="16" r="10" fill={c.fill} stroke={c.edge} strokeWidth="1.6" />
+      <circle cx="16" cy="16" r="3.6" fill="#1a1612" />
+      {[0, 45, 90, 135].map((a) => (
+        <rect
+          key={a}
+          x="14"
+          y="3"
+          width="4"
+          height="7"
+          rx="0.6"
+          fill={c.fill}
+          stroke={c.edge}
+          strokeWidth="0.6"
+          transform={`rotate(${a} 16 16)`}
+        />
+      ))}
+    </svg>
+  )
+}
+
+export function ItemSprite({ item }: { item: ItemId }) {
+  if (item === 'ironOre' || item === 'copperOre' || item === 'coal') {
+    return <OreItemSprite item={item} />
   }
   if (item === 'ironPlate' || item === 'copperPlate' || item === 'steel') {
+    return <PlateItemSprite item={item} />
+  }
+  if (item === 'gear') {
+    return <GearItemSprite />
+  }
+  if (PLACEABLE_ITEMS.has(item)) {
     return (
-      <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
-        <rect x="4" y="8" width="24" height="16" rx="1" fill={c.fill} stroke={c.edge} strokeWidth="2" />
-        <rect x="6" y="10" width="20" height="3" fill="rgba(255,255,255,0.25)" />
-      </svg>
+      <span className="sprite sprite-item sprite-item-entity" aria-hidden>
+        <EntitySprite kind={item as EntityKind} dir="E" />
+      </span>
     )
   }
+  const c = ITEM_COLORS[item]
   return (
     <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
       <circle cx="16" cy="16" r="11" fill={c.fill} stroke={c.edge} strokeWidth="2" />
