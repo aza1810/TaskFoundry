@@ -2318,6 +2318,23 @@ button {
   }
 }
 
+.sprite-inserter.is-swinging {
+  filter: drop-shadow(0 0 4px rgba(232, 200, 74, 0.55));
+}
+
+.sprite-inserter.is-swinging .inserter-cargo {
+  animation: inserter-cargo-pulse 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes inserter-cargo-pulse {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .sprite-drill.is-active .drill-bit {
   animation: drill-spin 0.6s linear infinite;
   transform-origin: 22px 48px;

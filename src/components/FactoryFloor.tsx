@@ -831,6 +831,7 @@ export function FactoryFloor({
                           moving={movingBelt}
                           filled={filled}
                           toggle={ent.toggle}
+                          progress={ent.progress}
                         />
                       </span>
                     )}

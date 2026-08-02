@@ -1,6 +1,15 @@
+import { INSERTER_COOLDOWN } from '../game/data'
 import type { Dir, EntityKind, ItemId, OreId } from '../game/types'
 
 const ROT: Record<Dir, number> = { N: -90, E: 0, S: 90, W: 180 }
+
+/** Local arm angle: 0 = drop (forward), 180 = pickup (behind). Art points up. */
+function inserterArmAngle(progress: number): number {
+  if (progress <= 0) return 180
+  const u = 1 - Math.min(1, progress / INSERTER_COOLDOWN)
+  if (u < 0.5) return 180 * (1 - u / 0.5)
+  return 180 * ((u - 0.5) / 0.5)
+}
 
 export function GroundTexture({ seed = 0 }: { seed?: number }) {
   const base = seed % 3 === 0 ? '#4f6436' : seed % 3 === 1 ? '#465c30' : '#526a38'
@@ -141,34 +150,79 @@ export function SplitterSprite({ dir }: { dir: Dir }) {
   )
 }
 
-export function InserterSprite({ dir, long }: { dir: Dir; long?: boolean }) {
+export function InserterSprite({
+  dir,
+  long,
+  progress = 0,
+}: {
+  dir: Dir
+  long?: boolean
+  /** Remaining transfer cooldown; >0 means currently moving an item. */
+  progress?: number
+}) {
   const arm = long ? '#e07040' : '#c4a035'
   const tip = long ? '#f0a070' : '#e8c84a'
-  // Art points north (arm up); +90° so E/S/W/N match drop direction.
-  const deg = ROT[dir] + 90
+  // Art points north (arm up); +90° so local up = drop direction.
+  const facing = ROT[dir] + 90
+  const armDeg = inserterArmAngle(progress)
+  const swinging = progress > 0
+  const carrying =
+    swinging && 1 - Math.min(1, progress / INSERTER_COOLDOWN) < 0.55
+  const tipY = long ? 4 : 10
+
   return (
     <svg
-      className={`sprite sprite-inserter ${long ? 'is-long' : ''}`}
+      className={`sprite sprite-inserter ${long ? 'is-long' : ''} ${
+        swinging ? 'is-swinging' : ''
+      }`}
       viewBox="0 0 64 64"
-      style={{ transform: `rotate(${deg}deg)` }}
       aria-hidden
     >
-      <circle cx="32" cy="32" r="10" fill="#6b655c" stroke="#1a1612" strokeWidth="2" />
-      <circle cx="32" cy="32" r="4" fill="#2a2620" />
-      <rect
-        x="28"
-        y={long ? 2 : 8}
-        width="8"
-        height={long ? 30 : 24}
-        rx="2"
-        fill={arm}
-        stroke="#1a1612"
-        strokeWidth="1"
-      />
-      <rect x="24" y={long ? 0 : 6} width="16" height="8" rx="1" fill={tip} stroke="#1a1612" strokeWidth="1" />
-      <polygon points={long ? '32,-2 38,6 26,6' : '32,2 38,10 26,10'} fill="#1a1612" />
-      {long && <circle cx="32" cy="46" r="5" fill="#1a1612" />}
-      {long && <circle cx="32" cy="46" r="2.5" fill="#f0a070" />}
+      <g transform={`rotate(${facing} 32 32)`}>
+        <circle cx="32" cy="32" r="11" fill="#6b655c" stroke="#1a1612" strokeWidth="2" />
+        <circle cx="32" cy="32" r="4.5" fill="#2a2620" />
+        {/* Subtle facing notch toward drop */}
+        <path d="M32 18 L36 26 L28 26 Z" fill="#3a3630" opacity="0.85" />
+        <g className="inserter-arm" transform={`rotate(${armDeg} 32 32)`}>
+          <rect
+            x="28"
+            y={long ? 2 : 8}
+            width="8"
+            height={long ? 30 : 24}
+            rx="2"
+            fill={arm}
+            stroke="#1a1612"
+            strokeWidth="1"
+          />
+          <rect
+            x="24"
+            y={long ? 0 : 6}
+            width="16"
+            height="8"
+            rx="1"
+            fill={tip}
+            stroke="#1a1612"
+            strokeWidth="1"
+          />
+          <polygon
+            points={long ? '32,-2 38,6 26,6' : '32,2 38,10 26,10'}
+            fill="#1a1612"
+          />
+          {carrying && (
+            <circle
+              className="inserter-cargo"
+              cx="32"
+              cy={tipY}
+              r="5"
+              fill="#c4b8a8"
+              stroke="#1a1612"
+              strokeWidth="1.2"
+            />
+          )}
+        </g>
+        {long && <circle cx="32" cy="46" r="5" fill="#1a1612" />}
+        {long && <circle cx="32" cy="46" r="2.5" fill="#f0a070" />}
+      </g>
     </svg>
   )
 }
@@ -416,6 +470,7 @@ export function EntitySprite({
   moving,
   filled,
   toggle,
+  progress = 0,
 }: {
   kind: EntityKind
   dir: Dir
@@ -424,6 +479,7 @@ export function EntitySprite({
   moving?: boolean
   filled?: boolean
   toggle?: number
+  progress?: number
 }) {
   switch (kind) {
     case 'belt':
@@ -443,9 +499,9 @@ export function EntitySprite({
     case 'electricDrill':
       return <DrillSprite dir={dir} active={active} electric />
     case 'inserter':
-      return <InserterSprite dir={dir} />
+      return <InserterSprite dir={dir} progress={progress} />
     case 'longInserter':
-      return <InserterSprite dir={dir} long />
+      return <InserterSprite dir={dir} long progress={progress} />
     case 'furnace':
       return <FurnaceSprite lit={lit} />
     case 'steelFurnace':
