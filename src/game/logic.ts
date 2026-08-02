@@ -346,6 +346,11 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   if (tool === 'paste') {
     return pasteBlueprint(state, x, y)
   }
+  if (tool === 'rotate') {
+    const tile = getTile(state.tiles, x, y)
+    if (!tile?.entityId) return state
+    return rotateEntityAt(state, x, y)
+  }
 
   const tiles = state.tiles.map((t) => ({ ...t }))
   const tile = tiles[idx(x, y)]

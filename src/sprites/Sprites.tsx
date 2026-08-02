@@ -457,7 +457,11 @@ export function EntitySprite({
   }
 }
 
-export function ToolIcon({ kind }: { kind: EntityKind | 'remove' | 'copy' | 'paste' }) {
+export function ToolIcon({
+  kind,
+}: {
+  kind: EntityKind | 'remove' | 'copy' | 'paste' | 'rotate'
+}) {
   if (kind === 'remove') {
     return (
       <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>
@@ -480,6 +484,21 @@ export function ToolIcon({ kind }: { kind: EntityKind | 'remove' | 'copy' | 'pas
       <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>
         <rect x="8" y="8" width="16" height="16" fill="#2a4030" stroke="#7dff9a" strokeWidth="2" />
         <path d="M12 16 L15 19 L21 12" fill="none" stroke="#7dff9a" strokeWidth="2" />
+      </svg>
+    )
+  }
+  if (kind === 'rotate') {
+    return (
+      <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>
+        <rect x="4" y="4" width="24" height="24" fill="#2a2418" stroke="#f0a020" strokeWidth="2" />
+        <path
+          d="M10 16a6 6 0 1 1 2.2 4.7"
+          fill="none"
+          stroke="#f0c060"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <polygon points="9,12 14,13.5 10.5,17.5" fill="#f0c060" />
       </svg>
     )
   }

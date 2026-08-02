@@ -56,7 +56,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'belts',
     title: 'Lay a short belt line',
-    body: 'Open Belts, pick Belt, then drag to paint a line from your drill. Use the yellow rotate button so the drill faces the belt.',
+    body: 'Open Belts, pick Belt, then drag to paint a line from your drill. Use Edit → Rotate (or the yellow arrow) so the drill faces the belt.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place 3 or more belts',

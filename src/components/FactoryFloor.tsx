@@ -75,7 +75,13 @@ const BELT_TOOLS: Placeable[] = [
   'longInserter',
   'splitter',
 ]
-const EDIT_TOOLS: ToolId[] = ['remove', 'copy', 'paste']
+const EDIT_TOOLS: ToolId[] = ['remove', 'rotate', 'copy', 'paste']
+
+function isEditMetaTool(
+  tool: ToolId | null,
+): tool is 'remove' | 'rotate' | 'copy' | 'paste' {
+  return tool === 'remove' || tool === 'rotate' || tool === 'copy' || tool === 'paste'
+}
 
 function dirArrow(dir: Entity['dir']): string {
   return { N: '↑', E: '→', S: '↓', W: '←' }[dir]
@@ -100,6 +106,7 @@ function cargoOffset(dir: Entity['dir'], p: number): CSSProperties {
 function isUnlocked(tool: ToolId, researched: string[]): boolean {
   if (
     tool === 'remove' ||
+    tool === 'rotate' ||
     tool === 'copy' ||
     tool === 'paste' ||
     tool === 'drill' ||
@@ -121,7 +128,7 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
 }
 
 function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState): boolean {
-  if (!tool || tool === 'copy' || tool === 'paste' || tool === 'remove') return false
+  if (!tool || isEditMetaTool(tool)) return false
   if (x < 0 || y < 0 || x >= state.width || y >= state.height) return false
   const tile = state.tiles[idx(x, y)]
   if (tile.entityId) return false
@@ -184,7 +191,7 @@ export function FactoryFloor({
     (list: ToolId[]) => {
       const unlocked = list.filter((t) => isUnlocked(t, state.researched))
       const stocked = unlocked.find((t) => {
-        if (t === 'remove' || t === 'copy' || t === 'paste') return true
+        if (isEditMetaTool(t)) return true
         return (state.inventory[t as Placeable] ?? 0) > 0
       })
       return stocked ?? unlocked[0] ?? null
@@ -225,6 +232,7 @@ export function FactoryFloor({
     tool === 'fastBelt' ||
     tool === 'undergroundBelt' ||
     tool === 'remove' ||
+    tool === 'rotate' ||
     tool === 'inserter' ||
     tool === 'longInserter'
 
@@ -350,10 +358,12 @@ export function FactoryFloor({
       setFlash(key)
       window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
       buzz(8)
-      if (selected && selected !== 'remove' && selected !== 'copy' && selected !== 'paste') {
+      if (selected && !isEditMetaTool(selected)) {
         spawnFloater(x, y, PLACEABLE_META[selected].label.split(' ')[0], 'place')
       } else if (selected === 'remove' && before) {
         spawnFloater(x, y, 'scrap', 'warn')
+      } else if (selected === 'rotate' && before) {
+        spawnFloater(x, y, 'turn', 'place')
       }
     },
     [place, selected, spawnFloater, state.tiles],
@@ -550,13 +560,15 @@ export function FactoryFloor({
     ? 'Drag to pan · tap machines'
     : selected === 'remove'
       ? 'Tap / hold-drag to demolish · drag to pan'
-      : selected === 'copy'
-        ? 'Tap two corners · drag to pan'
-        : selected === 'paste'
-          ? 'Tap origin · drag to pan'
-          : isDragPaintTool(selected)
-            ? `Tap to place · hold-drag to paint · drag pans`
-            : `Tap to place ${PLACEABLE_META[selected].label} · drag pans`
+      : selected === 'rotate'
+        ? 'Tap / hold-drag belts & machines to rotate · drag pans'
+        : selected === 'copy'
+          ? 'Tap two corners · drag to pan'
+          : selected === 'paste'
+            ? 'Tap origin · drag to pan'
+            : isDragPaintTool(selected)
+              ? `Tap to place · hold-drag to paint · drag pans`
+              : `Tap to place ${PLACEABLE_META[selected].label} · drag pans`
 
   const activeMachines = useMemo(() => {
     let n = 0
@@ -690,11 +702,7 @@ export function FactoryFloor({
                 const bpGhost = pastePreview?.find((p) => p.x === x && p.y === y)
                 const valid = canPlaceAt(selected, x, y, state)
                 const showGhost =
-                  isHover &&
-                  !!selected &&
-                  selected !== 'remove' &&
-                  selected !== 'copy' &&
-                  selected !== 'paste'
+                  isHover && !!selected && !isEditMetaTool(selected)
 
                 const lit = Boolean(
                   ent && (isFurnaceKind(ent.kind) || ent.kind === 'assembler') && ent.smelting,
@@ -952,7 +960,19 @@ export function FactoryFloor({
           aria-expanded={dockOpen}
         >
           {dockOpen ? 'Hide tools' : 'Show tools'}
-          <span>{selected ? PLACEABLE_META[selected as Placeable]?.label ?? selected : 'Hand'}</span>
+          <span>
+            {selected === 'remove'
+              ? 'Demolish'
+              : selected === 'rotate'
+                ? 'Rotate'
+                : selected === 'copy'
+                  ? 'Copy'
+                  : selected === 'paste'
+                    ? 'Paste'
+                    : selected
+                      ? PLACEABLE_META[selected as Placeable]?.label ?? selected
+                      : 'Hand'}
+          </span>
         </button>
 
         {dockOpen && (
@@ -1000,26 +1020,24 @@ export function FactoryFloor({
                 const label =
                   tool === 'remove'
                     ? 'Demolish'
-                    : tool === 'copy'
-                      ? 'Copy'
-                      : tool === 'paste'
-                        ? 'Paste'
-                        : PLACEABLE_META[tool].label
-                const count =
-                  tool === 'remove' || tool === 'copy' || tool === 'paste'
-                    ? tool === 'paste' && state.blueprint
-                      ? state.blueprint.length
-                      : null
-                    : state.inventory[PLACEABLE_META[tool].inventoryKey]
+                    : tool === 'rotate'
+                      ? 'Rotate'
+                      : tool === 'copy'
+                        ? 'Copy'
+                        : tool === 'paste'
+                          ? 'Paste'
+                          : PLACEABLE_META[tool].label
+                const count = isEditMetaTool(tool)
+                  ? tool === 'paste' && state.blueprint
+                    ? state.blueprint.length
+                    : null
+                  : state.inventory[PLACEABLE_META[tool].inventoryKey]
                 const pulse =
                   (highlight === 'drillTool' && tool === 'drill') ||
                   (highlight === 'ore' && tool === 'drill') ||
                   (highlight === 'beltTool' && tool === 'belt')
                 const affordable =
-                  tool === 'remove' ||
-                  tool === 'copy' ||
-                  tool === 'paste' ||
-                  (count !== null && count > 0)
+                  isEditMetaTool(tool) || (count !== null && count > 0)
                 return (
                   <button
                     key={tool}

@@ -119,7 +119,7 @@ export type Placeable = Extract<
   | 'splitter'
 >
 
-export type ToolId = Placeable | 'remove' | 'copy' | 'paste'
+export type ToolId = Placeable | 'remove' | 'copy' | 'paste' | 'rotate'
 
 export interface BlueprintEntity {
   kind: Placeable
