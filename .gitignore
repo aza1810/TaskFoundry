@@ -43,3 +43,5 @@ ios/DerivedData
 
 TaskFoundry-debug.apk
 *.apk
+ota-dist/
+*.zip

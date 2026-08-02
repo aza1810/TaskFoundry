@@ -1,4 +1,5 @@
 import type { CapacitorConfig } from '@capacitor/cli'
+import pkg from './package.json' with { type: 'json' }
 
 const config: CapacitorConfig = {
   appId: 'online.azztech.taskfoundry',
@@ -8,7 +9,15 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   plugins: {
-    // Health permissions are requested at runtime via @capgo/capacitor-health
+    CapacitorUpdater: {
+      // Manual OTA from src/native/ota.ts (fetches latest.json on azztech).
+      // autoUpdate stays false so we don't depend on Capgo cloud or PHP.
+      autoUpdate: false,
+      statsUrl: '',
+      appReadyTimeout: 15000,
+      keepUrlPathAfterReload: true,
+      version: pkg.version,
+    },
   },
 }
 

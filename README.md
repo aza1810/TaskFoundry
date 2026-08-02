@@ -40,6 +40,19 @@ App id: `online.azztech.taskfoundry`
 
 Privacy policy asset for Health Connect: `public/privacypolicy.html` (copied into the web build).
 
+### Auto-update (no reinstall)
+
+The Android APK uses [Capgo Capacitor Updater](https://capgo.app/) against static files on azztech (no Capgo cloud account).
+
+- On launch / resume it fetches `https://azztech.online/apps/tf/ota/latest.json`
+- If a newer web bundle was published by CI, it downloads the zip, applies it, and reloads
+- The last downloaded bundle is cached on the phone (works offline after update)
+- CI bumps OTA versions to `1.1.<run_number>` on each deploy
+
+**You only need a new APK** when native plugins/permissions change (Health, Google Sign-In, updater itself). Normal game/UI changes ship via the deploy workflow’s OTA upload.
+
+Local publish: `npm run build:ota` then `npm run upload:ota` (same FTP secrets as the website). First install must be an APK that includes the updater (**1.1.0+**).
+
 ### Google Sign-In (native Android)
 
 The website uses Google Identity Services. The APK uses native Google Sign-In and needs an **Android** OAuth client in the same Google Cloud project as the Web client:
