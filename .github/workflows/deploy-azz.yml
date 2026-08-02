@@ -6,6 +6,7 @@
 #   FTP_PASS = <Fasthosts FTP password>
 #
 # Remote path is apps/tf/ under the FTP login home (/htdocs on Fasthosts).
+# Trigger: push to listed paths, or Actions → Run workflow.
 name: Deploy azztech.online/apps/tf
 
 on:
