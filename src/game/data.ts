@@ -428,19 +428,33 @@ export function rotateDir(dir: Dir, cw = true): Dir {
   return DIRS[(i + (cw ? 1 : 3)) % 4]
 }
 
+/** Inventory / placeable counts are always whole items. */
+export function asItemCount(n: number): number {
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.floor(n + 1e-9)
+}
+
+export function sanitizeInventory(inv: Inventory): Inventory {
+  const next = { ...inv }
+  for (const key of Object.keys(next) as (keyof Inventory)[]) {
+    next[key] = asItemCount(next[key])
+  }
+  return next
+}
+
 export function canAfford(
   have: Inventory,
   cost: Partial<Inventory>,
 ): boolean {
   return (Object.entries(cost) as [keyof Inventory, number][]).every(
-    ([k, n]) => (have[k] ?? 0) >= n,
+    ([k, n]) => asItemCount(have[k]) >= asItemCount(n),
   )
 }
 
 export function spend(have: Inventory, cost: Partial<Inventory>): Inventory {
   const next = { ...have }
   for (const [k, n] of Object.entries(cost) as [keyof Inventory, number][]) {
-    next[k] = Math.max(0, (next[k] ?? 0) - n)
+    next[k] = Math.max(0, asItemCount(next[k]) - asItemCount(n))
   }
   return next
 }
@@ -448,16 +462,18 @@ export function spend(have: Inventory, cost: Partial<Inventory>): Inventory {
 export function gain(have: Inventory, add: Partial<Inventory>, mult = 1): Inventory {
   const next = { ...have }
   for (const [k, n] of Object.entries(add) as [keyof Inventory, number][]) {
-    next[k] = (next[k] ?? 0) + n * mult
+    // Habit/skill multipliers must still yield whole items (round half-up via floor+0.5)
+    const amount = asItemCount(Math.round(n * mult))
+    next[k] = asItemCount(next[k]) + amount
   }
   return next
 }
 
 export function formatNum(n: number): string {
   if (!Number.isFinite(n)) return '0'
-  if (Math.abs(n) >= 10_000) return `${(n / 1_000).toFixed(1)}k`
-  if (Number.isInteger(n)) return String(n)
-  return n.toFixed(1)
+  const whole = asItemCount(n)
+  if (whole >= 10_000) return `${(whole / 1_000).toFixed(1)}k`
+  return String(whole)
 }
 
 export function storeTotal(store: Partial<Record<ItemId, number>>): number {

@@ -15,6 +15,7 @@ import {
   SAVE_KEY,
   ACTIVE_SAVE_KEY,
   setActiveSaveKey,
+  asItemCount,
   canAfford,
   gain,
   idx,
@@ -22,6 +23,7 @@ import {
   isBeltKind,
   isDrillKind,
   rotateDir,
+  sanitizeInventory,
   spend,
   todayKey,
   xpForLevel,
@@ -115,7 +117,7 @@ export function loadState(accountSaveKey?: string): GameState {
       ...createInitialState(),
       ...parsed,
       version: GAME_VERSION,
-      inventory: { ...EMPTY_INVENTORY(), ...parsed.inventory },
+      inventory: sanitizeInventory({ ...EMPTY_INVENTORY(), ...parsed.inventory }),
       stats: { ...emptyStats(), ...parsed.stats },
       tiles: parsed.tiles?.length === GRID_W * GRID_H ? parsed.tiles : createTiles(),
       entities: parsed.entities ?? {},
@@ -143,6 +145,7 @@ export function loadState(accountSaveKey?: string): GameState {
         (typeof parsed.tutorialStep === 'number' &&
           parsed.tutorialStep >= TUTORIAL_STEP_COUNT),
     }
+    next = { ...next, inventory: sanitizeInventory(next.inventory) }
     next = ensureContracts(next)
     localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(next))
     return next
@@ -360,7 +363,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
 
   if (tile.entityId) return state
   const meta = PLACEABLE_META[tool]
-  if ((state.inventory[meta.inventoryKey] ?? 0) < 1) {
+  if (asItemCount(state.inventory[meta.inventoryKey]) < 1) {
     return { ...state, unlockedToast: `No ${meta.label} in inventory — craft one` }
   }
 
@@ -389,7 +392,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   const ent = createEntity(tool, x, y, placeDir)
 
   if (tool === 'drill') {
-    const fuel = Math.min(5, inventory.coal)
+    const fuel = Math.min(5, asItemCount(inventory.coal))
     if (fuel > 0) {
       inventory = spend(inventory, { coal: fuel })
       ent.store.coal = fuel
@@ -553,7 +556,7 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     if (piece.toggle !== undefined) ent.toggle = piece.toggle
     if (piece.kind === 'splitter' && ent.toggle === undefined) ent.toggle = 0
     if (piece.kind === 'drill') {
-      const fuel = Math.min(5, inventory.coal)
+      const fuel = Math.min(5, asItemCount(inventory.coal))
       if (fuel > 0) {
         inventory = spend(inventory, { coal: fuel })
         ent.store.coal = fuel
@@ -587,15 +590,15 @@ export function rotateEntityAt(state: GameState, x: number, y: number): GameStat
 }
 
 export function topUpDrillFuel(state: GameState): GameState {
-  let inventory = { ...state.inventory }
+  let inventory = sanitizeInventory({ ...state.inventory })
   const entities = { ...state.entities }
   for (const ent of Object.values(state.entities)) {
     if (ent.kind !== 'drill') continue
     const have = ent.store.coal ?? 0
     if (have >= 2) continue
-    const need = Math.min(5 - Math.floor(have), inventory.coal)
+    const need = Math.min(5 - Math.floor(have), asItemCount(inventory.coal))
     if (need <= 0) continue
-    inventory.coal -= need
+    inventory = spend(inventory, { coal: need })
     entities[ent.id] = {
       ...ent,
       store: { ...ent.store, coal: have + need },
@@ -605,14 +608,14 @@ export function topUpDrillFuel(state: GameState): GameState {
 }
 
 function ensureDrillFuel(state: GameState): GameState {
-  let inventory = { ...state.inventory }
+  let inventory = sanitizeInventory({ ...state.inventory })
   const entities: typeof state.entities = { ...state.entities }
   const coalNeed = 0.25 * (1 - skillBonuses(state.skills).drillCoalSave)
   for (const ent of Object.values(state.entities)) {
     if (ent.kind !== 'drill') continue
     if ((ent.store.coal ?? 0) >= coalNeed) continue
-    if (inventory.coal < 1) continue
-    inventory.coal -= 1
+    if (asItemCount(inventory.coal) < 1) continue
+    inventory = spend(inventory, { coal: 1 })
     entities[ent.id] = {
       ...ent,
       store: { ...ent.store, coal: (ent.store.coal ?? 0) + 1 },
@@ -805,13 +808,13 @@ export function fuelDrillAt(state: GameState, x: number, y: number): GameState {
   if (have >= 5) {
     return { ...state, unlockedToast: 'Drill already fueled' }
   }
-  const need = Math.min(5 - Math.floor(have), state.inventory.coal)
+  const need = Math.min(5 - Math.floor(have), asItemCount(state.inventory.coal))
   if (need <= 0) {
     return { ...state, unlockedToast: 'Need coal in inventory' }
   }
   return {
     ...state,
-    inventory: { ...state.inventory, coal: state.inventory.coal - need },
+    inventory: spend(state.inventory, { coal: need }),
     entities: {
       ...state.entities,
       [ent.id]: {
@@ -977,7 +980,7 @@ export function buildStarterLine(state: GameState): GameState {
     inventory = spend(inventory, { [kind]: 1 })
     const ent = createEntity(kind, x, y, dir)
     if (kind === 'drill') {
-      const fuel = Math.min(5, inventory.coal)
+      const fuel = Math.min(5, asItemCount(inventory.coal))
       if (fuel > 0) {
         inventory = spend(inventory, { coal: fuel })
         ent.store.coal = fuel

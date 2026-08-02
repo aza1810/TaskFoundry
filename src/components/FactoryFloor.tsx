@@ -127,7 +127,7 @@ function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState)
   if (tile.entityId) return false
   if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) return false
   const meta = PLACEABLE_META[tool]
-  return (state.inventory[meta.inventoryKey] ?? 0) >= 1
+  return Math.floor((state.inventory[meta.inventoryKey] ?? 0) + 1e-9) >= 1
 }
 
 function buzz(ms = 12) {
@@ -1041,7 +1041,9 @@ export function FactoryFloor({
                   >
                     <ToolIcon kind={tool} />
                     <span className="build-icon-name">{label}</span>
-                    {count !== null && <span className="build-icon-count">{count}</span>}
+                    {count !== null && (
+                      <span className="build-icon-count">{formatNum(count)}</span>
+                    )}
                   </button>
                 )
               })}
