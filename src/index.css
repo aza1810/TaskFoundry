@@ -4445,21 +4445,27 @@ html[data-theme='light'] .build-console {
   background: linear-gradient(180deg, rgba(255, 250, 242, 0.96), rgba(232, 223, 208, 0.98));
   border-top-color: #c4b8a4;
   color: #241e18;
+  box-shadow: 0 -8px 24px rgba(26, 22, 18, 0.12);
 }
 
 html[data-theme='light'] .build-console-toggle,
 html[data-theme='light'] .build-mode-row button,
-html[data-theme='light'] .build-icon-dock .tool,
+html[data-theme='light'] .build-icon,
 html[data-theme='light'] .build-quick .ghost-btn {
   color: #241e18;
   border-color: #c4b8a4;
   background: #fffaf2;
 }
 
+html[data-theme='light'] .build-console-toggle span {
+  color: #8a5a10;
+}
+
 html[data-theme='light'] .build-mode-row button.is-active,
-html[data-theme='light'] .build-icon-dock .tool.is-selected {
+html[data-theme='light'] .build-icon.is-active {
   border-color: #c47a12;
   background: rgba(240, 160, 32, 0.18);
+  color: #1a1612;
 }
 
 html[data-theme='light'] .goals-bar {
