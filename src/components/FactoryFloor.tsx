@@ -10,11 +10,14 @@ import {
 } from 'react'
 import {
   APP_NAME,
+  DIR_DELTA,
   ITEM_META,
+  OPPOSITE,
   PLACEABLE_META,
   formatNum,
   idx,
   isFurnaceKind,
+  isInserterKind,
   storeTotal,
   titleForLevel,
   xpForLevel,
@@ -30,7 +33,7 @@ import {
 } from '../sprites/Sprites'
 import { useProductionRates } from '../hooks/useProductionRates'
 import type { PedometerApi } from '../hooks/usePedometer'
-import type { Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
+import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
 
 const CELL = 56
 const ZOOM_MIN = 0.45
@@ -142,6 +145,27 @@ function buzz(ms = 12) {
     navigator.vibrate?.(ms)
   } catch {
     /* ignore */
+  }
+}
+
+/** Tile an inserter pulls from / drops into (matches sim reach). */
+function inserterIoAt(
+  x: number,
+  y: number,
+  dir: Dir,
+  reach: number,
+  width: number,
+  height: number,
+): { pickup: { x: number; y: number } | null; drop: { x: number; y: number } | null } {
+  const behind = DIR_DELTA[OPPOSITE[dir]]
+  const front = DIR_DELTA[dir]
+  const pickup = { x: x + behind.dx * reach, y: y + behind.dy * reach }
+  const drop = { x: x + front.dx * reach, y: y + front.dy * reach }
+  const inBounds = (c: { x: number; y: number }) =>
+    c.x >= 0 && c.y >= 0 && c.x < width && c.y < height
+  return {
+    pickup: inBounds(pickup) ? pickup : null,
+    drop: inBounds(drop) ? drop : null,
   }
 }
 
@@ -591,6 +615,38 @@ export function FactoryFloor({
           ? `${activeMachines} running`
           : 'idle'
 
+  /** Green IO marks: pickup (behind) / drop (front) for every inserter + place ghost. */
+  const inserterIo = useMemo(() => {
+    const pickup = new Set<string>()
+    const drop = new Set<string>()
+    const mark = (
+      set: Set<string>,
+      cell: { x: number; y: number } | null,
+    ) => {
+      if (cell) set.add(`${cell.x},${cell.y}`)
+    }
+
+    for (const e of Object.values(entities)) {
+      if (!isInserterKind(e.kind)) continue
+      const reach = e.kind === 'longInserter' ? 2 : 1
+      const io = inserterIoAt(e.x, e.y, e.dir, reach, width, height)
+      mark(pickup, io.pickup)
+      mark(drop, io.drop)
+    }
+
+    if (
+      hover &&
+      (selected === 'inserter' || selected === 'longInserter')
+    ) {
+      const reach = selected === 'longInserter' ? 2 : 1
+      const io = inserterIoAt(hover.x, hover.y, placeDir, reach, width, height)
+      mark(pickup, io.pickup)
+      mark(drop, io.drop)
+    }
+
+    return { pickup, drop }
+  }, [entities, width, height, hover, selected, placeDir])
+
   return (
     <section className="factory-floor is-playable">
       <div className="game-hud">
@@ -730,6 +786,9 @@ export function FactoryFloor({
                 const filled = ent ? storeTotal(ent.store) > 0 : false
                 const isInspect = inspect?.x === x && inspect?.y === y
                 const isFlash = flash === `${x},${y}`
+                const key = `${x},${y}`
+                const isIoPickup = inserterIo.pickup.has(key)
+                const isIoDrop = inserterIo.drop.has(key)
 
                 return (
                   <div
@@ -748,6 +807,8 @@ export function FactoryFloor({
                       isFlash ? 'is-flash' : '',
                       active ? 'is-active-machine' : '',
                       lit ? 'is-lit' : '',
+                      isIoPickup ? 'is-io-pickup' : '',
+                      isIoDrop ? 'is-io-drop' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
@@ -816,6 +877,19 @@ export function FactoryFloor({
                       <span
                         className="smelt-bar"
                         style={{ width: `${Math.min(100, ent.progress * 100)}%` }}
+                      />
+                    )}
+
+                    {(isIoPickup || isIoDrop) && (
+                      <span
+                        className={[
+                          'cell-io',
+                          isIoPickup ? 'is-from' : '',
+                          isIoDrop ? 'is-to' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        aria-hidden
                       />
                     )}
 

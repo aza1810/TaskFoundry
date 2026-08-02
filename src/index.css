@@ -3013,6 +3013,43 @@ button {
     0 0 10px rgba(224, 112, 96, 0.35);
 }
 
+/* Inserter pickup (behind) / drop (front) tiles */
+.factory-floor .cell-io {
+  position: absolute;
+  inset: 3px;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px solid rgba(125, 255, 154, 0.92);
+  background: rgba(125, 255, 154, 0.2);
+  box-shadow: 0 0 10px rgba(125, 255, 154, 0.35);
+  animation: io-pulse 1.8s ease-in-out infinite;
+}
+
+.factory-floor .cell-io.is-from {
+  border-style: dashed;
+  background: rgba(125, 255, 154, 0.16);
+}
+
+.factory-floor .cell-io.is-to {
+  border-style: solid;
+  background: rgba(125, 255, 154, 0.28);
+}
+
+.factory-floor .cell-io.is-from.is-to {
+  border-style: solid;
+  background: rgba(125, 255, 154, 0.32);
+}
+
+@keyframes io-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .factory-floor .cell.is-inspect {
   outline: 2px solid #f0e0a0;
   outline-offset: -2px;
