@@ -1091,7 +1091,7 @@ button {
   position: fixed;
   z-index: 40;
   left: 50%;
-  bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(5.4rem + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   display: flex;
   align-items: stretch;
@@ -1400,7 +1400,7 @@ button {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   z-index: 50;
   transform: translateX(-50%);
   display: flex;
@@ -3426,7 +3426,7 @@ button {
   display: grid;
   place-items: end center;
   padding: 1rem;
-  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(5.6rem + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
 }
 
