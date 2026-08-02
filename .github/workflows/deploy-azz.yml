@@ -55,6 +55,27 @@ jobs:
           test -f dist/index.html
           ls -la dist dist/assets
 
+      - name: Check FTP secrets
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          missing=
+          [ -n "$FTP_HOST" ] || missing="$missing FTP_HOST"
+          [ -n "$FTP_USER" ] || missing="$missing FTP_USER"
+          [ -n "$FTP_PASS" ] || missing="$missing FTP_PASS"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing GitHub Actions secrets:$missing"
+            echo "Add them at: Settings → Secrets and variables → Actions"
+            echo "  FTP_HOST = FTP.fasthosts.co.uk"
+            echo "  FTP_USER = azztech.online"
+            echo "  FTP_PASS = <Fasthosts FTP password>"
+            echo "Then re-run this workflow."
+            exit 1
+          fi
+          echo "FTP secrets present (host=$FTP_HOST user=$FTP_USER)"
+
       # Primary: SamKirkland sync (works well from GitHub-hosted runners)
       - name: FTP sync
         id: ftp
