@@ -1,0 +1,107 @@
+# Build a debug APK and publish it for download.
+# - GitHub Actions artifact (Actions run → Artifacts)
+# - Optional FTP copy to https://azztech.online/apps/tf/TaskFoundry-debug.apk
+name: Build Task Foundry APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cursor/factory-mobile-game-981d
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.ts'
+      - '.github/workflows/build-apk.yml'
+
+concurrency:
+  group: build-task-foundry-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Build web + sync Capacitor
+        run: |
+          npm run build:native
+          npx cap sync android
+
+      - name: Assemble debug APK
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Stage APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/TaskFoundry-debug.apk
+          ls -lh out/TaskFoundry-debug.apk
+
+      - name: Upload Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TaskFoundry-debug
+          path: out/TaskFoundry-debug.apk
+          if-no-files-found: error
+
+      - name: Publish APK to azztech.online
+        if: ${{ secrets.FTP_HOST != '' && secrets.FTP_USER != '' && secrets.FTP_PASS != '' }}
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          npm install --no-save basic-ftp
+          node <<'NODE'
+          const ftp = require('basic-ftp')
+          const fs = require('fs')
+          ;(async () => {
+            const client = new ftp.Client(120000)
+            client.ftp.verbose = true
+            try {
+              await client.access({
+                host: process.env.FTP_HOST,
+                user: process.env.FTP_USER,
+                password: process.env.FTP_PASS,
+                secure: false,
+              })
+              // Login home is /htdocs on Fasthosts; site path is apps/tf/
+              await client.ensureDir('apps/tf')
+              await client.uploadFrom('out/TaskFoundry-debug.apk', 'TaskFoundry-debug.apk')
+              console.log('Uploaded → https://azztech.online/apps/tf/TaskFoundry-debug.apk')
+            } finally {
+              client.close()
+            }
+          })().catch((err) => {
+            console.error(err)
+            process.exit(1)
+          })
+          NODE

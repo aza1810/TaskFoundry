@@ -38,3 +38,6 @@ ios/DerivedData
 *.keystore
 *.jks
 *.mobileprovision
+
+TaskFoundry-debug.apk
+*.apk
