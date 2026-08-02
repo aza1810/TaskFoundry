@@ -115,8 +115,10 @@ jobs:
           echo "HTTP $code"
           test "$code" = "200"
           grep -q 'Task Foundry' /tmp/tf.html
-          js=$(basename dist/assets/*.js)
-          css=$(basename dist/assets/*.css)
+          # Vite may emit chunked assets (index-*.js + web-*.js); check the main bundle.
+          js=$(basename dist/assets/index-*.js | head -n1)
+          css=$(basename dist/assets/index-*.css | head -n1)
+          echo "Expect js=$js css=$css"
           grep -q "$js" /tmp/tf.html
           grep -q "$css" /tmp/tf.html
           js_code=$(curl -sS -o /dev/null -w '%{http_code}' "https://azztech.online/apps/tf/assets/$js")
