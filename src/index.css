@@ -3737,6 +3737,24 @@ button {
   color: var(--text-chrome-bright);
 }
 
+.machine-sheet-head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.machine-sheet-head .sprite,
+.machine-sheet-head svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+}
+
+.machine-sheet.is-ground {
+  border-top-color: #7a8a68;
+}
+
 .machine-sheet-hint {
   margin: 0.3rem 0 0;
   font-size: 0.82rem;
