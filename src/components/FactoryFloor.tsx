@@ -17,6 +17,7 @@ import {
   RECIPE_MAP,
   formatNum,
   idx,
+  isDrillKind,
   isFurnaceKind,
   isInserterKind,
   storeTotal,
@@ -216,6 +217,14 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
   return false
 }
 
+function needsPlaceDir(tool: ToolId | null): boolean {
+  if (!tool) return false
+  if (tool === 'rotate') return true
+  if (isEditMetaTool(tool)) return false
+  if (tool === 'chest') return false
+  return true
+}
+
 function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState): boolean {
   if (!tool || isEditMetaTool(tool)) return false
   if (x < 0 || y < 0 || x >= state.width || y >= state.height) return false
@@ -306,6 +315,8 @@ export function FactoryFloor({
   const [stepPulse, setStepPulse] = useState(false)
   const [railOpen, setRailOpen] = useState(false)
   const [paintActive, setPaintActive] = useState(false)
+  const [resPulse, setResPulse] = useState<Partial<Record<ItemId, boolean>>>({})
+  const prevInv = useRef(state.inventory)
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -387,6 +398,29 @@ export function FactoryFloor({
     }
     prevSteps.current = state.stepsToday
   }, [state.stepsToday])
+
+  useEffect(() => {
+    const prev = prevInv.current
+    const gained: ItemId[] = []
+    for (const id of HUD_RESOURCES) {
+      if ((state.inventory[id] ?? 0) > (prev[id] ?? 0)) gained.push(id)
+    }
+    prevInv.current = state.inventory
+    if (!gained.length) return
+    setResPulse((p) => {
+      const next = { ...p }
+      for (const id of gained) next[id] = true
+      return next
+    })
+    const t = window.setTimeout(() => {
+      setResPulse((p) => {
+        const next = { ...p }
+        for (const id of gained) delete next[id]
+        return next
+      })
+    }, 420)
+    return () => window.clearTimeout(t)
+  }, [state.inventory])
 
   useEffect(() => {
     const oreDelta = state.stats.oreMined - prevOre.current
@@ -702,6 +736,8 @@ export function FactoryFloor({
     }
 
     if (pointers.current.size === 0) {
+      if (kind === 'pan' || kind === 'pinch') setHover(null)
+
       // Tap (no drag / no long-press paint): place with tool, or inspect in hand mode
       const wasTap =
         kind === 'pending' &&
@@ -751,6 +787,26 @@ export function FactoryFloor({
             : isDragPaintTool(selected)
               ? `Tap to place · hold-drag to paint · drag pans`
               : `Tap to place ${PLACEABLE_META[selected].label} · drag pans`
+
+  const modeHint = paintActive
+    ? selected === 'remove'
+      ? 'Release to stop demolishing'
+      : selected === 'rotate'
+        ? 'Release to stop rotating'
+        : 'Release to stop painting'
+    : selected === 'remove'
+      ? 'Hold-drag clears a path'
+      : selected === 'rotate'
+        ? 'Or use the yellow arrow FAB'
+        : selected === 'copy'
+          ? 'Second tap finishes the box'
+          : selected === 'paste'
+            ? state.blueprint
+              ? `Blueprint ${state.blueprint.length} tiles`
+              : 'Copy a region first'
+            : isDragPaintTool(selected)
+              ? 'Hold-drag paints a line'
+              : 'Drag pans the map'
 
   const activeMachines = useMemo(() => {
     let n = 0
@@ -845,7 +901,11 @@ export function FactoryFloor({
             const n = state.inventory[id] ?? 0
             if (n <= 0 && id !== 'ironOre' && id !== 'coal' && id !== 'ironPlate') return null
             return (
-              <span key={id} className="game-res" style={{ '--res': ITEM_META[id].color } as CSSProperties}>
+              <span
+                key={id}
+                className={`game-res${resPulse[id] ? ' is-pulse' : ''}`}
+                style={{ '--res': ITEM_META[id].color } as CSSProperties}
+              >
                 <ItemSprite item={id} />
                 <em>{formatNum(n)}</em>
               </span>
@@ -1150,17 +1210,20 @@ export function FactoryFloor({
           >
             +
           </button>
-          <button
-            type="button"
-            className="fab-btn fab-rotate"
-            onClick={() => {
-              rotateDir()
-              buzz(6)
-            }}
-            aria-label="Rotate"
-          >
-            {dirArrow(placeDir)}
-          </button>
+          {needsPlaceDir(selected) && (
+            <button
+              type="button"
+              className="fab-btn fab-rotate"
+              onClick={() => {
+                rotateDir()
+                buzz(6)
+              }}
+              aria-label="Rotate placement"
+              title={`Facing ${placeDir}`}
+            >
+              {dirArrow(placeDir)}
+            </button>
+          )}
           <button type="button" className="fab-btn" onClick={recenter} aria-label="Recenter">
             ⌖
           </button>
@@ -1171,6 +1234,7 @@ export function FactoryFloor({
           height={height}
           tiles={tiles}
           entities={entities}
+          state={state}
           pan={pan}
           zoom={zoom}
           viewportRef={viewportRef}
@@ -1183,15 +1247,7 @@ export function FactoryFloor({
             aria-live="polite"
           >
             <strong>{paintActive ? 'Painting - drag to continue' : toolLabel}</strong>
-            <span>
-              {paintActive
-                ? selected === 'remove'
-                  ? 'Release to stop demolishing'
-                  : 'Release to stop painting'
-                : blueprint
-                  ? `BP ${blueprint.length}`
-                  : 'Tap to place · drag pans'}
-            </span>
+            <span>{modeHint}</span>
           </div>
         )}
 
@@ -1263,11 +1319,25 @@ export function FactoryFloor({
                   type="button"
                   className="rail-chip"
                   onClick={() => {
-                    const beforeCoal = state.inventory.coal
                     const preview = fuelAllDrills(state)
+                    let fueled = 0
+                    for (const e of Object.values(state.entities)) {
+                      if (!isDrillKind(e.kind) || e.kind !== 'drill') continue
+                      const before = e.store.coal ?? 0
+                      const after = preview.entities[e.id]?.store.coal ?? 0
+                      if (after > before + 0.01) {
+                        spawnFloater(e.x, e.y, '+fuel', 'good')
+                        fueled += 1
+                      }
+                    }
                     fuelDrills()
-                    const spent = beforeCoal - preview.inventory.coal
-                    buzz(spent > 0 ? 10 : 4)
+                    if (fueled <= 0) {
+                      const anyDrill = Object.values(state.entities).find((e) => e.kind === 'drill')
+                      if (anyDrill) spawnFloater(anyDrill.x, anyDrill.y, 'no fuel', 'warn')
+                      buzz(4)
+                    } else {
+                      buzz(10)
+                    }
                   }}
                 >
                   Fuel
@@ -1513,6 +1583,7 @@ export function FactoryFloor({
                       selectTool('drill')
                       setRailOpen(true)
                       setToolTab('build')
+                      setInspect(null)
                       buzz(6)
                     }}
                   >
@@ -1527,6 +1598,7 @@ export function FactoryFloor({
                           selectTool('electricDrill')
                           setRailOpen(true)
                           setToolTab('build')
+                          setInspect(null)
                           buzz(6)
                         }}
                       >
@@ -1548,6 +1620,7 @@ function Minimap({
   height,
   tiles,
   entities,
+  state,
   pan,
   zoom,
   viewportRef,
@@ -1557,6 +1630,7 @@ function Minimap({
   height: number
   tiles: GameState['tiles']
   entities: GameState['entities']
+  state: GameState
   pan: { x: number; y: number }
   zoom: number
   viewportRef: RefObject<HTMLDivElement | null>
@@ -1587,16 +1661,23 @@ function Minimap({
         else ctx.fillStyle = light ? '#9bb262' : '#3a4a28'
         ctx.fillRect(x * scale, y * scale, scale, scale)
         if (tile.entityId && entities[tile.entityId]) {
-          const kind = entities[tile.entityId].kind
+          const ent = entities[tile.entityId]
+          const kind = ent.kind
           if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
           else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
           else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
           else ctx.fillStyle = '#7b8792'
           ctx.fillRect(x * scale, y * scale, scale, scale)
+
+          const status = machineStatus(ent, tile, state)
+          if (status.floorClass === 'is-needs-fuel' || status.floorClass === 'is-blocked') {
+            ctx.fillStyle = status.floorClass === 'is-needs-fuel' ? '#e05030' : '#f0a020'
+            ctx.fillRect(x * scale + 1, y * scale + 1, Math.max(1, scale - 2), Math.max(1, scale - 2))
+          }
         }
       }
     }
-  }, [width, height, tiles, entities, theme])
+  }, [width, height, tiles, entities, state, theme])
 
   const view = useMemo(() => {
     const vp = viewportRef.current

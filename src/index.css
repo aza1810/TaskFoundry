@@ -3132,6 +3132,10 @@ button {
   border-radius: 5px;
 }
 
+.game-res.is-pulse {
+  animation: step-pulse 0.42s ease-out;
+}
+
 .game-res .sprite,
 .game-res svg {
   width: 16px;
