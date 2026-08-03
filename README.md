@@ -78,17 +78,7 @@ Until that Android client exists, Google Sign-In on the APK will fail (guest / l
 
 ## Deploy (web)
 
-CI publishes on push (`main` or the factory branch) via [.github/workflows/deploy-azz.yml](.github/workflows/deploy-azz.yml).
-
-**GitHub Actions secrets** (Settings → Secrets and variables → Actions):
-
-| Secret | Value |
-|--------|--------|
-| `FTP_HOST` | `FTP.fasthosts.co.uk` |
-| `FTP_USER` | `azztech.online` |
-| `FTP_PASS` | Fasthosts FTP password |
-
-Then run **Actions → Deploy azztech.online/apps/tf → Run workflow**, or push a change.
+CI publishes on push to `main` via [.github/workflows/deploy-azz.yml](.github/workflows/deploy-azz.yml) (or **Actions → Deploy azztech.online/apps/tf → Run workflow**).
 
 **Manual / local:**
 

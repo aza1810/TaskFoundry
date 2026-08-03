@@ -1,10 +1,5 @@
 # Build Task Foundry and publish to https://azztech.online/apps/tf/
-#
-# Required repo secrets (Settings → Secrets and variables → Actions):
-#   FTP_HOST = FTP.fasthosts.co.uk
-#   FTP_USER = azztech.online
-#   FTP_PASS = <Fasthosts FTP password>
-#
+# Uses repo secrets FTP_HOST / FTP_USER / FTP_PASS.
 # Remote path is apps/tf/ under the FTP login home (/htdocs on Fasthosts).
 # Trigger: push to listed paths, or Actions → Run workflow.
 name: Deploy azztech.online/apps/tf
@@ -82,14 +77,11 @@ jobs:
           [ -n "$FTP_PASS" ] || missing="$missing FTP_PASS"
           if [ -n "$missing" ]; then
             echo "::error::Missing GitHub Actions secrets:$missing"
-            echo "Add them at: Settings → Secrets and variables → Actions"
-            echo "  FTP_HOST = FTP.fasthosts.co.uk"
-            echo "  FTP_USER = azztech.online"
-            echo "  FTP_PASS = <Fasthosts FTP password>"
+            echo "Add FTP_HOST / FTP_USER / FTP_PASS at Settings → Secrets and variables → Actions"
             echo "Then re-run this workflow."
             exit 1
           fi
-          echo "FTP secrets present (host=$FTP_HOST user=$FTP_USER)"
+          echo "FTP secrets present"
 
       # Primary: SamKirkland sync (works well from GitHub-hosted runners)
       - name: FTP sync web
