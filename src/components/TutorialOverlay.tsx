@@ -114,7 +114,7 @@ export function TutorialOverlay({
 
   return (
     <div className="tutorial-root is-coach" role="status" aria-live="polite">
-      <div className="tutorial-coach">
+      <div className="tutorial-coach" key={step.id}>
         <div className="tutorial-coach-top">
           <span className="tutorial-progress">{progressLabel}</span>
           <button type="button" className="ghost-btn tutorial-skip" onClick={skipTutorial}>

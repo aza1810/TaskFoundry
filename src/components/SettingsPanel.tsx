@@ -93,7 +93,11 @@ export function SettingsPanel() {
               aria-label="Operator name"
             />
           </label>
-          <button type="submit" className="ghost-btn">
+          <button
+            type="submit"
+            className="ghost-btn"
+            disabled={name.trim() === state.playerName || name.trim().length === 0}
+          >
             Save name
           </button>
         </form>

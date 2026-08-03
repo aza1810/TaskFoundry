@@ -1483,6 +1483,16 @@ export function FactoryFloor({
                   No buildings in stock - craft more on the Craft tab, or complete Tasks.
                 </p>
               )}
+            {toolTab === 'belts' &&
+              BELT_TOOLS.every(
+                (t) =>
+                  !isUnlocked(t, state.researched) ||
+                  (state.inventory[PLACEABLE_META[t].inventoryKey] ?? 0) <= 0,
+              ) && (
+                <p className="build-empty-hint">
+                  No belts or inserters in stock - craft them, or stamp Tasks for parts.
+                </p>
+              )}
 
             <div className="build-quick">
               <button

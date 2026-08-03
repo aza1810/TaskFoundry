@@ -7,6 +7,7 @@ import {
   canAfford,
   formatNum,
 } from '../game/data'
+import { TECH_MAP } from '../game/research'
 import { useGame } from '../game/GameContext'
 import type { Inventory, ItemId } from '../game/types'
 import { ItemSprite } from '../sprites/Sprites'
@@ -147,7 +148,13 @@ export function CraftPanel() {
             <div className="craft-recipe-detail-copy">
               <strong>{selected.name}</strong>
               {selectedLocked ? (
-                <span className="recipe-lock">Research required</span>
+                <span className="recipe-lock">
+                  Research{' '}
+                  {selected.requiresTech
+                    ? TECH_MAP[selected.requiresTech]?.name ?? selected.requiresTech
+                    : 'required'}{' '}
+                  first
+                </span>
               ) : (
                 <>
                   <div className="craft-ingredient-row" aria-label="Ingredients">
@@ -207,7 +214,11 @@ export function CraftPanel() {
             {queueFull
               ? 'Queue full'
               : selectedLocked
-                ? 'Locked'
+                ? `Need ${
+                    selected.requiresTech
+                      ? TECH_MAP[selected.requiresTech]?.name ?? 'research'
+                      : 'research'
+                  }`
                 : selectedOk
                   ? 'Craft'
                   : 'Need mats'}

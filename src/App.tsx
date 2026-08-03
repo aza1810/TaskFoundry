@@ -110,7 +110,7 @@ function toastTone(message: string): 'ok' | 'warn' | 'info' {
     return 'warn'
   }
   if (
-    /complete|researched|fueled|finished|queued|pasted|copied|hand-crafting|synced|planted|tour complete|claimed|stamped|focus:/i.test(
+    /complete|researched|fueled|finished|queued|pasted|copied|hand-crafting|synced|planted|tour complete|claimed|stamped|focus:|name saved/i.test(
       message,
     )
   ) {

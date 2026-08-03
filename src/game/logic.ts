@@ -1065,7 +1065,13 @@ export function quickStartTutorial(state: GameState): GameState {
 }
 
 export function renamePlayer(state: GameState, name: string): GameState {
-  return { ...state, playerName: name.slice(0, 24) || state.playerName }
+  const next = name.trim().slice(0, 24)
+  if (!next || next === state.playerName) return state
+  return {
+    ...state,
+    playerName: next,
+    unlockedToast: `Operator name saved: ${next}`,
+  }
 }
 
 export function setFocusSkill(state: GameState, id: SkillId): GameState {

@@ -2148,6 +2148,10 @@ button {
   bottom: calc(12.5rem + env(safe-area-inset-bottom, 0px));
 }
 
+.app-game:has(.build-console.is-open) .tutorial-root.is-coach {
+  padding-bottom: calc(12.5rem + env(safe-area-inset-bottom, 0px));
+}
+
 .toast.is-ok {
   border-left-color: #7dff9a;
 }
@@ -4631,6 +4635,7 @@ button {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
   color: #e8e0d4;
+  animation: rise-in 0.28s ease both;
 }
 
 .tutorial-coach-top {
