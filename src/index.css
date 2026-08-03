@@ -2885,15 +2885,7 @@ button {
 }
 
 .game-sheet-back {
-  border: 1px solid var(--btn-chrome-border);
-  background: var(--btn-chrome-bg);
-  color: var(--btn-chrome-text);
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
-  padding: 0.55rem 0.75rem;
-  border-radius: 8px;
-  flex: 0 0 auto;
+  display: none;
 }
 
 .game-sheet-heading {

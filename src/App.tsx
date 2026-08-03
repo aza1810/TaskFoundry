@@ -194,13 +194,6 @@ function Shell() {
       {!playing && (
         <div className="game-sheet" role="dialog" aria-label={sheetLabel}>
           <header className="game-sheet-bar">
-            <button
-              type="button"
-              className="game-sheet-back"
-              onClick={() => setTabSafe('factory')}
-            >
-              ← Floor
-            </button>
             <div className="game-sheet-heading">
               <h2 className="game-sheet-title">{sheetLabel}</h2>
               <p className="game-sheet-sub">
