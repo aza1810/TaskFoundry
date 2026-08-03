@@ -323,8 +323,6 @@ export function FactoryFloor({
   const viewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
-  const velocity = useRef({ x: 0, y: 0 })
-  const inertiaRaf = useRef(0)
   const viewportSize = useRef({ width: 0, height: 0 })
   const cameraRef = useRef({ zoom, width, height })
   cameraRef.current = { zoom, width, height }
@@ -448,41 +446,13 @@ export function FactoryFloor({
     return () => ro.disconnect()
   }, [clampCamera, zoom, width, height])
 
-  // Camera inertia after pan
+  // Clear timers on unmount
   useEffect(() => {
     return () => {
-      if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
       if (holdTimer.current) window.clearTimeout(holdTimer.current)
       if (edgeFlashTimer.current) window.clearTimeout(edgeFlashTimer.current)
     }
   }, [])
-
-  const runInertia = useCallback(() => {
-    const tick = () => {
-      const vx = velocity.current.x
-      const vy = velocity.current.y
-      if (Math.abs(vx) < 0.2 && Math.abs(vy) < 0.2) {
-        velocity.current = { x: 0, y: 0 }
-        inertiaRaf.current = 0
-        return
-      }
-      setPan((p) => {
-        const attempted = { x: p.x + vx, y: p.y + vy }
-        const next = clampCamera(attempted)
-        if (next.x !== attempted.x) velocity.current.x = 0
-        if (next.y !== attempted.y) velocity.current.y = 0
-        if (next.x !== attempted.x || next.y !== attempted.y) bumpEdge()
-        return next
-      })
-      velocity.current = {
-        x: velocity.current.x * 0.9,
-        y: velocity.current.y * 0.9,
-      }
-      inertiaRaf.current = requestAnimationFrame(tick)
-    }
-    if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
-    inertiaRaf.current = requestAnimationFrame(tick)
-  }, [clampCamera, bumpEdge])
 
   const toolsForTab: ToolId[] =
     toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS
@@ -599,7 +569,6 @@ export function FactoryFloor({
           y: rect.height / 2 - (gy + 0.5) * CELL * z,
         }),
       )
-      velocity.current = { x: 0, y: 0 }
     },
     [clampCamera],
   )
@@ -627,11 +596,6 @@ export function FactoryFloor({
   const onPointerDown = (e: ReactPointerEvent) => {
     const vp = viewportRef.current
     if (!vp) return
-    if (inertiaRaf.current) {
-      cancelAnimationFrame(inertiaRaf.current)
-      inertiaRaf.current = 0
-    }
-    velocity.current = { x: 0, y: 0 }
     clearHoldTimer()
     vp.setPointerCapture(e.pointerId)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -722,10 +686,6 @@ export function FactoryFloor({
         const attempted = { x: p.x + dx, y: p.y + dy }
         const next = clampCamera(attempted)
         const hitEdge = next.x !== attempted.x || next.y !== attempted.y
-        velocity.current = {
-          x: next.x !== attempted.x ? 0 : dx * 0.85 + velocity.current.x * 0.15,
-          y: next.y !== attempted.y ? 0 : dy * 0.85 + velocity.current.y * 0.15,
-        }
         if (hitEdge) bumpEdge()
         return next
       })
@@ -744,7 +704,6 @@ export function FactoryFloor({
 
   const onPointerUp = (e: ReactPointerEvent) => {
     const kind = gesture.current.kind
-    const moved = gesture.current.moved
     const origin = gesture.current.origin
     clearHoldTimer()
     pointers.current.delete(e.pointerId)
@@ -754,8 +713,6 @@ export function FactoryFloor({
     }
 
     if (pointers.current.size === 0) {
-      if (kind === 'pan' && moved) runInertia()
-
       // Tap (no drag / no long-press paint): place with tool, or inspect in hand mode
       const wasTap =
         kind === 'pending' &&
@@ -908,9 +865,17 @@ export function FactoryFloor({
         </div>
 
         {goal ? (
-          <button type="button" className="game-objective" onClick={onOpenTasks}>
-            <span>Objective</span>
-            <strong>{goal.title}</strong>
+          <button
+            type="button"
+            className={`game-objective${claimableContracts.length > 0 ? ' is-claim' : ''}`}
+            onClick={onOpenTasks}
+          >
+            <span>{claimableContracts.length > 0 ? 'Claim' : 'Objective'}</span>
+            <strong>
+              {claimableContracts.length > 0
+                ? `${goal.title} · ${claimableContracts.length} ready`
+                : goal.title}
+            </strong>
             {goalProg && (
               <em className="game-objective-prog">
                 {goalProg.cur.toLocaleString()}/{goalProg.max.toLocaleString()}
@@ -945,16 +910,6 @@ export function FactoryFloor({
           <button type="button" className="game-objective is-clear" onClick={onOpenTasks}>
             <span>Contracts</span>
             <strong>All clear - expand</strong>
-          </button>
-        )}
-
-        {claimableContracts.length > 0 && goal && (
-          <button
-            type="button"
-            className="game-claim-pill"
-            onClick={onOpenTasks}
-          >
-            Claim {claimableContracts.length}
           </button>
         )}
 
@@ -1235,21 +1190,23 @@ export function FactoryFloor({
           onJump={centerOn}
         />
 
-        <div
-          className={`mode-banner${paintActive ? ' is-painting' : ''}`}
-          aria-live="polite"
-        >
-          <strong>{paintActive ? 'Painting - drag to continue' : toolLabel}</strong>
-          <span>
-            {paintActive
-              ? selected === 'remove'
-                ? 'Release to stop demolishing'
-                : 'Release to stop painting'
-              : `${formatNum(state.mineCycles)} cycles${
-                  blueprint ? ` · BP ${blueprint.length}` : ''
-                }`}
-          </span>
-        </div>
+        {(selected || paintActive) && (
+          <div
+            className={`mode-banner${paintActive ? ' is-painting' : ''}`}
+            aria-live="polite"
+          >
+            <strong>{paintActive ? 'Painting - drag to continue' : toolLabel}</strong>
+            <span>
+              {paintActive
+                ? selected === 'remove'
+                  ? 'Release to stop demolishing'
+                  : 'Release to stop painting'
+                : blueprint
+                  ? `BP ${blueprint.length}`
+                  : 'Tap to place · drag pans'}
+            </span>
+          </div>
+        )}
 
         <div
           className={`build-rail ${railOpen && selected ? 'is-expanded' : 'is-slim'}`}
@@ -1547,22 +1504,18 @@ export function FactoryFloor({
                       : 'Open ground. Belts, furnaces, chests, and assemblers can go here.'}
               </p>
               {inspectTile.ore && (
-                <p
-                  className="machine-sheet-status is-ok"
-                  style={{ '--res': ITEM_META[inspectTile.ore].color } as CSSProperties}
-                >
-                  {ITEM_META[inspectTile.ore].short} ·{' '}
+                <p className="machine-sheet-meta">
+                  ({inspect.x},{inspect.y}) ·{' '}
                   {inspectTile.amount == null
                     ? 'Rich patch'
                     : `${formatNum(inspectTile.amount)} remaining`}
                 </p>
               )}
-              <p className="machine-sheet-meta">
-                ({inspect.x},{inspect.y})
-                {inspectTile.ore
-                  ? ` · ${ITEM_META[inspectTile.ore].label}`
-                  : ' · buildable tile'}
-              </p>
+              {!inspectTile.ore && (
+                <p className="machine-sheet-meta">
+                  ({inspect.x},{inspect.y}) · buildable tile
+                </p>
+              )}
               {inspectTile.ore && (
                 <div className="machine-sheet-actions">
                   <button
