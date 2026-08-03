@@ -3037,12 +3037,17 @@ button {
 }
 
 .game-objective {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'label title prog'
+    'bar bar bar';
   align-items: baseline;
-  gap: 0.45rem;
+  column-gap: 0.45rem;
+  row-gap: 0.28rem;
   min-width: 0;
   text-align: left;
-  padding: 0.28rem 0.5rem;
+  padding: 0.28rem 0.5rem 0.38rem;
   border: 1px solid #3a3020;
   border-left: 3px solid var(--belt);
   background: rgba(36, 28, 16, 0.88);
@@ -3052,6 +3057,7 @@ button {
 }
 
 .game-objective span {
+  grid-area: label;
   font-family: var(--font-mono);
   font-size: 0.55rem;
   letter-spacing: 0.08em;
@@ -3061,6 +3067,7 @@ button {
 }
 
 .game-objective strong {
+  grid-area: title;
   font-size: 0.78rem;
   white-space: nowrap;
   overflow: hidden;
@@ -3068,8 +3075,36 @@ button {
   min-width: 0;
 }
 
+.game-objective-prog {
+  grid-area: prog;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-style: normal;
+  color: #c9a227;
+  white-space: nowrap;
+}
+
+.game-objective-bar {
+  grid-area: bar;
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.game-objective-bar::after {
+  content: '';
+  display: block;
+  width: var(--obj-pct, 0%);
+  height: 100%;
+  background: linear-gradient(90deg, #c4783a, var(--belt));
+}
+
 .game-objective.is-clear {
   border-left-color: #3d7a52;
+  grid-template-areas: 'label title';
+  grid-template-columns: auto 1fr;
 }
 
 .game-hud-rates {
@@ -3291,6 +3326,49 @@ button {
 
 .factory-floor .cell.is-lit .cell-ent {
   filter: drop-shadow(0 0 6px rgba(240, 160, 32, 0.55));
+}
+
+.factory-floor .cell.is-needs-fuel .cell-ent {
+  filter: drop-shadow(0 0 5px rgba(220, 80, 48, 0.55));
+}
+
+.factory-floor .cell.is-waiting .cell-ent {
+  opacity: 0.78;
+  filter: grayscale(0.25) drop-shadow(0 0 3px rgba(168, 152, 120, 0.35));
+}
+
+.factory-floor .cell.is-blocked .cell-ent {
+  filter: drop-shadow(0 0 5px rgba(240, 160, 32, 0.65));
+}
+
+.factory-viewport.is-edge .factory-vignette {
+  box-shadow:
+    inset 0 0 0 2px rgba(201, 162, 39, 0.45),
+    inset 0 0 48px rgba(8, 6, 4, 0.55);
+  transition: box-shadow 0.12s ease-out;
+}
+
+.machine-sheet-status {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.machine-sheet-status.is-work {
+  color: #8fd19a;
+}
+
+.machine-sheet-status.is-ok {
+  color: #c9a227;
+}
+
+.machine-sheet-status.is-warn {
+  color: #e07040;
+}
+
+.machine-sheet-status.is-idle {
+  color: #a89880;
 }
 
 @keyframes place-pop {
@@ -4589,6 +4667,15 @@ html[data-theme='light'] .game-objective {
 
 html[data-theme='light'] .game-objective strong {
   color: #1a1612;
+}
+
+html[data-theme='light'] .game-objective span,
+html[data-theme='light'] .machine-sheet-status.is-idle {
+  color: #7a6a4a;
+}
+
+html[data-theme='light'] .game-objective-prog {
+  color: #8a6a12;
 }
 
 html[data-theme='light'] .game-walk-banner {

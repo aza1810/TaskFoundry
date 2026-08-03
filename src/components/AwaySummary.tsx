@@ -94,13 +94,19 @@ export function AwaySummary() {
         <p className="away-lead">
           {report.capped ? (
             <>
-              Your lines kept running for the maximum <strong>{simLabel}</strong>
-              . Anything beyond 24 hours waited for you.
+              Belts, furnaces, assemblers, and the craft bench kept running for the
+              maximum <strong>{simLabel}</strong>. Drills still need your steps.
+              Anything beyond 24 hours waited for you.
+            </>
+          ) : busy ? (
+            <>
+              Belts, furnaces, assemblers, and hand crafts kept working. Drills only
+              mine when you walk.
             </>
           ) : (
             <>
-              Here&apos;s what ran while you were gone
-              {busy ? ':' : ' - the floor was quiet.'}
+              The floor was quiet. Offline progress needs loaded furnaces/assemblers
+              or a craft queue - drills wait for your steps.
             </>
           )}
         </p>
@@ -166,8 +172,8 @@ export function AwaySummary() {
 
         {!busy && (
           <p className="away-empty">
-            Fuel drills, fill furnaces, or queue crafts before you leave next time
-            - the foundry only works what you leave loaded.
+            Load furnaces with ore + coal, queue crafts, or walk to feed drills
+            before you leave next time.
           </p>
         )}
 

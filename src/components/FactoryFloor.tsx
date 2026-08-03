@@ -25,6 +25,12 @@ import {
 import { useGame } from '../game/GameContext'
 import { activeGoal } from '../game/goals'
 import {
+  collectChest,
+  fuelDrillAt,
+  placeEntity,
+} from '../game/logic'
+import { machineStatus } from '../game/machineStatus'
+import {
   EntitySprite,
   GroundTexture,
   ItemSprite,
@@ -280,6 +286,7 @@ export function FactoryFloor({
   const { width, height, tiles, entities, copyCorner, blueprint } = state
   const rates = useProductionRates(state.stats)
   const goal = activeGoal(state)
+  const goalProg = goal?.progress?.(state) ?? null
   const xpNeeded = xpForLevel(state.level)
   const xpPct = Math.min(100, (state.xp / xpNeeded) * 100)
 
@@ -293,6 +300,8 @@ export function FactoryFloor({
   const [stepPulse, setStepPulse] = useState(false)
   const [dockOpen, setDockOpen] = useState(true)
   const [paintActive, setPaintActive] = useState(false)
+  const [edgeFlash, setEdgeFlash] = useState(false)
+  const edgeFlashTimer = useRef(0)
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -396,6 +405,12 @@ export function FactoryFloor({
     if (highlight === 'ore' || highlight === 'drillTool') setToolTab('build')
   }, [highlight])
 
+  const bumpEdge = useCallback(() => {
+    setEdgeFlash(true)
+    if (edgeFlashTimer.current) window.clearTimeout(edgeFlashTimer.current)
+    edgeFlashTimer.current = window.setTimeout(() => setEdgeFlash(false), 220)
+  }, [])
+
   const clampCamera = useCallback((p: { x: number; y: number }) => {
     const cam = cameraRef.current
     return clampPan(p, cam.zoom, viewportSize.current, cam.width, cam.height)
@@ -421,6 +436,7 @@ export function FactoryFloor({
     return () => {
       if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
       if (holdTimer.current) window.clearTimeout(holdTimer.current)
+      if (edgeFlashTimer.current) window.clearTimeout(edgeFlashTimer.current)
     }
   }, [])
 
@@ -438,6 +454,7 @@ export function FactoryFloor({
         const next = clampCamera(attempted)
         if (next.x !== attempted.x) velocity.current.x = 0
         if (next.y !== attempted.y) velocity.current.y = 0
+        if (next.x !== attempted.x || next.y !== attempted.y) bumpEdge()
         return next
       })
       velocity.current = {
@@ -448,7 +465,7 @@ export function FactoryFloor({
     }
     if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
     inertiaRaf.current = requestAnimationFrame(tick)
-  }, [clampCamera])
+  }, [clampCamera, bumpEdge])
 
   const toolsForTab: ToolId[] =
     toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS
@@ -492,20 +509,34 @@ export function FactoryFloor({
       const key = `${x},${y}`
       if (gesture.current.lastCell === key) return
       gesture.current.lastCell = key
-      const before = state.tiles[idx(x, y)]?.entityId
+      const beforeId = state.tiles[idx(x, y)]?.entityId
+      const preview = placeEntity(state, x, y)
       place(x, y)
+      const afterId = preview.tiles[idx(x, y)]?.entityId
+      const changed = preview !== state
+
+      if (!changed) {
+        buzz(4)
+        if (selected === 'remove' && !beforeId) {
+          spawnFloater(x, y, 'empty', 'warn')
+        } else if (selected && !isEditMetaTool(selected)) {
+          spawnFloater(x, y, 'blocked', 'warn')
+        }
+        return
+      }
+
       setFlash(key)
       window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
       buzz(8)
-      if (selected && !isEditMetaTool(selected)) {
+      if (selected && !isEditMetaTool(selected) && afterId && afterId !== beforeId) {
         spawnFloater(x, y, PLACEABLE_META[selected].label.split(' ')[0], 'place')
-      } else if (selected === 'remove' && before) {
+      } else if (selected === 'remove' && beforeId && !afterId) {
         spawnFloater(x, y, 'scrap', 'warn')
-      } else if (selected === 'rotate' && before) {
+      } else if (selected === 'rotate' && beforeId) {
         spawnFloater(x, y, 'turn', 'place')
       }
     },
-    [place, selected, spawnFloater, state.tiles],
+    [place, selected, spawnFloater, state],
   )
 
   const centerOn = useCallback(
@@ -643,10 +674,12 @@ export function FactoryFloor({
       setPan((p) => {
         const attempted = { x: p.x + dx, y: p.y + dy }
         const next = clampCamera(attempted)
+        const hitEdge = next.x !== attempted.x || next.y !== attempted.y
         velocity.current = {
           x: next.x !== attempted.x ? 0 : dx * 0.85 + velocity.current.x * 0.15,
           y: next.y !== attempted.y ? 0 : dy * 0.85 + velocity.current.y * 0.15,
         }
+        if (hitEdge) bumpEdge()
         return next
       })
       gesture.current.moved = true
@@ -828,6 +861,22 @@ export function FactoryFloor({
           <button type="button" className="game-objective" onClick={onOpenTasks}>
             <span>Objective</span>
             <strong>{goal.title}</strong>
+            {goalProg && (
+              <em className="game-objective-prog">
+                {goalProg.cur.toLocaleString()}/{goalProg.max.toLocaleString()}
+              </em>
+            )}
+            {goalProg && (
+              <span
+                className="game-objective-bar"
+                aria-hidden
+                style={
+                  {
+                    '--obj-pct': `${Math.min(100, (goalProg.cur / goalProg.max) * 100)}%`,
+                  } as CSSProperties
+                }
+              />
+            )}
           </button>
         ) : (
           <button type="button" className="game-objective is-clear" onClick={onOpenTasks}>
@@ -848,7 +897,14 @@ export function FactoryFloor({
       </div>
 
       <div
-        className={`factory-viewport is-pan ${selected ? 'is-build' : ''}`}
+        className={[
+          'factory-viewport',
+          'is-pan',
+          selected ? 'is-build' : '',
+          edgeFlash ? 'is-edge' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         ref={viewportRef}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -901,6 +957,7 @@ export function FactoryFloor({
                   (ent?.kind === 'drill' && (ent.store.coal ?? 0) > 0 && tile.ore) ||
                     (ent?.kind === 'electricDrill' && tile.ore),
                 )
+                const status = ent ? machineStatus(ent, tile, state) : null
                 const movingBelt =
                   ent?.kind === 'belt' ||
                   ent?.kind === 'fastBelt' ||
@@ -930,6 +987,7 @@ export function FactoryFloor({
                       isFlash ? 'is-flash' : '',
                       active ? 'is-active-machine' : '',
                       lit ? 'is-lit' : '',
+                      status?.floorClass ?? '',
                       isIoPickup ? 'is-io-pickup' : '',
                       isIoDrop ? 'is-io-drop' : '',
                     ]
@@ -1130,6 +1188,18 @@ export function FactoryFloor({
                 ? 'Crafts gears from iron plates.'
                 : 'Tap Rotate to turn; Demolish to remove.')}
           </p>
+          {(() => {
+            const status = machineStatus(
+              inspectEnt,
+              tiles[idx(inspect.x, inspect.y)],
+              state,
+            )
+            return (
+              <p className={`machine-sheet-status is-${status.tone}`}>
+                {status.label}
+              </p>
+            )
+          })()}
           <p className="machine-sheet-meta">
             ({inspect.x},{inspect.y})
             {storeSummary(inspectEnt) ? ` · ${storeSummary(inspectEnt)}` : ''}
@@ -1154,9 +1224,15 @@ export function FactoryFloor({
                 className="primary-btn"
                 disabled={state.inventory.coal < 1}
                 onClick={() => {
+                  const preview = fuelDrillAt(state, inspect.x, inspect.y)
                   fuelAt(inspect.x, inspect.y)
-                  spawnFloater(inspect.x, inspect.y, '+fuel', 'good')
-                  buzz(10)
+                  if (preview === state) {
+                    spawnFloater(inspect.x, inspect.y, 'no fuel', 'warn')
+                    buzz(4)
+                  } else {
+                    spawnFloater(inspect.x, inspect.y, '+fuel', 'good')
+                    buzz(10)
+                  }
                 }}
               >
                 Fuel
@@ -1167,9 +1243,15 @@ export function FactoryFloor({
                 type="button"
                 className="primary-btn"
                 onClick={() => {
+                  const preview = collectChest(state, inspect.x, inspect.y)
                   collect(inspect.x, inspect.y)
-                  spawnFloater(inspect.x, inspect.y, 'loot', 'good')
-                  buzz(10)
+                  if (preview === state) {
+                    spawnFloater(inspect.x, inspect.y, 'empty', 'warn')
+                    buzz(4)
+                  } else {
+                    spawnFloater(inspect.x, inspect.y, 'loot', 'good')
+                    buzz(10)
+                  }
                 }}
               >
                 Collect

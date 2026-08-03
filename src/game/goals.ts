@@ -7,6 +7,8 @@ export interface GoalDef {
   reward: Partial<Inventory>
   rewardLabel: string
   check: (s: GameState) => boolean
+  /** Optional numeric progress for the HUD chip */
+  progress?: (s: GameState) => { cur: number; max: number }
 }
 
 function countDrills(s: GameState): number {
@@ -38,6 +40,7 @@ export const GOALS: GoalDef[] = [
     reward: { belt: 6, coal: 8 },
     rewardLabel: '6 belts + 8 coal',
     check: (s) => countDrills(s) >= 1,
+    progress: (s) => ({ cur: Math.min(1, countDrills(s)), max: 1 }),
   },
   {
     id: 'mine-cycles',
@@ -46,6 +49,7 @@ export const GOALS: GoalDef[] = [
     reward: { inserter: 2, belt: 4 },
     rewardLabel: '2 inserters + 4 belts',
     check: (s) => s.mineCycles >= 40,
+    progress: (s) => ({ cur: Math.min(40, s.mineCycles), max: 40 }),
   },
   {
     id: 'belt-line',
@@ -54,6 +58,7 @@ export const GOALS: GoalDef[] = [
     reward: { furnace: 1, coal: 10 },
     rewardLabel: '1 furnace + 10 coal',
     check: (s) => countBelts(s) >= 5,
+    progress: (s) => ({ cur: Math.min(5, countBelts(s)), max: 5 }),
   },
   {
     id: 'smelt-ten',
@@ -62,6 +67,10 @@ export const GOALS: GoalDef[] = [
     reward: { assembler: 1, gear: 3 },
     rewardLabel: '1 assembler + 3 gears',
     check: (s) => s.stats.platesSmelted >= 10,
+    progress: (s) => ({
+      cur: Math.min(10, s.stats.platesSmelted),
+      max: 10,
+    }),
   },
   {
     id: 'gear-up',
@@ -70,6 +79,7 @@ export const GOALS: GoalDef[] = [
     reward: { drill: 1, inserter: 2 },
     rewardLabel: '1 drill + 2 inserters',
     check: (s) => s.stats.gearsMade >= 5,
+    progress: (s) => ({ cur: Math.min(5, s.stats.gearsMade), max: 5 }),
   },
   {
     id: 'chest-stock',
@@ -78,6 +88,7 @@ export const GOALS: GoalDef[] = [
     reward: { chest: 1, belt: 8 },
     rewardLabel: '1 chest + 8 belts',
     check: (s) => chestItems(s) >= 15,
+    progress: (s) => ({ cur: Math.min(15, chestItems(s)), max: 15 }),
   },
   {
     id: 'habit-duo',
@@ -86,6 +97,10 @@ export const GOALS: GoalDef[] = [
     reward: { ironPlate: 6, coal: 6 },
     rewardLabel: '6 plates + 6 coal',
     check: (s) => s.habits.filter((h) => h.completedToday).length >= 2,
+    progress: (s) => ({
+      cur: Math.min(2, s.habits.filter((h) => h.completedToday).length),
+      max: 2,
+    }),
   },
   {
     id: 'walk-thousand',
@@ -94,6 +109,10 @@ export const GOALS: GoalDef[] = [
     reward: { drill: 1, assembler: 1, furnace: 1 },
     rewardLabel: 'drill + assembler + furnace',
     check: (s) => s.stepsLifetime >= 1000,
+    progress: (s) => ({
+      cur: Math.min(1000, s.stepsLifetime),
+      max: 1000,
+    }),
   },
   {
     id: 'first-research',
@@ -102,6 +121,10 @@ export const GOALS: GoalDef[] = [
     reward: { ironPlate: 20, gear: 10 },
     rewardLabel: '20 plates + 10 gears',
     check: (s) => s.researched.length >= 1,
+    progress: (s) => ({
+      cur: Math.min(1, s.researched.length),
+      max: 1,
+    }),
   },
   {
     id: 'skill-mining-1',
@@ -110,6 +133,10 @@ export const GOALS: GoalDef[] = [
     reward: { coal: 15, belt: 4 },
     rewardLabel: '15 coal + 4 belts',
     check: (s) => (s.skills?.mining?.level ?? 0) >= 1,
+    progress: (s) => ({
+      cur: Math.min(1, s.skills?.mining?.level ?? 0),
+      max: 1,
+    }),
   },
   {
     id: 'skill-assembly-1',
@@ -118,6 +145,10 @@ export const GOALS: GoalDef[] = [
     reward: { ironPlate: 10, gear: 4 },
     rewardLabel: '10 plates + 4 gears',
     check: (s) => (s.skills?.assembly?.level ?? 0) >= 1,
+    progress: (s) => ({
+      cur: Math.min(1, s.skills?.assembly?.level ?? 0),
+      max: 1,
+    }),
   },
   {
     id: 'walk-five-k',
@@ -126,6 +157,10 @@ export const GOALS: GoalDef[] = [
     reward: { electricDrill: 1, fastBelt: 8, steel: 2 },
     rewardLabel: 'electric drill + 8 fast belts + 2 steel',
     check: (s) => s.stepsLifetime >= 5000,
+    progress: (s) => ({
+      cur: Math.min(5000, s.stepsLifetime),
+      max: 5000,
+    }),
   },
 ]
 
