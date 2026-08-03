@@ -2563,10 +2563,14 @@ html[data-theme='light'] .ghost-btn.is-danger {
 }
 
 .sprite-belt .belt-stripes-v {
-  animation-name: belt-scroll-y;
+  animation: belt-scroll-y 0.48s linear infinite;
 }
 
 .sprite-belt.is-fast .belt-stripes {
+  animation-duration: 0.22s;
+}
+
+.sprite-belt.is-fast .belt-stripes-v {
   animation-duration: 0.22s;
 }
 

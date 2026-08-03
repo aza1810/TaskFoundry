@@ -100,141 +100,41 @@ export function BeltSprite({
   const tooth = fast ? '#f09090' : '#f0b040'
   const gap = fast ? '#7a1818' : '#8a5010'
   const rail = fast ? '#4a1010' : '#5c3a08'
-  const chevron = fast ? '#ffe0e0' : '#ffe8a0'
+  const chevronFill = fast ? '#ffe0e0' : '#ffe8a0'
   const rot = ROT[dir]
-  const mirror = turn === 'ccw' ? ' scaleY(-1)' : ''
-  const transform = `rotate(${rot}deg)${mirror}`
 
-  if (turn) {
-    // CW corner in local east-exit space: enter from south, leave east (└).
-    // CCW is the same art mirrored vertically (┌).
-    const hStripes = Array.from({ length: 8 }, (_, i) => {
-      const x = i * 16 - 16
-      return (
-        <g key={`h${i}`}>
-          <rect x={x} y="20" width="9" height="24" rx="1" fill={tooth} />
-          <rect x={x + 9} y="20" width="7" height="24" fill={gap} />
-        </g>
-      )
-    })
-    const vStripes = Array.from({ length: 8 }, (_, i) => {
-      const y = i * 16 - 16
-      return (
-        <g key={`v${i}`}>
-          <rect x="20" y={y} width="24" height="9" rx="1" fill={tooth} />
-          <rect x="20" y={y + 9} width="24" height="7" fill={gap} />
-        </g>
-      )
-    })
-    return (
-      <svg
-        className={`sprite sprite-belt is-corner ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
-        viewBox="0 0 64 64"
-        style={{ transform, transformOrigin: '32px 32px' }}
-        aria-hidden
-      >
-        {/* L frame: south arm + east arm */}
-        <path
-          d="M12 20 H52 V12 H63 V52 H52 V63 H12 Z"
-          fill="#1a1612"
-        />
-        <path
-          d="M14 22 H50 V14 H61 V50 H50 V61 H14 Z"
-          fill={deck}
-        />
-        {/* Outer rails */}
-        <rect x="14" y="22" width="6" height="39" fill={rail} opacity="0.85" />
-        <rect x="14" y="55" width="36" height="6" fill={rail} opacity="0.85" />
-        <rect x="44" y="14" width="17" height="6" fill={rail} opacity="0.85" />
-        <rect x="55" y="14" width="6" height="36" fill={rail} opacity="0.85" />
-        {/* Inner elbow rails */}
-        <rect x="44" y="22" width="6" height="22" fill={rail} opacity="0.55" />
-        <rect x="20" y="44" width="30" height="6" fill={rail} opacity="0.55" />
-        <defs>
-          <clipPath id={clipH}>
-            <rect x="22" y="20" width="37" height="24" rx="1" />
-          </clipPath>
-          <clipPath id={clipV}>
-            <rect x="20" y="22" width="24" height="37" rx="1" />
-          </clipPath>
-        </defs>
-        <g className="belt-stripes" clipPath={`url(#${clipH})`}>
-          {hStripes}
-        </g>
-        <g className="belt-stripes belt-stripes-v" clipPath={`url(#${clipV})`}>
-          {vStripes}
-        </g>
-        {/* Rollers on both arms */}
-        {[
-          { cx: 32, cy: 50 },
-          { cx: 32, cy: 32 },
-          { cx: 50, cy: 32 },
-        ].map(({ cx, cy }) => (
-          <g key={`${cx}-${cy}`} className="belt-roller">
-            <circle cx={cx} cy={cy} r="3.2" fill="#2a2620" stroke="#0a0806" strokeWidth="1" />
-            <line x1={cx - 2.2} y1={cy} x2={cx + 2.2} y2={cy} stroke="#c4b8a0" strokeWidth="1.1" />
-            <line x1={cx} y1={cy - 2.2} x2={cx} y2={cy + 2.2} stroke="#6a6258" strokeWidth="0.9" />
-            <circle cx={cx} cy={cy} r="1.15" fill="#c4b8a0" />
-          </g>
-        ))}
-        {/* Exit chevron */}
-        <polygon
-          className="belt-chevron"
-          points="54,32 44,24 44,29 38,29 38,35 44,35 44,40"
-          fill="#1a1612"
-          opacity="0.55"
-        />
-        <polygon
-          className="belt-chevron"
-          points="53,32 45,26 45,30 40,30 40,34 45,34 45,38"
-          fill={chevron}
-          opacity="0.9"
-        />
-      </svg>
-    )
-  }
-
-  // Seamless 16px period - CSS scrolls by the same distance.
-  const stripes = Array.from({ length: 10 }, (_, i) => {
+  const hStripes = Array.from({ length: 10 }, (_, i) => {
     const x = i * 16 - 16
     return (
-      <g key={i}>
+      <g key={`h${i}`}>
         <rect x={x} y="20" width="9" height="24" rx="1" fill={tooth} />
         <rect x={x + 9} y="20" width="7" height="24" fill={gap} />
       </g>
     )
   })
-  return (
-    <svg
-      className={`sprite sprite-belt ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
-      viewBox="0 0 64 64"
-      style={{ transform: `rotate(${rot}deg)`, transformOrigin: '32px 32px' }}
-      aria-hidden
-    >
-      {/* Frame / side rails */}
-      <rect x="1" y="12" width="62" height="40" rx="3" fill="#1a1612" />
-      <rect x="3" y="14" width="58" height="36" rx="2" fill={deck} />
-      <rect x="3" y="14" width="58" height="6" fill={rail} opacity="0.85" />
-      <rect x="3" y="44" width="58" height="6" fill={rail} opacity="0.85" />
-      {/* Moving belt surface */}
-      <defs>
-        <clipPath id={clipId}>
-          <rect x="5" y="20" width="54" height="24" rx="1" />
-        </clipPath>
-      </defs>
-      <g className="belt-stripes" clipPath={`url(#${clipId})`}>
-        {stripes}
+
+  const vStripes = Array.from({ length: 10 }, (_, i) => {
+    const y = i * 16 - 16
+    return (
+      <g key={`v${i}`}>
+        <rect x="20" y={y} width="24" height="9" rx="1" fill={tooth} />
+        <rect x="20" y={y + 9} width="24" height="7" fill={gap} />
       </g>
-      {/* Rollers - spin when belt is moving */}
-      {[10, 32, 54].map((cx) => (
-        <g key={cx} className="belt-roller">
-          <circle cx={cx} cy="32" r="3.2" fill="#2a2620" stroke="#0a0806" strokeWidth="1" />
-          <line x1={cx - 2.2} y1="32" x2={cx + 2.2} y2="32" stroke="#c4b8a0" strokeWidth="1.1" />
-          <line x1={cx} y1="29.8" x2={cx} y2="34.2" stroke="#6a6258" strokeWidth="0.9" />
-          <circle cx={cx} cy="32" r="1.15" fill="#c4b8a0" />
-        </g>
-      ))}
-      {/* Direction chevron */}
+    )
+  })
+
+  const rollers = (spots: { cx: number; cy: number }[]) =>
+    spots.map(({ cx, cy }) => (
+      <g key={`${cx}-${cy}`} className="belt-roller">
+        <circle cx={cx} cy={cy} r="3.2" fill="#2a2620" stroke="#0a0806" strokeWidth="1" />
+        <line x1={cx - 2.2} y1={cy} x2={cx + 2.2} y2={cy} stroke="#c4b8a0" strokeWidth="1.1" />
+        <line x1={cx} y1={cy - 2.2} x2={cx} y2={cy + 2.2} stroke="#6a6258" strokeWidth="0.9" />
+        <circle cx={cx} cy={cy} r="1.15" fill="#c4b8a0" />
+      </g>
+    ))
+
+  const exitChevron = (
+    <>
       <polygon
         className="belt-chevron"
         points="48,32 36,23 36,29 28,29 28,35 36,35 36,41"
@@ -244,9 +144,99 @@ export function BeltSprite({
       <polygon
         className="belt-chevron"
         points="47,32 37,25 37,30 30,30 30,34 37,34 37,39"
-        fill={chevron}
+        fill={chevronFill}
         opacity="0.9"
       />
+    </>
+  )
+
+  // Corner art is always drawn as CW └ in local east-exit space, then
+  // optionally mirrored for CCW. Orientation uses SVG transforms so the
+  // pivot stays at viewBox center (CSS rotate/scale was clipping cells).
+  const cornerBody = (
+    <>
+      {/* South arm + east arm frames (overlap at elbow) */}
+      <rect x="12" y="20" width="40" height="43" rx="3" fill="#1a1612" />
+      <rect x="20" y="12" width="43" height="40" rx="3" fill="#1a1612" />
+      <rect x="14" y="22" width="36" height="39" rx="2" fill={deck} />
+      <rect x="22" y="14" width="39" height="36" rx="2" fill={deck} />
+      {/* Outer rails */}
+      <rect x="14" y="22" width="6" height="39" fill={rail} opacity="0.85" />
+      <rect x="14" y="55" width="36" height="6" fill={rail} opacity="0.85" />
+      <rect x="22" y="14" width="39" height="6" fill={rail} opacity="0.85" />
+      <rect x="55" y="14" width="6" height="36" fill={rail} opacity="0.85" />
+      {/* Inner elbow rails */}
+      <rect x="44" y="22" width="6" height="22" fill={rail} opacity="0.5" />
+      <rect x="22" y="44" width="28" height="6" fill={rail} opacity="0.5" />
+      <defs>
+        {/* East arm only (no elbow overlap) */}
+        <clipPath id={clipH}>
+          <rect x="32" y="20" width="28" height="24" rx="1" />
+        </clipPath>
+        {/* South arm only */}
+        <clipPath id={clipV}>
+          <rect x="20" y="32" width="24" height="28" rx="1" />
+        </clipPath>
+      </defs>
+      <g className="belt-stripes" clipPath={`url(#${clipH})`}>
+        {hStripes}
+      </g>
+      <g className="belt-stripes belt-stripes-v" clipPath={`url(#${clipV})`}>
+        {vStripes}
+      </g>
+      {rollers([
+        { cx: 32, cy: 48 },
+        { cx: 32, cy: 32 },
+        { cx: 48, cy: 32 },
+      ])}
+      {exitChevron}
+    </>
+  )
+
+  if (turn) {
+    return (
+      <svg
+        className={`sprite sprite-belt is-corner ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
+        viewBox="0 0 64 64"
+        aria-hidden
+      >
+        <g transform={`rotate(${rot} 32 32)`}>
+          {turn === 'ccw' ? (
+            <g transform="translate(0 64) scale(1 -1)">{cornerBody}</g>
+          ) : (
+            cornerBody
+          )}
+        </g>
+      </svg>
+    )
+  }
+
+  return (
+    <svg
+      className={`sprite sprite-belt ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
+      viewBox="0 0 64 64"
+      aria-hidden
+    >
+      <g transform={`rotate(${rot} 32 32)`}>
+        <rect x="1" y="12" width="62" height="40" rx="3" fill="#1a1612" />
+        <rect x="3" y="14" width="58" height="36" rx="2" fill={deck} />
+        <rect x="3" y="14" width="58" height="6" fill={rail} opacity="0.85" />
+        <rect x="3" y="44" width="58" height="6" fill={rail} opacity="0.85" />
+        <defs>
+          <clipPath id={clipId}>
+            <rect x="5" y="20" width="54" height="24" rx="1" />
+          </clipPath>
+        </defs>
+        <g className="belt-stripes" clipPath={`url(#${clipId})`}>
+          {hStripes}
+        </g>
+        {rollers([
+          { cx: 10, cy: 32 },
+          { cx: 32, cy: 32 },
+          { cx: 54, cy: 32 },
+        ])}
+        {exitChevron}
+      </g>
     </svg>
   )
 }
