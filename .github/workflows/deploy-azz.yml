@@ -96,7 +96,14 @@ jobs:
           port: 21
           local-dir: ./dist/
           server-dir: apps/tf/
-          dangerous-clean-slate: true
+          # Keep apps/tf/ota/ (APK auto-update) — clean-slate would wipe it
+          dangerous-clean-slate: false
+          exclude: |
+            **/ota/**
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/node_modules/**/**
           timeout: 600000
           log-level: verbose
 
