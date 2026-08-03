@@ -4966,11 +4966,6 @@ html[data-theme='light'] .rail-chip {
   background: #fffaf2;
 }
 
-html[data-theme='light'] .rail-chip.is-walk {
-  color: #1f6a3a;
-  border-color: #3d9e5f;
-}
-
 html[data-theme='light'] .goals-bar {
   background: linear-gradient(135deg, #fffaf2, #efe6d8);
   color: #241e18;
