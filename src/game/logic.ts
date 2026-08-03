@@ -1042,7 +1042,7 @@ export function skipTutorial(state: GameState): GameState {
     ...state,
     tutorialStep: null,
     tutorialComplete: true,
-    unlockedToast: 'Tour skipped - explore Floor, Steps, and Tasks at your pace',
+    unlockedToast: 'Tour skipped - explore Factory, Steps, and Tasks at your pace',
   }
 }
 

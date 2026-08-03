@@ -179,7 +179,7 @@ export function AwaySummary() {
 
         <div className="away-actions">
           <button type="button" className="primary-btn" onClick={clearOfflineReport}>
-            Back to the floor
+            Back to the factory
           </button>
         </div>
       </div>

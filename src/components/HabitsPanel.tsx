@@ -41,7 +41,7 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
         <h2>Daily Tasks</h2>
         <p>
           Check off daily tasks to restock the foundry - ore, plates, belts, inserters -
-          so you can expand the floor.
+          so you can expand the factory.
         </p>
         <p className="panel-stat">
           Today {done}/{state.habits.length} · Lifetime {state.totalHabitsCompleted}

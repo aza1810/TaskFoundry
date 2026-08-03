@@ -44,7 +44,7 @@ export function StepsPanel({
         <h2>Steps</h2>
         <p>
           This is the only place to sync health or run the pedometer. Every step runs one mining
-          cycle on every drill. Today&apos;s total stays in the top bar on the Floor.
+          cycle on every drill. Today&apos;s total stays in the top bar on the Factory.
         </p>
       </div>
 

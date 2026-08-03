@@ -22,7 +22,7 @@ import type { TabId } from './game/types'
 import './index.css'
 
 const TABS: { id: TabId; label: string; short: string }[] = [
-  { id: 'factory', label: 'Floor', short: 'Floor' },
+  { id: 'factory', label: 'Factory', short: 'Factory' },
   { id: 'inventory', label: 'Inventory', short: 'Inv' },
   { id: 'steps', label: 'Steps', short: 'Steps' },
   { id: 'craft', label: 'Craft', short: 'Craft' },
@@ -181,7 +181,7 @@ function Shell() {
         <div className="grid-floor" />
       </div>
 
-      {/* Floor stays mounted so the world keeps feeling alive under sheets */}
+      {/* Factory stays mounted so the world keeps feeling alive under sheets */}
       <div className={`game-stage ${playing ? 'is-front' : 'is-back'}`}>
         <FactoryFloor
           highlight={highlight}
