@@ -17,12 +17,14 @@ import {
   RECIPE_MAP,
   formatNum,
   idx,
+  isBeltKind,
   isDrillKind,
   isFurnaceKind,
   isInserterKind,
   storeTotal,
   xpForLevel,
 } from '../game/data'
+import { getBeltBend } from '../game/beltShape'
 import { useGame } from '../game/GameContext'
 import { activeGoal } from '../game/goals'
 import { contractComplete } from '../game/contracts'
@@ -163,13 +165,29 @@ function storeSummary(e: Entity): string {
 function cargoOffset(
   dir: Entity['dir'],
   p: number,
-  opts?: { underground?: boolean },
+  opts?: { underground?: boolean; fromDir?: Dir | null },
 ): CSSProperties {
   const t = Math.min(1, Math.max(0, p))
-  // GPU-friendly transform from cell center; matches belt lane.
+  const from = opts?.fromDir
+  const isCorner =
+    !!from && from !== dir && from !== OPPOSITE[dir]
+
+  const along = (travel: Dir, u: number) => {
+    const d = -42 + u * 84
+    if (travel === 'E') return { x: d, y: 0 }
+    if (travel === 'W') return { x: -d, y: 0 }
+    if (travel === 'S') return { x: 0, y: d }
+    return { x: 0, y: -d }
+  }
+
   let x = 0
   let y = 0
-  if (dir === 'E') {
+  if (isCorner && from) {
+    // Enter along `from` to center, then leave along `dir`.
+    const pos = t < 0.5 ? along(from, t) : along(dir, t)
+    x = pos.x
+    y = pos.y
+  } else if (dir === 'E') {
     x = -42 + t * 84
     y = 0
   } else if (dir === 'W') {
@@ -891,6 +909,15 @@ export function FactoryFloor({
     return { pickup, drop }
   }, [entities, width, height, hover, selected, placeDir])
 
+  const beltBends = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getBeltBend>>()
+    for (const e of Object.values(entities)) {
+      if (!isBeltKind(e.kind)) continue
+      map.set(e.id, getBeltBend(tiles, entities, e, width, height))
+    }
+    return map
+  }, [entities, tiles, width, height])
+
   return (
     <section className="factory-floor is-playable">
       <div className="game-hud">
@@ -1078,6 +1105,8 @@ export function FactoryFloor({
                   ent?.kind === 'fastBelt' ||
                   ent?.kind === 'splitter' ||
                   ent?.kind === 'undergroundBelt'
+                const beltBend =
+                  ent && isBeltKind(ent.kind) ? beltBends.get(ent.id) ?? null : null
                 const filled = ent ? storeTotal(ent.store) > 0 : false
                 const isInspect = inspect?.x === x && inspect?.y === y
                 const isFlash = flash === `${x},${y}`
@@ -1128,6 +1157,7 @@ export function FactoryFloor({
                           filled={filled}
                           toggle={ent.toggle}
                           progress={ent.progress}
+                          turn={beltBend?.turn}
                         />
                       </span>
                     )}
@@ -1168,6 +1198,7 @@ export function FactoryFloor({
                           }${ent.kind === 'undergroundBelt' ? ' is-ug' : ''}`}
                           style={cargoOffset(ent.dir, ent.cargo.progress, {
                             underground: ent.kind === 'undergroundBelt',
+                            fromDir: beltBend?.from,
                           })}
                         >
                           <ItemSprite item={ent.cargo.item} />

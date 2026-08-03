@@ -2562,6 +2562,10 @@ html[data-theme='light'] .ghost-btn.is-danger {
   will-change: transform;
 }
 
+.sprite-belt .belt-stripes-v {
+  animation-name: belt-scroll-y;
+}
+
 .sprite-belt.is-fast .belt-stripes {
   animation-duration: 0.22s;
 }
@@ -2576,6 +2580,15 @@ html[data-theme='light'] .ghost-btn.is-danger {
   }
   to {
     transform: translateX(-16px);
+  }
+}
+
+@keyframes belt-scroll-y {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-16px);
   }
 }
 

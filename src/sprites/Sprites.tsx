@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { INSERTER_COOLDOWN } from '../game/data'
+import type { BeltTurn } from '../game/beltShape'
 import type { Dir, EntityKind, ItemId, OreId } from '../game/types'
 
 const ROT: Record<Dir, number> = { N: -90, E: 0, S: 90, W: 180 }
@@ -79,12 +80,120 @@ export function OreTexture({ ore, amount }: { ore: OreId; amount: number | null 
   )
 }
 
-export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; fast?: boolean }) {
-  const clipId = `belt-clip-${useId().replace(/:/g, '')}`
+export function BeltSprite({
+  dir,
+  moving,
+  fast,
+  turn,
+}: {
+  dir: Dir
+  moving?: boolean
+  fast?: boolean
+  /** Corner bend in local east-exit space; ccw mirrors the cw art. */
+  turn?: BeltTurn | null
+}) {
+  const uid = useId().replace(/:/g, '')
+  const clipId = `belt-clip-${uid}`
+  const clipH = `belt-clip-h-${uid}`
+  const clipV = `belt-clip-v-${uid}`
   const deck = fast ? '#b83838' : '#c47a12'
   const tooth = fast ? '#f09090' : '#f0b040'
   const gap = fast ? '#7a1818' : '#8a5010'
   const rail = fast ? '#4a1010' : '#5c3a08'
+  const chevron = fast ? '#ffe0e0' : '#ffe8a0'
+  const rot = ROT[dir]
+  const mirror = turn === 'ccw' ? ' scaleY(-1)' : ''
+  const transform = `rotate(${rot}deg)${mirror}`
+
+  if (turn) {
+    // CW corner in local east-exit space: enter from south, leave east (└).
+    // CCW is the same art mirrored vertically (┌).
+    const hStripes = Array.from({ length: 8 }, (_, i) => {
+      const x = i * 16 - 16
+      return (
+        <g key={`h${i}`}>
+          <rect x={x} y="20" width="9" height="24" rx="1" fill={tooth} />
+          <rect x={x + 9} y="20" width="7" height="24" fill={gap} />
+        </g>
+      )
+    })
+    const vStripes = Array.from({ length: 8 }, (_, i) => {
+      const y = i * 16 - 16
+      return (
+        <g key={`v${i}`}>
+          <rect x="20" y={y} width="24" height="9" rx="1" fill={tooth} />
+          <rect x="20" y={y + 9} width="24" height="7" fill={gap} />
+        </g>
+      )
+    })
+    return (
+      <svg
+        className={`sprite sprite-belt is-corner ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
+        viewBox="0 0 64 64"
+        style={{ transform, transformOrigin: '32px 32px' }}
+        aria-hidden
+      >
+        {/* L frame: south arm + east arm */}
+        <path
+          d="M12 20 H52 V12 H63 V52 H52 V63 H12 Z"
+          fill="#1a1612"
+        />
+        <path
+          d="M14 22 H50 V14 H61 V50 H50 V61 H14 Z"
+          fill={deck}
+        />
+        {/* Outer rails */}
+        <rect x="14" y="22" width="6" height="39" fill={rail} opacity="0.85" />
+        <rect x="14" y="55" width="36" height="6" fill={rail} opacity="0.85" />
+        <rect x="44" y="14" width="17" height="6" fill={rail} opacity="0.85" />
+        <rect x="55" y="14" width="6" height="36" fill={rail} opacity="0.85" />
+        {/* Inner elbow rails */}
+        <rect x="44" y="22" width="6" height="22" fill={rail} opacity="0.55" />
+        <rect x="20" y="44" width="30" height="6" fill={rail} opacity="0.55" />
+        <defs>
+          <clipPath id={clipH}>
+            <rect x="22" y="20" width="37" height="24" rx="1" />
+          </clipPath>
+          <clipPath id={clipV}>
+            <rect x="20" y="22" width="24" height="37" rx="1" />
+          </clipPath>
+        </defs>
+        <g className="belt-stripes" clipPath={`url(#${clipH})`}>
+          {hStripes}
+        </g>
+        <g className="belt-stripes belt-stripes-v" clipPath={`url(#${clipV})`}>
+          {vStripes}
+        </g>
+        {/* Rollers on both arms */}
+        {[
+          { cx: 32, cy: 50 },
+          { cx: 32, cy: 32 },
+          { cx: 50, cy: 32 },
+        ].map(({ cx, cy }) => (
+          <g key={`${cx}-${cy}`} className="belt-roller">
+            <circle cx={cx} cy={cy} r="3.2" fill="#2a2620" stroke="#0a0806" strokeWidth="1" />
+            <line x1={cx - 2.2} y1={cy} x2={cx + 2.2} y2={cy} stroke="#c4b8a0" strokeWidth="1.1" />
+            <line x1={cx} y1={cy - 2.2} x2={cx} y2={cy + 2.2} stroke="#6a6258" strokeWidth="0.9" />
+            <circle cx={cx} cy={cy} r="1.15" fill="#c4b8a0" />
+          </g>
+        ))}
+        {/* Exit chevron */}
+        <polygon
+          className="belt-chevron"
+          points="54,32 44,24 44,29 38,29 38,35 44,35 44,40"
+          fill="#1a1612"
+          opacity="0.55"
+        />
+        <polygon
+          className="belt-chevron"
+          points="53,32 45,26 45,30 40,30 40,34 45,34 45,38"
+          fill={chevron}
+          opacity="0.9"
+        />
+      </svg>
+    )
+  }
+
   // Seamless 16px period - CSS scrolls by the same distance.
   const stripes = Array.from({ length: 10 }, (_, i) => {
     const x = i * 16 - 16
@@ -99,7 +208,7 @@ export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; 
     <svg
       className={`sprite sprite-belt ${moving ? 'is-moving' : ''} ${fast ? 'is-fast' : ''}`}
       viewBox="0 0 64 64"
-      style={{ transform: `rotate(${ROT[dir]}deg)` }}
+      style={{ transform: `rotate(${rot}deg)`, transformOrigin: '32px 32px' }}
       aria-hidden
     >
       {/* Frame / side rails */}
@@ -135,7 +244,7 @@ export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; 
       <polygon
         className="belt-chevron"
         points="47,32 37,25 37,30 30,30 30,34 37,34 37,39"
-        fill={fast ? '#ffe0e0' : '#ffe8a0'}
+        fill={chevron}
         opacity="0.9"
       />
     </svg>
@@ -596,6 +705,7 @@ export function EntitySprite({
   filled,
   toggle,
   progress = 0,
+  turn,
 }: {
   kind: EntityKind
   dir: Dir
@@ -605,12 +715,13 @@ export function EntitySprite({
   filled?: boolean
   toggle?: number
   progress?: number
+  turn?: BeltTurn | null
 }) {
   switch (kind) {
     case 'belt':
-      return <BeltSprite dir={dir} moving={moving} />
+      return <BeltSprite dir={dir} moving={moving} turn={turn} />
     case 'fastBelt':
-      return <BeltSprite dir={dir} moving={moving} fast />
+      return <BeltSprite dir={dir} moving={moving} fast turn={turn} />
     case 'undergroundBelt':
       return (
         <UndergroundBeltSprite
