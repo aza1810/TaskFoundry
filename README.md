@@ -4,6 +4,10 @@ Walk. Task. Automate.
 
 An idle RPG where daily tasks, real steps, and a Factorio-style factory floor feed each other.
 
+**Repo:** https://github.com/aza1810/TaskFoundry  
+**Live:** https://azztech.online/apps/tf/ · **APK:** https://azztech.online/apps/tf/TaskFoundry-debug.apk  
+**Current OTA:** `1.1.25` · **Native APK base:** `1.1.0` (`online.azztech.taskfoundry`)
+
 ```bash
 npm install
 npm run dev
