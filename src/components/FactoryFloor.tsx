@@ -1479,10 +1479,16 @@ export function FactoryFloor({
             </button>
           </div>
         </div>
-      </div>
 
       {inspect && inspectTile && (
-        <div className="inspect-modal" role="presentation">
+        <div
+          className="inspect-modal"
+          role="presentation"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onPointerCancel={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             className="inspect-modal-scrim"
@@ -1703,6 +1709,7 @@ export function FactoryFloor({
           </div>
         </div>
       )}
+      </div>
     </section>
   )
 }
