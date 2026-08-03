@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - cursor/factory-mobile-game-981d
+      - main
     paths:
       - 'android/**'
       - 'src/**'
