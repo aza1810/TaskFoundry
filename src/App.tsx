@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { saveKeyForAccount } from './auth/auth'
 import { AuthScreen } from './components/AuthScreen'
+import { AwaySummary } from './components/AwaySummary'
 import { CraftPanel } from './components/CraftPanel'
 import { FactoryFloor } from './components/FactoryFloor'
 import { GoalsBar } from './components/GoalsBar'
@@ -264,6 +265,7 @@ function Shell() {
       </nav>
 
       <TutorialOverlay onRequestTab={requestTab} />
+      <AwaySummary />
       <Toast />
     </div>
   )

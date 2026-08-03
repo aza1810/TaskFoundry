@@ -145,6 +145,19 @@ export interface FactoryStats {
   itemsMoved: number
 }
 
+/** Shown once after returning from a long absence (not persisted). */
+export interface OfflineReport {
+  awaySeconds: number
+  simulatedSeconds: number
+  capped: boolean
+  platesSmelted: number
+  gearsMade: number
+  itemsMoved: number
+  craftsFinished: number
+  /** Net item gains across inventory + machine stores + belt cargo */
+  itemGains: Partial<Record<ItemId, number>>
+}
+
 export type SkillId =
   | 'mining'
   | 'smelting'
@@ -200,6 +213,8 @@ export interface GameState {
   lastTick: number
   totalHabitsCompleted: number
   unlockedToast: string | null
+  /** Ephemeral — set after offline catch-up, cleared by the player, not saved */
+  offlineReport: OfflineReport | null
   stats: FactoryStats
   completedGoals: string[]
   tipIndex: number

@@ -367,49 +367,64 @@ export function simTick(state: GameState, dt: number): GameState {
       FURNACE_COAL_PER_SMELT * (1 - bonuses.furnaceCoalSave),
     )
 
-    if (!e.smelting) {
-      for (const ore of FURNACE_INPUT_ORES) {
-        if ((e.store[ore] ?? 0) >= 1 && (e.store.coal ?? 0) >= coalNeed) {
-          e.smelting = ore
-          takeFromStore(e.store, ore, 1)
-          takeFromStore(e.store, 'coal', coalNeed)
-          e.progress = 0
-          break
+    let timeLeft = dt
+    while (timeLeft > 0) {
+      if (!e.smelting) {
+        let started = false
+        for (const ore of FURNACE_INPUT_ORES) {
+          if ((e.store[ore] ?? 0) >= 1 && (e.store.coal ?? 0) >= coalNeed) {
+            e.smelting = ore
+            takeFromStore(e.store, ore, 1)
+            takeFromStore(e.store, 'coal', coalNeed)
+            e.progress = 0
+            started = true
+            break
+          }
         }
+        if (!started) break
       }
-    }
 
-    if (e.smelting) {
-      e.progress += dt / seconds
-      if (e.progress >= 1) {
-        const out = SMELT_MAP[e.smelting as OreId]
-        if (out !== 'coal') {
-          addToStore(e.store, out, 1, cap)
-          stats.platesSmelted += 1
-        }
-        e.smelting = null
-        e.progress = 0
+      const need = (1 - e.progress) * seconds
+      if (timeLeft < need) {
+        e.progress += timeLeft / seconds
+        timeLeft = 0
+        break
       }
+      timeLeft -= need
+      const out = SMELT_MAP[e.smelting as OreId]
+      if (out !== 'coal') {
+        addToStore(e.store, out, 1, cap)
+        stats.platesSmelted += 1
+      }
+      e.smelting = null
+      e.progress = 0
     }
   }
 
   // --- Assemblers: 2 iron plate → 1 gear ---
   for (const e of Object.values(entities)) {
     if (e.kind !== 'assembler') continue
-    const plates = e.store.ironPlate ?? 0
-    if (!e.smelting && plates >= ASSEMBLER_PLATES_PER_GEAR) {
-      takeFromStore(e.store, 'ironPlate', ASSEMBLER_PLATES_PER_GEAR)
-      e.progress = 0
-      e.smelting = 'ironOre' // busy marker
-    }
-    if (e.smelting) {
-      e.progress += dt / (ASSEMBLER_SECONDS / bonuses.assemblerSpeedMult)
-      if (e.progress >= 1) {
-        addToStore(e.store, 'gear', 1, MACHINE_CAP.assembler, ['ironPlate'])
-        stats.gearsMade += 1
-        e.smelting = null
+    const seconds = ASSEMBLER_SECONDS / bonuses.assemblerSpeedMult
+    let timeLeft = dt
+    while (timeLeft > 0) {
+      const plates = e.store.ironPlate ?? 0
+      if (!e.smelting) {
+        if (plates < ASSEMBLER_PLATES_PER_GEAR) break
+        takeFromStore(e.store, 'ironPlate', ASSEMBLER_PLATES_PER_GEAR)
         e.progress = 0
+        e.smelting = 'ironOre' // busy marker
       }
+      const need = (1 - e.progress) * seconds
+      if (timeLeft < need) {
+        e.progress += timeLeft / seconds
+        timeLeft = 0
+        break
+      }
+      timeLeft -= need
+      addToStore(e.store, 'gear', 1, MACHINE_CAP.assembler, ['ironPlate'])
+      stats.gearsMade += 1
+      e.smelting = null
+      e.progress = 0
     }
   }
 

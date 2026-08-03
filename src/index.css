@@ -4773,3 +4773,237 @@ html[data-theme='light'] .machine-sheet .ghost-btn,
 html[data-theme='light'] .machine-sheet .primary-btn {
   color: inherit;
 }
+
+/* —— Away from factory summary —— */
+.away-root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.away-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(8, 6, 4, 0.62);
+  cursor: pointer;
+}
+
+.away-card {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  max-height: min(86vh, 640px);
+  overflow: auto;
+  padding: 1.25rem 1.25rem 1.3rem;
+  border: 2px solid #c9a227;
+  background: #1a1612;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  color: #e8e0d4;
+  animation: away-rise 0.35s ease-out;
+}
+
+@keyframes away-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.away-kicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c9a227;
+}
+
+.away-card h2 {
+  margin: 0.4rem 0 0;
+  font-size: 1.28rem;
+  line-height: 1.25;
+  color: #f0e6d2;
+}
+
+.away-lead {
+  margin: 0.55rem 0 0;
+  color: #c4b8a0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.away-lead strong {
+  color: #f0e0a0;
+  font-weight: 600;
+}
+
+.away-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.away-stats li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(201, 162, 39, 0.22);
+}
+
+.away-stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  color: #f0e0a0;
+}
+
+.away-stat-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a89880;
+}
+
+.away-gains {
+  margin-top: 1rem;
+}
+
+.away-gains h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c9a227;
+}
+
+.away-gain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.away-gain-grid li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(232, 224, 212, 0.08);
+}
+
+.away-gain-icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+}
+
+.away-gain-icon .sprite {
+  width: 26px;
+  height: 26px;
+}
+
+.away-gain-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.05rem;
+}
+
+.away-gain-name {
+  font-size: 0.78rem;
+  color: #e8e0d4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.away-gain-amt {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #8fd19a;
+}
+
+.away-empty {
+  margin: 0.9rem 0 0;
+  color: #a89880;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.away-actions {
+  margin-top: 1.15rem;
+  display: flex;
+}
+
+.away-actions .primary-btn {
+  width: 100%;
+}
+
+html[data-theme='light'] .away-scrim {
+  background: rgba(40, 32, 24, 0.45);
+}
+
+html[data-theme='light'] .away-card {
+  background: #f7f1e6;
+  border-color: #a88420;
+  color: #2a241c;
+  box-shadow: 0 18px 40px rgba(40, 28, 12, 0.22);
+}
+
+html[data-theme='light'] .away-card h2 {
+  color: #1f1a14;
+}
+
+html[data-theme='light'] .away-lead,
+html[data-theme='light'] .away-empty {
+  color: #5a4e40;
+}
+
+html[data-theme='light'] .away-stats li {
+  background: rgba(26, 22, 18, 0.04);
+  border-color: rgba(168, 132, 32, 0.28);
+}
+
+html[data-theme='light'] .away-stat-value {
+  color: #8a6a12;
+}
+
+html[data-theme='light'] .away-stat-label,
+html[data-theme='light'] .away-gains h3 {
+  color: #7a6a4a;
+}
+
+html[data-theme='light'] .away-gain-grid li {
+  background: rgba(26, 22, 18, 0.04);
+  border-color: rgba(26, 22, 18, 0.08);
+}
+
+html[data-theme='light'] .away-gain-name {
+  color: #2a241c;
+}
+
+html[data-theme='light'] .away-gain-amt {
+  color: #2f7a45;
+}

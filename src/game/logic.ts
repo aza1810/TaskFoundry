@@ -11,6 +11,7 @@ import {
   MAX_CRAFT_QUEUE,
   MAX_UNDERGROUND,
   OFFLINE_CAP_SECONDS,
+  OFFLINE_REPORT_SECONDS,
   PLACEABLE_META,
   RECIPE_MAP,
   SAVE_KEY,
@@ -55,6 +56,8 @@ import type {
   GameState,
   Habit,
   HabitCategory,
+  ItemId,
+  OfflineReport,
   Placeable,
   SkillId,
   TechId,
@@ -84,6 +87,7 @@ export function createInitialState(): GameState {
     totalHabitsCompleted: 0,
     unlockedToast:
       'Welcome — place a drill on iron ore, or plant a Starter line. Steps power every drill.',
+    offlineReport: null,
     stats: emptyStats(),
     completedGoals: [],
     tipIndex: 0,
@@ -135,6 +139,7 @@ export function loadState(accountSaveKey?: string): GameState {
       skills: normalizeSkills(parsed.skills),
       lastSkillGains: null,
       focusSkills: (parsed.focusSkills ?? []).slice(0, 2),
+      offlineReport: null,
       contractsDate: parsed.contractsDate ?? '',
       contracts: parsed.contracts ?? [],
       healthImportedToday: parsed.healthImportedToday ?? 0,
@@ -172,7 +177,8 @@ function ensureContracts(state: GameState): GameState {
 }
 
 export function saveState(state: GameState): void {
-  localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(state))
+  const { offlineReport: _omit, ...persisted } = state
+  localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(persisted))
 }
 
 function addXp(state: GameState, amount: number): GameState {
@@ -300,6 +306,47 @@ export function tickHandCraft(state: GameState, dt: number): GameState {
   return next
 }
 
+function addItemCounts(
+  into: Partial<Record<ItemId, number>>,
+  from: Partial<Record<ItemId, number>>,
+): void {
+  for (const [key, value] of Object.entries(from)) {
+    const n = value ?? 0
+    if (n === 0) continue
+    const id = key as ItemId
+    into[id] = (into[id] ?? 0) + n
+  }
+}
+
+/** Inventory + machine stores + belt cargo — what the factory is holding. */
+function snapshotItems(state: GameState): Partial<Record<ItemId, number>> {
+  const out: Partial<Record<ItemId, number>> = {}
+  addItemCounts(out, state.inventory)
+  for (const e of Object.values(state.entities)) {
+    addItemCounts(out, e.store)
+    if (e.cargo) {
+      out[e.cargo.item] = (out[e.cargo.item] ?? 0) + 1
+    }
+  }
+  return out
+}
+
+function itemGains(
+  before: Partial<Record<ItemId, number>>,
+  after: Partial<Record<ItemId, number>>,
+): Partial<Record<ItemId, number>> {
+  const gains: Partial<Record<ItemId, number>> = {}
+  const keys = new Set([
+    ...Object.keys(before),
+    ...Object.keys(after),
+  ]) as Set<ItemId>
+  for (const id of keys) {
+    const delta = (after[id] ?? 0) - (before[id] ?? 0)
+    if (delta > 0) gains[id] = delta
+  }
+  return gains
+}
+
 export function tickState(state: GameState, now = Date.now()): GameState {
   let next = refreshDaily(state)
   const rawDt = Math.max(0, (now - next.lastTick) / 1000)
@@ -307,23 +354,44 @@ export function tickState(state: GameState, now = Date.now()): GameState {
   next = { ...next, lastTick: now }
   if (dt < 0.02) return claimGoals(next)
 
-  // Chunk large offline catches so belts don't skip weirdly
+  const reportAway = rawDt > OFFLINE_REPORT_SECONDS
+  const beforeStats = reportAway ? { ...next.stats } : null
+  const beforeCrafts = reportAway ? next.craftQueue.length : 0
+  const beforeItems = reportAway ? snapshotItems(next) : null
+
+  // Adaptive chunks: keep short absences precise; bound work for long ones.
+  // Furnaces/assemblers multi-cycle within a step, so larger steps stay accurate.
+  const targetChunks = reportAway ? 2400 : Math.ceil(dt / 0.5)
+  const stepSize = Math.min(2, Math.max(0.5, dt / Math.max(1, targetChunks)))
+
   let left = dt
   while (left > 0) {
-    const step = Math.min(0.5, left)
+    const step = Math.min(stepSize, left)
     next = simTick(next, step)
     next = tickHandCraft(next, step)
     left -= step
   }
 
-  if (rawDt > 30) {
-    const mins = Math.floor(Math.min(rawDt, OFFLINE_CAP_SECONDS) / 60)
-    next = {
-      ...next,
-      unlockedToast: `Factory ran ~${mins || '<1'} min while you were away`,
+  if (reportAway && beforeStats && beforeItems) {
+    const simulatedSeconds = dt
+    const report: OfflineReport = {
+      awaySeconds: rawDt,
+      simulatedSeconds,
+      capped: rawDt > OFFLINE_CAP_SECONDS,
+      platesSmelted: Math.max(0, next.stats.platesSmelted - beforeStats.platesSmelted),
+      gearsMade: Math.max(0, next.stats.gearsMade - beforeStats.gearsMade),
+      itemsMoved: Math.max(0, next.stats.itemsMoved - beforeStats.itemsMoved),
+      craftsFinished: Math.max(0, beforeCrafts - next.craftQueue.length),
+      itemGains: itemGains(beforeItems, snapshotItems(next)),
     }
+    next = { ...next, offlineReport: report, unlockedToast: null }
   }
   return claimGoals(next)
+}
+
+export function clearOfflineReport(state: GameState): GameState {
+  if (!state.offlineReport) return state
+  return { ...state, offlineReport: null }
 }
 
 export function selectTool(state: GameState, tool: GameState['selected']): GameState {

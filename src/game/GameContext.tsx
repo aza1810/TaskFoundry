@@ -11,6 +11,7 @@ import {
 import {
   addHabit as addHabitLogic,
   clearToast as clearToastLogic,
+  clearOfflineReport as clearOfflineReportLogic,
   collectChest as collectChestLogic,
   completeHabit as completeHabitLogic,
   craftRecipe as craftRecipeLogic,
@@ -58,6 +59,7 @@ type Action =
   | { type: 'FUEL' }
   | { type: 'FUEL_AT'; x: number; y: number }
   | { type: 'CLEAR_TOAST' }
+  | { type: 'CLEAR_OFFLINE_REPORT' }
   | { type: 'RESET' }
   | { type: 'RENAME'; name: string }
   | { type: 'FOCUS'; id: SkillId }
@@ -104,6 +106,8 @@ function reducer(state: GameState, action: Action): GameState {
       return fuelDrillAtLogic(state, action.x, action.y)
     case 'CLEAR_TOAST':
       return clearToastLogic(state)
+    case 'CLEAR_OFFLINE_REPORT':
+      return clearOfflineReportLogic(state)
     case 'RESET':
       return resetGame()
     case 'RENAME':
@@ -142,6 +146,7 @@ interface GameContextValue {
   fuelDrills: () => void
   fuelAt: (x: number, y: number) => void
   clearToast: () => void
+  clearOfflineReport: () => void
   reset: () => void
   rename: (name: string) => void
   toggleFocus: (id: SkillId) => void
@@ -178,6 +183,21 @@ export function GameProvider({
       dispatch({ type: 'TICK', now: Date.now() })
     }, 200)
     return () => window.clearInterval(id)
+  }, [])
+
+  // Catch up immediately when returning to the tab (browsers throttle timers in background).
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        dispatch({ type: 'TICK', now: Date.now() })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [])
 
   useEffect(() => {
@@ -274,6 +294,10 @@ export function GameProvider({
     [],
   )
   const clearToast = useCallback(() => dispatch({ type: 'CLEAR_TOAST' }), [])
+  const clearOfflineReport = useCallback(
+    () => dispatch({ type: 'CLEAR_OFFLINE_REPORT' }),
+    [],
+  )
   const reset = useCallback(() => {
     if (window.confirm('Scrap the factory and start over?')) dispatch({ type: 'RESET' })
   }, [])
@@ -316,6 +340,7 @@ export function GameProvider({
       fuelDrills,
       fuelAt,
       clearToast,
+      clearOfflineReport,
       reset,
       rename,
       toggleFocus,
@@ -345,6 +370,7 @@ export function GameProvider({
       fuelDrills,
       fuelAt,
       clearToast,
+      clearOfflineReport,
       reset,
       rename,
       toggleFocus,
