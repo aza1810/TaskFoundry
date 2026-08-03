@@ -3883,6 +3883,50 @@ html[data-theme='light'] .ghost-btn.is-danger {
   pointer-events: auto;
 }
 
+.build-rail-selected {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: min(100%, 18rem);
+  padding: 0.28rem 0.65rem;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  border-radius: 999px;
+  background: rgba(12, 11, 9, 0.88);
+  color: var(--text-chrome-bright);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.build-rail-selected .sprite,
+.build-rail-selected svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+}
+
+.build-rail-selected strong {
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.build-rail-selected-count {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #1a1612;
+  background: #f0c860;
+  border-radius: 999px;
+  padding: 0.08rem 0.38rem;
+  line-height: 1.2;
+}
+
 .build-rail-tray {
   display: grid;
   gap: 0.28rem;
@@ -5026,6 +5070,13 @@ html[data-theme='light'] .fab-btn {
   background: #fffaf2;
   border-color: #b7aea0;
   color: #241e18;
+}
+
+html[data-theme='light'] .build-rail-selected {
+  background: rgba(255, 250, 242, 0.94);
+  border-color: #c4b8a4;
+  color: #1a1612;
+  box-shadow: 0 6px 16px rgba(26, 22, 18, 0.12);
 }
 
 html[data-theme='light'] .build-rail-tray,

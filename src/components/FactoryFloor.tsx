@@ -787,6 +787,25 @@ export function FactoryFloor({
     if (selected) setRailOpen(true)
   }, [selected])
 
+  const selectedToolName = !selected
+    ? null
+    : selected === 'remove'
+      ? 'Demolish'
+      : selected === 'rotate'
+        ? 'Rotate'
+        : selected === 'copy'
+          ? 'Copy'
+          : selected === 'paste'
+            ? 'Paste'
+            : PLACEABLE_META[selected].label
+
+  const selectedToolCount =
+    selected && !isEditMetaTool(selected)
+      ? (state.inventory[PLACEABLE_META[selected].inventoryKey] ?? 0)
+      : selected === 'paste' && state.blueprint
+        ? state.blueprint.length
+        : null
+
   const toolLabel = !selected
     ? 'Drag to pan · tap a tile to inspect · tap again to close'
     : selected === 'remove'
@@ -798,8 +817,8 @@ export function FactoryFloor({
           : selected === 'paste'
             ? 'Tap origin · drag to pan'
             : isDragPaintTool(selected)
-              ? `Tap to place · hold-drag to paint · drag pans`
-              : `Tap to place ${PLACEABLE_META[selected].label} · drag pans`
+              ? 'Tap to place · hold-drag to paint · drag pans'
+              : 'Tap to place · drag pans'
 
   const modeHint = paintActive
     ? selected === 'remove'
@@ -1270,6 +1289,17 @@ export function FactoryFloor({
           onPointerMove={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
         >
+          {selected && selectedToolName && (
+            <div className="build-rail-selected" aria-live="polite">
+              <ToolIcon kind={selected} />
+              <strong>{selectedToolName}</strong>
+              {selectedToolCount != null && (
+                <span className="build-rail-selected-count">
+                  {selected === 'paste' ? `${formatNum(selectedToolCount)} tiles` : formatNum(selectedToolCount)}
+                </span>
+              )}
+            </div>
+          )}
           {railOpen && selected && (
             <div className="build-rail-tray" role="toolbar" aria-label="Build tools">
               <div className="build-rail-tools">
