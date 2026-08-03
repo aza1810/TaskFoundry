@@ -6,7 +6,9 @@
   --panel: rgba(245, 239, 230, 0.88);
   --panel-solid: #f3ece2;
   --steel: #4a5560;
-  --steel-light: #7b8792;
+  --steel-light: #9aa3ab;
+  --text-ghost: #c4b8a0;
+  --text-empty: #c4b498;
   --copper: #c4783a;
   --belt: #f0a020;
   --belt-dark: #c47a12;
@@ -80,6 +82,10 @@ html[data-theme='light'] {
   --shadow: rgba(26, 22, 18, 0.12);
   --panel: rgba(255, 250, 242, 0.92);
   --panel-solid: #fffaf2;
+  --steel: #3d4650;
+  --steel-light: #5c6874;
+  --text-ghost: #3d4650;
+  --text-empty: #5a5046;
 
   /* Sunny factory floor - matches light chrome */
   --ground-a: #a8bc6e;
@@ -798,11 +804,20 @@ button {
   justify-self: start;
   background: transparent;
   border: none;
-  color: var(--steel-light);
+  color: var(--text-ghost);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+  font-weight: 600;
   text-decoration: underline;
+  text-underline-offset: 0.15em;
   padding: 0;
+}
+
+.ghost-btn:disabled {
+  color: var(--text-empty);
+  opacity: 1;
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 .resources {
@@ -934,7 +949,16 @@ button {
 }
 
 .habit.is-done {
-  opacity: 0.62;
+  opacity: 1;
+}
+
+.habit.is-done .habit-title {
+  color: var(--steel);
+}
+
+.habit.is-done .habit-meta,
+.habit.is-done .habit-reward {
+  color: var(--text-empty);
 }
 
 .habit-check {
@@ -999,7 +1023,7 @@ button {
 .icon-btn {
   border: none;
   background: transparent;
-  color: var(--steel-light);
+  color: var(--text-ghost);
   font-size: 1.25rem;
   line-height: 1;
   padding: 0.2rem 0.4rem;
@@ -1038,17 +1062,26 @@ button {
   font-weight: 700;
   letter-spacing: 0.02em;
   border-radius: 2px;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
 .primary-btn:hover:not(:disabled) {
   background: var(--copper);
+  color: var(--oil);
   transform: translateY(-1px);
 }
 
 .primary-btn:disabled {
-  opacity: 0.4;
+  opacity: 1;
+  background: #5a534a;
+  color: #d2c8b8;
   cursor: not-allowed;
+  transform: none;
+}
+
+html[data-theme='light'] .primary-btn:disabled {
+  background: #cfc4b4;
+  color: #5a5046;
 }
 
 .steps-hero {
@@ -1152,7 +1185,7 @@ button {
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #8a8070;
+  color: #b0a890;
 }
 
 .pedo-status.status-listening,
@@ -1170,12 +1203,12 @@ button {
 
 .pedo-status.status-web,
 .pedo-status.status-checking {
-  color: #a89878;
+  color: var(--text-empty);
 }
 
 .pedo-copy {
   margin: 0.55rem 0 0;
-  color: #a89878;
+  color: var(--text-empty);
   font-size: 0.9rem;
   line-height: 1.45;
 }
@@ -1400,10 +1433,25 @@ button {
 }
 
 .recipe-icon.is-empty {
-  opacity: 0.42;
+  opacity: 1;
+  border-style: dashed;
+  color: var(--text-empty);
+  filter: grayscale(0.35);
+}
+
+.recipe-icon.is-empty .sprite,
+.recipe-icon.is-empty svg {
+  opacity: 0.55;
 }
 
 .recipe-icon.is-locked {
+  opacity: 1;
+  color: var(--text-empty);
+  border-style: dashed;
+}
+
+.recipe-icon.is-locked .sprite,
+.recipe-icon.is-locked svg {
   opacity: 0.55;
 }
 
@@ -1608,7 +1656,20 @@ button {
 }
 
 .recipe:disabled {
-  opacity: 0.45;
+  opacity: 1;
+  color: var(--steel);
+  background: color-mix(in srgb, var(--bg-card) 88%, var(--oil) 8%);
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--steel) 35%, transparent);
+  cursor: not-allowed;
+}
+
+.recipe:disabled .recipe-name,
+.recipe:disabled .cost-line,
+.recipe:disabled .recipe-out,
+.recipe:disabled .recipe-time,
+.recipe:disabled .recipe-lock {
+  color: var(--text-empty);
 }
 
 .recipe-name {
@@ -2161,7 +2222,11 @@ button {
 .settings-status.is-warn {
   background: rgba(240, 160, 32, 0.14);
   border-color: rgba(196, 120, 58, 0.4);
-  color: var(--copper);
+  color: #f0c070;
+}
+
+html[data-theme='light'] .settings-status.is-warn {
+  color: #8a5020;
 }
 
 .settings-status.is-error {
@@ -2192,8 +2257,12 @@ button {
 }
 
 .ghost-btn.is-danger {
-  color: var(--danger);
-  border-color: rgba(179, 58, 43, 0.35);
+  color: #e07060;
+  border-color: rgba(224, 112, 96, 0.4);
+}
+
+html[data-theme='light'] .ghost-btn.is-danger {
+  color: #9a2f22;
 }
 
 .toast {
@@ -2689,7 +2758,7 @@ button {
   margin: 0.65rem 0 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: #a89878;
+  color: var(--text-empty);
 }
 
 .ghost-dir {
@@ -3310,7 +3379,7 @@ button {
   margin: 0 0 0.75rem;
   padding: 0.7rem 0.8rem;
   border: 1px dashed rgba(201, 162, 39, 0.35);
-  color: #a89880;
+  color: var(--text-empty);
   font-size: 0.88rem;
   line-height: 1.4;
 }
@@ -3343,7 +3412,7 @@ button {
   margin: 0.35rem 0 0;
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  color: #a89878;
+  color: var(--text-empty);
   line-height: 1.35;
 }
 
@@ -3536,7 +3605,7 @@ button {
 }
 
 .machine-sheet-status.is-idle {
-  color: #a89880;
+  color: var(--text-empty);
 }
 
 @keyframes place-pop {
@@ -3755,14 +3824,14 @@ button {
   margin: 0.3rem 0 0;
   font-size: 0.82rem;
   line-height: 1.35;
-  color: var(--text-chrome-muted);
+  color: var(--text-empty);
 }
 
 .machine-sheet-meta {
   margin: 0.25rem 0 0.55rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--text-chrome-muted);
+  color: var(--text-empty);
 }
 
 .machine-sheet-actions {
@@ -3875,7 +3944,20 @@ button {
 }
 
 .rail-tool.is-empty {
-  opacity: 0.4;
+  opacity: 1;
+  border-style: dashed;
+  color: var(--text-empty);
+}
+
+.rail-tool.is-empty .sprite,
+.rail-tool.is-empty svg {
+  opacity: 0.55;
+}
+
+.rail-tool.is-empty .rail-tool-count {
+  opacity: 1;
+  background: #c4b498;
+  color: #1a1612;
 }
 
 .build-rail-quick {
@@ -3911,7 +3993,7 @@ button {
 .rail-mode {
   border: 1px solid transparent;
   background: transparent;
-  color: #a89878;
+  color: var(--text-ghost);
   font: inherit;
   font-size: 0.68rem;
   font-weight: 700;
@@ -4519,14 +4601,14 @@ button {
 
 .auth-google-status {
   margin: 0;
-  color: #c4b8a0;
+  color: var(--text-ghost);
   font-size: 0.85rem;
   text-align: center;
 }
 
 .auth-google-setup-toggle {
   justify-self: center;
-  color: #d4c4a0;
+  color: var(--text-ghost);
 }
 
 .auth-google-setup {
@@ -4678,14 +4760,14 @@ button {
 
 .auth-guest {
   width: 100%;
-  color: #d4c4a0;
+  color: var(--text-ghost);
   text-align: center;
   justify-self: stretch;
 }
 
 .auth-note {
   margin: 0.85rem 0 0;
-  color: #a89878;
+  color: var(--text-empty);
   font-size: 0.75rem;
   line-height: 1.4;
 }
@@ -4822,7 +4904,8 @@ button {
 }
 
 .bottom-nav-btn.is-locked {
-  opacity: 0.35;
+  opacity: 1;
+  color: color-mix(in srgb, var(--text-chrome-muted) 70%, transparent);
   cursor: not-allowed;
 }
 
@@ -4910,7 +4993,7 @@ html[data-theme='light'] .game-objective strong {
 
 html[data-theme='light'] .game-objective span,
 html[data-theme='light'] .machine-sheet-status.is-idle {
-  color: #7a6a4a;
+  color: var(--text-empty);
 }
 
 html[data-theme='light'] .game-objective-prog {
@@ -4932,7 +5015,7 @@ html[data-theme='light'] .build-rail-modes {
 }
 
 html[data-theme='light'] .rail-mode {
-  color: #6a5a48;
+  color: #4a4038;
 }
 
 html[data-theme='light'] .rail-mode.is-active,
@@ -5071,7 +5154,18 @@ html[data-theme='light'] .settings-theme {
 }
 
 .inventory-panel .resource.is-zero {
-  opacity: 0.42;
+  opacity: 1;
+  color: var(--steel);
+  border-left-color: color-mix(in srgb, var(--steel) 55%, transparent);
+}
+
+.inventory-panel .resource.is-zero .resource-amount,
+.inventory-panel .resource.is-zero .resource-label {
+  color: var(--text-empty);
+}
+
+.inventory-panel .resource.is-zero .resource-swatch {
+  opacity: 0.45;
 }
 
 .inventory-panel .resource {
@@ -5088,9 +5182,23 @@ html[data-theme='light'] .mode-banner.is-painting {
   background: rgba(61, 122, 82, 0.92);
 }
 
-html[data-theme='light'] .machine-sheet .ghost-btn,
+html[data-theme='light'] .machine-sheet .ghost-btn {
+  color: var(--text-ghost);
+}
+
 html[data-theme='light'] .machine-sheet .primary-btn {
-  color: inherit;
+  background: var(--oil);
+  color: var(--concrete);
+}
+
+html[data-theme='light'] .machine-sheet .primary-btn:hover:not(:disabled) {
+  background: var(--copper);
+  color: var(--oil);
+}
+
+html[data-theme='light'] .machine-sheet .primary-btn:disabled {
+  background: #cfc4b4;
+  color: #5a5046;
 }
 
 /* -- Away from factory summary -- */
@@ -5266,7 +5374,7 @@ html[data-theme='light'] .machine-sheet .primary-btn {
 
 .away-empty {
   margin: 0.9rem 0 0;
-  color: #a89880;
+  color: var(--text-empty);
   font-size: 0.86rem;
   line-height: 1.4;
 }
