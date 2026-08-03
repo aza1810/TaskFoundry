@@ -306,8 +306,6 @@ export function FactoryFloor({
   const [stepPulse, setStepPulse] = useState(false)
   const [railOpen, setRailOpen] = useState(false)
   const [paintActive, setPaintActive] = useState(false)
-  const [edgeFlash, setEdgeFlash] = useState(false)
-  const edgeFlashTimer = useRef(0)
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -420,12 +418,6 @@ export function FactoryFloor({
     }
   }, [highlight])
 
-  const bumpEdge = useCallback(() => {
-    setEdgeFlash(true)
-    if (edgeFlashTimer.current) window.clearTimeout(edgeFlashTimer.current)
-    edgeFlashTimer.current = window.setTimeout(() => setEdgeFlash(false), 220)
-  }, [])
-
   const clampCamera = useCallback((p: { x: number; y: number }) => {
     const cam = cameraRef.current
     return clampPan(p, cam.zoom, viewportSize.current, cam.width, cam.height)
@@ -450,7 +442,6 @@ export function FactoryFloor({
   useEffect(() => {
     return () => {
       if (holdTimer.current) window.clearTimeout(holdTimer.current)
-      if (edgeFlashTimer.current) window.clearTimeout(edgeFlashTimer.current)
     }
   }, [])
 
@@ -685,8 +676,6 @@ export function FactoryFloor({
       setPan((p) => {
         const attempted = { x: p.x + dx, y: p.y + dy }
         const next = clampCamera(attempted)
-        const hitEdge = next.x !== attempted.x || next.y !== attempted.y
-        if (hitEdge) bumpEdge()
         return next
       })
       gesture.current.moved = true
@@ -937,7 +926,6 @@ export function FactoryFloor({
           'is-pan',
           selected ? 'is-build' : '',
           railOpen && selected ? 'is-tools-open' : '',
-          edgeFlash ? 'is-edge' : '',
         ]
           .filter(Boolean)
           .join(' ')}
@@ -948,7 +936,6 @@ export function FactoryFloor({
         onPointerCancel={onPointerUp}
         onContextMenu={(e) => e.preventDefault()}
       >
-        <div className="factory-vignette" aria-hidden />
         <div
           className="factory-world"
           ref={worldRef}

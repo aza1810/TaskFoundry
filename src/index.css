@@ -46,8 +46,6 @@
   --ground-grid: #2a3520;
   --viewport-bg: #141610;
   --viewport-border: #2a3220;
-  --vignette-edge: rgba(0, 0, 0, 0.45);
-  --vignette-bar: rgba(0, 0, 0, 0.28);
   --minimap-ground: #3a4a28;
   --minimap-bg: #1a2214;
 
@@ -93,8 +91,6 @@ html[data-theme='light'] {
   --ground-grid: #c5b89a;
   --viewport-bg: #d8cfc0;
   --viewport-border: #b7aea0;
-  --vignette-edge: rgba(90, 80, 60, 0.18);
-  --vignette-bar: rgba(90, 80, 60, 0.1);
   --minimap-ground: #9bb262;
   --minimap-bg: #d4c8b0;
 }
@@ -3369,16 +3365,6 @@ button {
   --rail-clearance: 6.4rem;
 }
 
-.factory-vignette {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at center, transparent 55%, var(--vignette-edge) 100%),
-    linear-gradient(180deg, var(--vignette-bar), transparent 18%, transparent 82%, var(--vignette-bar));
-}
-
 .factory-viewport.is-build {
   /* still pan-first; crosshair only as a hint that a tool is armed */
   cursor: grab;
@@ -3524,13 +3510,6 @@ button {
 
 .factory-floor .cell.is-blocked .cell-ent {
   filter: drop-shadow(0 0 5px rgba(240, 160, 32, 0.65));
-}
-
-.factory-viewport.is-edge .factory-vignette {
-  box-shadow:
-    inset 0 0 0 2px rgba(201, 162, 39, 0.45),
-    inset 0 0 48px rgba(8, 6, 4, 0.55);
-  transition: box-shadow 0.12s ease-out;
 }
 
 .machine-sheet-status {
