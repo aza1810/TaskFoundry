@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // GitHub Pages project site: https://aza1810.github.io/hello-world/
+  // Production: VITE_BASE=/apps/tf/ → https://azztech.online/apps/tf/
   base: process.env.VITE_BASE || '/',
   server: {
     host: true,
