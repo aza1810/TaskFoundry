@@ -361,6 +361,8 @@ export function FactoryFloor({
   const viewportSize = useRef({ width: 0, height: 0 })
   const cameraRef = useRef({ zoom, width, height })
   cameraRef.current = { zoom, width, height }
+  const panRef = useRef(pan)
+  panRef.current = pan
   const prevSteps = useRef(state.stepsToday)
   const prevOre = useRef(state.stats.oreMined)
   const prevCycles = useRef(state.mineCycles)
@@ -369,6 +371,8 @@ export function FactoryFloor({
     kind: 'none' | 'pending' | 'pan' | 'paint' | 'pinch'
     startZoom: number
     startDist: number
+    startPan: { x: number; y: number } | null
+    startMid: { x: number; y: number } | null
     moved: boolean
     lastCell: string | null
     origin: { x: number; y: number } | null
@@ -378,6 +382,8 @@ export function FactoryFloor({
     kind: 'none',
     startZoom: 1,
     startDist: 0,
+    startPan: null,
+    startMid: null,
     moved: false,
     lastCell: null,
     origin: null,
@@ -637,6 +643,38 @@ export function FactoryFloor({
     centerOn(width / 2, height / 2)
   }, [entities, width, height, centerOn])
 
+  /** Zoom around a viewport-local focal point, adjusting pan so that point stays put. */
+  const zoomAt = useCallback(
+    (nextZoom: number, focal: { x: number; y: number }) => {
+      const z0 = cameraRef.current.zoom
+      const z1 = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(nextZoom * 100) / 100))
+      if (z1 === z0) return
+      cameraRef.current = { ...cameraRef.current, zoom: z1 }
+      setPan((p) =>
+        clampCamera({
+          x: focal.x - ((focal.x - p.x) * z1) / z0,
+          y: focal.y - ((focal.y - p.y) * z1) / z0,
+        }),
+      )
+      setZoom(z1)
+    },
+    [clampCamera],
+  )
+
+  const zoomByButton = useCallback(
+    (delta: number) => {
+      const vp = viewportRef.current
+      const size = vp
+        ? { width: vp.clientWidth, height: vp.clientHeight }
+        : viewportSize.current
+      zoomAt(cameraRef.current.zoom + delta, {
+        x: size.width / 2,
+        y: size.height / 2,
+      })
+    },
+    [zoomAt],
+  )
+
   const clearHoldTimer = () => {
     if (holdTimer.current) {
       window.clearTimeout(holdTimer.current)
@@ -654,10 +692,17 @@ export function FactoryFloor({
     if (pointers.current.size >= 2) {
       const pts = [...pointers.current.values()]
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+      const rect = vp.getBoundingClientRect()
+      const mid = {
+        x: (pts[0].x + pts[1].x) / 2 - rect.left,
+        y: (pts[0].y + pts[1].y) / 2 - rect.top,
+      }
       gesture.current = {
         kind: 'pinch',
-        startZoom: zoom,
+        startZoom: cameraRef.current.zoom,
         startDist: Math.max(1, dist),
+        startPan: { ...panRef.current },
+        startMid: mid,
         moved: false,
         lastCell: null,
         origin: null,
@@ -675,6 +720,8 @@ export function FactoryFloor({
       kind: 'pending',
       startZoom: zoom,
       startDist: 0,
+      startPan: null,
+      startMid: null,
       moved: false,
       lastCell: null,
       origin: { x: e.clientX, y: e.clientY },
@@ -706,13 +753,35 @@ export function FactoryFloor({
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
     if (gesture.current.kind === 'pinch' && pointers.current.size >= 2) {
+      const vp = viewportRef.current
+      const startPan = gesture.current.startPan
+      const startMid = gesture.current.startMid
+      if (!vp || !startPan || !startMid) return
+
       const pts = [...pointers.current.values()]
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
-      const next = Math.min(
+      const nextZoom = Math.min(
         ZOOM_MAX,
         Math.max(ZOOM_MIN, gesture.current.startZoom * (dist / gesture.current.startDist)),
       )
-      setZoom(Math.round(next * 100) / 100)
+      const z1 = Math.round(nextZoom * 100) / 100
+      const z0 = gesture.current.startZoom
+      const rect = vp.getBoundingClientRect()
+      // Keep the world point under the moving pinch midpoint stable.
+      const mid = {
+        x: (pts[0].x + pts[1].x) / 2 - rect.left,
+        y: (pts[0].y + pts[1].y) / 2 - rect.top,
+      }
+      const ratio = z1 / z0
+      cameraRef.current = { ...cameraRef.current, zoom: z1 }
+      setZoom(z1)
+      setPan(
+        clampCamera({
+          x: mid.x - (startMid.x - startPan.x) * ratio,
+          y: mid.y - (startMid.y - startPan.y) * ratio,
+        }),
+      )
+      gesture.current.moved = true
       return
     }
 
@@ -759,6 +828,10 @@ export function FactoryFloor({
 
     if (pointers.current.size < 2 && kind === 'pinch') {
       gesture.current.kind = 'none'
+      gesture.current.startPan = null
+      gesture.current.startMid = null
+      gesture.current.startZoom = 1
+      gesture.current.startDist = 0
     }
 
     if (pointers.current.size === 0) {
@@ -798,6 +871,10 @@ export function FactoryFloor({
       gesture.current.origin = null
       gesture.current.last = null
       gesture.current.pointerId = null
+      gesture.current.startPan = null
+      gesture.current.startMid = null
+      gesture.current.startZoom = 1
+      gesture.current.startDist = 0
     }
   }
 
@@ -1260,7 +1337,7 @@ export function FactoryFloor({
           <button
             type="button"
             className="fab-btn"
-            onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - 0.15) * 100) / 100))}
+            onClick={() => zoomByButton(-0.15)}
             aria-label="Zoom out"
           >
             −
@@ -1268,7 +1345,7 @@ export function FactoryFloor({
           <button
             type="button"
             className="fab-btn"
-            onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + 0.15) * 100) / 100))}
+            onClick={() => zoomByButton(0.15)}
             aria-label="Zoom in"
           >
             +
