@@ -2926,6 +2926,7 @@ html[data-theme='light'] .ghost-btn.is-danger {
     var(--bg-sheet);
   animation: sheet-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   color: var(--text-chrome);
+  touch-action: pan-y;
 }
 
 @keyframes sheet-rise {

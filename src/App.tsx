@@ -16,6 +16,7 @@ import { TutorialOverlay } from './components/TutorialOverlay'
 import { GameProvider, useGame } from './game/GameContext'
 import { useHealthSteps } from './hooks/useHealthSteps'
 import { usePedometer } from './hooks/usePedometer'
+import { useSectionSwipe } from './hooks/useSectionSwipe'
 import { getTutorialStep, unlockedTabsFor } from './game/tutorial'
 import { contractComplete } from './game/contracts'
 import type { TabId } from './game/types'
@@ -159,6 +160,32 @@ function Shell() {
     [unlocked],
   )
 
+  const swipeTabs = useMemo(
+    () => TABS.map((t) => t.id).filter((id) => unlocked.includes(id)),
+    [unlocked],
+  )
+
+  const onSectionSwipe = useCallback(
+    (dir: -1 | 1) => {
+      if (tab === 'settings') {
+        setTabSafe('factory')
+        return
+      }
+      const idx = swipeTabs.indexOf(tab)
+      if (idx < 0) return
+      const next = swipeTabs[idx + dir]
+      if (next) setTabSafe(next)
+    },
+    [tab, swipeTabs, setTabSafe],
+  )
+
+  const sectionSwipe = useSectionSwipe(
+    true,
+    onSectionSwipe,
+    // Map pan, build rail, overlays, and the dock keep their own gestures.
+    '.factory-viewport, .build-rail, .machine-sheet, .bottom-nav, .tutorial-root, .toast, .away-root, .minimap, .viewport-fabs',
+  )
+
   const sheetLabel =
     tab === 'settings'
       ? 'Settings'
@@ -174,6 +201,9 @@ function Shell() {
       ]
         .filter(Boolean)
         .join(' ')}
+      onPointerDown={sectionSwipe.onPointerDown}
+      onPointerUp={sectionSwipe.onPointerUp}
+      onPointerCancel={sectionSwipe.onPointerCancel}
     >
       <div className="atmosphere" aria-hidden>
         <div className="belt-strip" />
