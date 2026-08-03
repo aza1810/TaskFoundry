@@ -76,7 +76,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   },
   {
     id: 'done',
-    title: 'You're on the clock',
+    title: "You're on the clock",
     body: 'Craft, Lab, and Skills are unlocked. Keep the loop going: walk → mine → move → smelt → task rewards. Use ··· in the top bar for Settings, updates, and sign out.',
     mode: 'modal',
     unlockTabs: ['factory', 'inventory', 'steps', 'craft', 'research', 'skills', 'habits'],

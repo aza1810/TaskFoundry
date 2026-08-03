@@ -68,18 +68,15 @@ if (!found || !fs.existsSync(found)) {
 
 fs.renameSync(found, zipPath)
 
-let checksum = ''
-try {
-  const parsed = JSON.parse(raw.trim().split('\n').filter(Boolean).at(-1) || '{}')
-  checksum = parsed.checksum || parsed.sha256 || ''
-} catch {
-  /* fall through */
+// Always hash the file we publish so Capgo download checksum matches FTP bytes.
+const { createHash } = await import('node:crypto')
+const zipBytes = fs.readFileSync(zipPath)
+if (zipBytes.length < 1024 || zipBytes[0] !== 0x50 || zipBytes[1] !== 0x4b) {
+  console.error('OTA zip looks invalid (too small or missing PK header)')
+  process.exit(1)
 }
-if (!checksum) {
-  // sha256 of zip as fallback
-  const { createHash } = await import('node:crypto')
-  checksum = createHash('sha256').update(fs.readFileSync(zipPath)).digest('hex')
-}
+const checksum = createHash('sha256').update(zipBytes).digest('hex')
+console.log(`OTA zip ${zipName}: ${zipBytes.length} bytes, sha256=${checksum}`)
 
 const latest = {
   version,

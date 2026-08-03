@@ -25,8 +25,10 @@ on:
   workflow_dispatch:
 
 concurrency:
+  # Never cancel mid-FTP: a cancelled OTA upload leaves a truncated zip that
+  # latest.json still points at, and Capgo downloads then fail checksum.
   group: deploy-azztech-tf
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -163,8 +165,33 @@ jobs:
           echo "CORS: $cors"
           echo "$cors" | grep -qi 'access-control-allow-origin'
           bundle_url=$(python3 -c 'import json; print(json.load(open("/tmp/ota.json"))["url"])')
-          bundle_code=$(curl -sS -o /dev/null -w '%{http_code}' -I "$bundle_url")
-          echo "OTA bundle HTTP $bundle_code → $bundle_url"
-          test "$bundle_code" = "200"
+          expected_sum=$(python3 -c 'import json; print(json.load(open("/tmp/ota.json")).get("checksum") or "")')
+          expected_size=$(stat -c%s ota-dist/$(basename "$bundle_url"))
+          curl -sS -o /tmp/ota-bundle.zip -w "OTA bundle HTTP %{http_code} size=%{size_download}\n" "$bundle_url"
+          test -s /tmp/ota-bundle.zip
+          live_size=$(stat -c%s /tmp/ota-bundle.zip)
+          echo "OTA bundle size live=$live_size expected=$expected_size → $bundle_url"
+          test "$live_size" = "$expected_size"
+          # Truncated zips often still start with PK but lack the central directory.
+          python3 - <<'PY'
+          import zipfile, sys
+          path = "/tmp/ota-bundle.zip"
+          try:
+              with zipfile.ZipFile(path) as zf:
+                  bad = zf.testzip()
+                  names = zf.namelist()
+              if bad:
+                  raise SystemExit(f"corrupt member: {bad}")
+              if not names:
+                  raise SystemExit("zip has no entries")
+              print(f"zip OK ({len(names)} entries)")
+          except zipfile.BadZipFile as e:
+              raise SystemExit(f"bad zip: {e}")
+          PY
+          if [ -n "$expected_sum" ]; then
+            live_sum=$(sha256sum /tmp/ota-bundle.zip | awk '{print $1}')
+            echo "OTA checksum live=$live_sum expected=$expected_sum"
+            test "$live_sum" = "$expected_sum"
+          fi
           echo "Live OK → https://azztech.online/apps/tf/"
           echo "OTA OK → https://azztech.online/apps/tf/ota/latest.php"
