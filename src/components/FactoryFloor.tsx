@@ -42,6 +42,36 @@ const ZOOM_MAX = 2.2
 /** Touch browsers often report movementX/Y as 0 - use client deltas instead. */
 const PAN_SLOP = 10
 const PAINT_HOLD_MS = 280
+
+/** Keep the factory grid inside the viewport - no empty panning past the edges. */
+function clampPan(
+  pan: { x: number; y: number },
+  zoom: number,
+  viewport: { width: number; height: number },
+  mapW: number,
+  mapH: number,
+): { x: number; y: number } {
+  const vw = viewport.width
+  const vh = viewport.height
+  if (vw <= 0 || vh <= 0) return pan
+
+  const worldW = mapW * CELL * zoom
+  const worldH = mapH * CELL * zoom
+
+  let x: number
+  let y: number
+  if (worldW <= vw) {
+    x = (vw - worldW) / 2
+  } else {
+    x = Math.min(0, Math.max(vw - worldW, pan.x))
+  }
+  if (worldH <= vh) {
+    y = (vh - worldH) / 2
+  } else {
+    y = Math.min(0, Math.max(vh - worldH, pan.y))
+  }
+  return { x, y }
+}
 const HUD_RESOURCES: ItemId[] = [
   'ironOre',
   'copperOre',
@@ -274,6 +304,9 @@ export function FactoryFloor({
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const velocity = useRef({ x: 0, y: 0 })
   const inertiaRaf = useRef(0)
+  const viewportSize = useRef({ width: 0, height: 0 })
+  const cameraRef = useRef({ zoom, width, height })
+  cameraRef.current = { zoom, width, height }
   const prevSteps = useRef(state.stepsToday)
   const prevOre = useRef(state.stats.oreMined)
   const prevCycles = useRef(state.mineCycles)
@@ -357,6 +390,26 @@ export function FactoryFloor({
     if (highlight === 'ore' || highlight === 'drillTool') setToolTab('build')
   }, [highlight])
 
+  const clampCamera = useCallback((p: { x: number; y: number }) => {
+    const cam = cameraRef.current
+    return clampPan(p, cam.zoom, viewportSize.current, cam.width, cam.height)
+  }, [])
+
+  // Keep pan bounds in sync with viewport size and zoom
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const sync = () => {
+      const rect = el.getBoundingClientRect()
+      viewportSize.current = { width: rect.width, height: rect.height }
+      setPan((p) => clampCamera(p))
+    }
+    sync()
+    const ro = new ResizeObserver(sync)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [clampCamera, zoom, width, height])
+
   // Camera inertia after pan
   useEffect(() => {
     return () => {
@@ -374,13 +427,22 @@ export function FactoryFloor({
         inertiaRaf.current = 0
         return
       }
-      setPan((p) => ({ x: p.x + vx, y: p.y + vy }))
-      velocity.current = { x: vx * 0.9, y: vy * 0.9 }
+      setPan((p) => {
+        const attempted = { x: p.x + vx, y: p.y + vy }
+        const next = clampCamera(attempted)
+        if (next.x !== attempted.x) velocity.current.x = 0
+        if (next.y !== attempted.y) velocity.current.y = 0
+        return next
+      })
+      velocity.current = {
+        x: velocity.current.x * 0.9,
+        y: velocity.current.y * 0.9,
+      }
       inertiaRaf.current = requestAnimationFrame(tick)
     }
     if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current)
     inertiaRaf.current = requestAnimationFrame(tick)
-  }, [])
+  }, [clampCamera])
 
   const toolsForTab: ToolId[] =
     toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS
@@ -445,13 +507,17 @@ export function FactoryFloor({
       const vp = viewportRef.current
       if (!vp) return
       const rect = vp.getBoundingClientRect()
-      setPan({
-        x: rect.width / 2 - (gx + 0.5) * CELL * zoom,
-        y: rect.height / 2 - (gy + 0.5) * CELL * zoom,
-      })
+      viewportSize.current = { width: rect.width, height: rect.height }
+      const z = cameraRef.current.zoom
+      setPan(
+        clampCamera({
+          x: rect.width / 2 - (gx + 0.5) * CELL * z,
+          y: rect.height / 2 - (gy + 0.5) * CELL * z,
+        }),
+      )
       velocity.current = { x: 0, y: 0 }
     },
-    [zoom],
+    [clampCamera],
   )
 
   const recenter = useCallback(() => {
@@ -568,11 +634,15 @@ export function FactoryFloor({
     }
 
     if (gesture.current.kind === 'pan' && pointers.current.size === 1) {
-      setPan((p) => ({ x: p.x + dx, y: p.y + dy }))
-      velocity.current = {
-        x: dx * 0.85 + velocity.current.x * 0.15,
-        y: dy * 0.85 + velocity.current.y * 0.15,
-      }
+      setPan((p) => {
+        const attempted = { x: p.x + dx, y: p.y + dy }
+        const next = clampCamera(attempted)
+        velocity.current = {
+          x: next.x !== attempted.x ? 0 : dx * 0.85 + velocity.current.x * 0.15,
+          y: next.y !== attempted.y ? 0 : dy * 0.85 + velocity.current.y * 0.15,
+        }
+        return next
+      })
       gesture.current.moved = true
       return
     }
