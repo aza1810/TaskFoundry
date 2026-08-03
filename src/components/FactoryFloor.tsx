@@ -371,6 +371,11 @@ export function FactoryFloor({
     return id ? entities[id] ?? null : null
   }, [inspect, tiles, entities])
 
+  const inspectTile = useMemo(() => {
+    if (!inspect) return null
+    return tiles[idx(inspect.x, inspect.y)] ?? null
+  }, [inspect, tiles])
+
   const spawnFloater = useCallback(
     (x: number, y: number, text: string, tone: Floater['tone'] = 'good') => {
       const id = ++floaterSeq
@@ -766,9 +771,12 @@ export function FactoryFloor({
         if (selected && cell) {
           paintCell(cell.x, cell.y)
         } else if (!selected && cell) {
-          const entId = tiles[idx(cell.x, cell.y)]?.entityId
-          setInspect(entId ? cell : null)
-          if (entId) buzz(6)
+          const tile = tiles[idx(cell.x, cell.y)]
+          setInspect(cell)
+          buzz(6)
+          if (tile?.ore) {
+            spawnFloater(cell.x, cell.y, ITEM_META[tile.ore].short, 'ore')
+          }
         } else if (!selected) {
           setInspect(null)
         }
@@ -789,7 +797,7 @@ export function FactoryFloor({
   }, [selected])
 
   const toolLabel = !selected
-    ? 'Drag to pan · tap machines'
+    ? 'Drag to pan · tap a tile to inspect'
     : selected === 'remove'
       ? 'Tap or hold-drag to demolish · drag pans'
       : selected === 'rotate'
@@ -1431,111 +1439,194 @@ export function FactoryFloor({
         </div>
       </div>
 
-      {inspectEnt && inspect && (
-        <div className="machine-sheet" role="dialog" aria-label="Machine">
+      {inspect && inspectTile && (
+        <div
+          className={`machine-sheet ${inspectEnt ? '' : 'is-ground'}`.trim()}
+          role="dialog"
+          aria-label={inspectEnt ? 'Machine' : 'Tile'}
+        >
           <div className="machine-sheet-head">
             <strong>
-              {PLACEABLE_META[inspectEnt.kind as Placeable]?.label ?? inspectEnt.kind}{' '}
-              {dirArrow(inspectEnt.dir)}
+              {inspectEnt ? (
+                <>
+                  {PLACEABLE_META[inspectEnt.kind as Placeable]?.label ?? inspectEnt.kind}{' '}
+                  {dirArrow(inspectEnt.dir)}
+                </>
+              ) : inspectTile.ore ? (
+                <>
+                  <ItemSprite item={inspectTile.ore} /> {ITEM_META[inspectTile.ore].label}
+                </>
+              ) : (
+                'Empty ground'
+              )}
             </strong>
             <button type="button" className="ghost-btn" onClick={() => setInspect(null)}>
               Close
             </button>
           </div>
-          <p className="machine-sheet-hint">
-            {PLACEABLE_META[inspectEnt.kind as Placeable]?.hint ??
-              (inspectEnt.kind === 'assembler'
-                ? 'Crafts gears from iron plates.'
-                : 'Tap Rotate to turn; Demolish to remove.')}
-          </p>
-          {(() => {
-            const status = machineStatus(
-              inspectEnt,
-              tiles[idx(inspect.x, inspect.y)],
-              state,
-            )
-            return (
-              <p className={`machine-sheet-status is-${status.tone}`}>
-                {status.label}
+
+          {inspectEnt ? (
+            <>
+              <p className="machine-sheet-hint">
+                {PLACEABLE_META[inspectEnt.kind as Placeable]?.hint ??
+                  (inspectEnt.kind === 'assembler'
+                    ? 'Crafts gears from iron plates.'
+                    : 'Tap Rotate to turn; Demolish to remove.')}
               </p>
-            )
-          })()}
-          <p className="machine-sheet-meta">
-            ({inspect.x},{inspect.y})
-            {storeSummary(inspectEnt) ? ` · ${storeSummary(inspectEnt)}` : ''}
-            {inspectEnt.kind === 'drill'
-              ? ` · coal ${Math.floor(inspectEnt.store.coal ?? 0)}`
-              : ''}
-          </p>
-          <div className="machine-sheet-actions">
-            <button
-              type="button"
-              className="primary-btn"
-              onClick={() => {
-                rotateAt(inspect.x, inspect.y)
-                buzz(8)
-              }}
-            >
-              Rotate
-            </button>
-            {inspectEnt.kind === 'drill' && (
-              <button
-                type="button"
-                className="primary-btn"
-                disabled={state.inventory.coal < 1}
-                onClick={() => {
-                  const beforeCoal = state.inventory.coal
-                  const preview = fuelDrillAt(state, inspect.x, inspect.y)
-                  fuelAt(inspect.x, inspect.y)
-                  const spent = beforeCoal - preview.inventory.coal
-                  if (spent <= 0) {
-                    spawnFloater(inspect.x, inspect.y, 'no fuel', 'warn')
-                    buzz(4)
-                  } else {
-                    spawnFloater(inspect.x, inspect.y, '+fuel', 'good')
-                    buzz(10)
-                  }
-                }}
-              >
-                Fuel
-              </button>
-            )}
-            {inspectEnt.kind === 'chest' && (
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => {
-                  const beforeHeld = Object.values(inspectEnt.store).reduce(
-                    (s, n) => s + (n ?? 0),
-                    0,
-                  )
-                  collect(inspect.x, inspect.y)
-                  if (beforeHeld <= 0) {
-                    spawnFloater(inspect.x, inspect.y, 'empty', 'warn')
-                    buzz(4)
-                  } else {
-                    spawnFloater(inspect.x, inspect.y, 'loot', 'good')
-                    buzz(10)
-                  }
-                }}
-              >
-                Collect
-              </button>
-            )}
-            <button
-              type="button"
-              className="primary-btn danger-btn"
-              onClick={() => {
-                selectTool('remove')
-                place(inspect.x, inspect.y)
-                selectTool(null)
-                setInspect(null)
-                buzz(15)
-              }}
-            >
-              Demolish
-            </button>
-          </div>
+              {(() => {
+                const status = machineStatus(inspectEnt, inspectTile, state)
+                return (
+                  <p className={`machine-sheet-status is-${status.tone}`}>
+                    {status.label}
+                  </p>
+                )
+              })()}
+              <p className="machine-sheet-meta">
+                ({inspect.x},{inspect.y})
+                {inspectTile.ore
+                  ? ` · on ${ITEM_META[inspectTile.ore].label}${
+                      inspectTile.amount != null
+                        ? ` (${formatNum(inspectTile.amount)} left)`
+                        : ''
+                    }`
+                  : ' · plain ground'}
+                {storeSummary(inspectEnt) ? ` · ${storeSummary(inspectEnt)}` : ''}
+                {inspectEnt.kind === 'drill'
+                  ? ` · coal ${Math.floor(inspectEnt.store.coal ?? 0)}`
+                  : ''}
+              </p>
+              <div className="machine-sheet-actions">
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => {
+                    rotateAt(inspect.x, inspect.y)
+                    buzz(8)
+                  }}
+                >
+                  Rotate
+                </button>
+                {inspectEnt.kind === 'drill' && (
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    disabled={state.inventory.coal < 1}
+                    onClick={() => {
+                      const beforeCoal = state.inventory.coal
+                      const preview = fuelDrillAt(state, inspect.x, inspect.y)
+                      fuelAt(inspect.x, inspect.y)
+                      const spent = beforeCoal - preview.inventory.coal
+                      if (spent <= 0) {
+                        spawnFloater(inspect.x, inspect.y, 'no fuel', 'warn')
+                        buzz(4)
+                      } else {
+                        spawnFloater(inspect.x, inspect.y, '+fuel', 'good')
+                        buzz(10)
+                      }
+                    }}
+                  >
+                    Fuel
+                  </button>
+                )}
+                {inspectEnt.kind === 'chest' && (
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={() => {
+                      const beforeHeld = Object.values(inspectEnt.store).reduce(
+                        (s, n) => s + (n ?? 0),
+                        0,
+                      )
+                      collect(inspect.x, inspect.y)
+                      if (beforeHeld <= 0) {
+                        spawnFloater(inspect.x, inspect.y, 'empty', 'warn')
+                        buzz(4)
+                      } else {
+                        spawnFloater(inspect.x, inspect.y, 'loot', 'good')
+                        buzz(10)
+                      }
+                    }}
+                  >
+                    Collect
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="primary-btn danger-btn"
+                  onClick={() => {
+                    selectTool('remove')
+                    place(inspect.x, inspect.y)
+                    selectTool(null)
+                    setInspect(null)
+                    buzz(15)
+                  }}
+                >
+                  Demolish
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="machine-sheet-hint">
+                {inspectTile.ore === 'ironOre'
+                  ? 'Brown iron patch. Place a burner or electric drill here to mine it with steps.'
+                  : inspectTile.ore === 'copperOre'
+                    ? 'Copper patch. Drill here to mine copper ore for plates and wiring crafts.'
+                    : inspectTile.ore === 'coal'
+                      ? 'Coal seam. Mine it for fuel - burner drills and furnaces need coal.'
+                      : 'Open ground. Belts, furnaces, chests, and assemblers can go here.'}
+              </p>
+              {inspectTile.ore && (
+                <p
+                  className="machine-sheet-status is-ok"
+                  style={{ '--res': ITEM_META[inspectTile.ore].color } as CSSProperties}
+                >
+                  {ITEM_META[inspectTile.ore].short} ·{' '}
+                  {inspectTile.amount == null
+                    ? 'Rich patch'
+                    : `${formatNum(inspectTile.amount)} remaining`}
+                </p>
+              )}
+              <p className="machine-sheet-meta">
+                ({inspect.x},{inspect.y})
+                {inspectTile.ore
+                  ? ` · ${ITEM_META[inspectTile.ore].label}`
+                  : ' · buildable tile'}
+              </p>
+              {inspectTile.ore && (
+                <div className="machine-sheet-actions">
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    disabled={(state.inventory.drill ?? 0) < 1}
+                    onClick={() => {
+                      selectTool('drill')
+                      setRailOpen(true)
+                      setToolTab('build')
+                      buzz(6)
+                    }}
+                  >
+                    Select drill
+                  </button>
+                  {(state.inventory.electricDrill ?? 0) > 0 &&
+                    state.researched.includes('electricMining') && (
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        onClick={() => {
+                          selectTool('electricDrill')
+                          setRailOpen(true)
+                          setToolTab('build')
+                          buzz(6)
+                        }}
+                      >
+                        Electric drill
+                      </button>
+                    )}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </section>
