@@ -2,6 +2,10 @@
 /**
  * Upload ota-dist/ → apps/tf/ota/ without wiping the web app.
  * Reconnects per file and retries on Fasthosts 425 PASV flakes.
+ *
+ * Order matters: zip bundles first, then helpers, latest.json last so
+ * clients never see a manifest pointing at a missing/partial zip.
+ *
  * Required env: FTP_HOST, FTP_USER, FTP_PASS
  */
 import fs from 'node:fs'
@@ -31,6 +35,12 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
 }
 
+function uploadRank(name) {
+  if (name.endsWith('.zip')) return 0
+  if (name === 'latest.json') return 2
+  return 1
+}
+
 async function withClient(fn) {
   const client = new Client(120000)
   client.ftp.verbose = true
@@ -44,13 +54,20 @@ async function withClient(fn) {
 
 async function uploadFile(name) {
   const local = path.join(localDir, name)
+  const expectedSize = fs.statSync(local).size
   let lastErr
   for (let i = 1; i <= attempts; i++) {
     try {
       await withClient(async (client) => {
         await client.ensureDir(remoteDir)
-        console.log(`Uploading ${name} (try ${i}/${attempts})`)
+        console.log(`Uploading ${name} (${expectedSize} bytes, try ${i}/${attempts})`)
         await client.uploadFrom(local, name)
+        const size = await client.size(name)
+        if (Number(size) !== expectedSize) {
+          throw new Error(
+            `Remote size mismatch for ${name}: got ${size}, expected ${expectedSize}`,
+          )
+        }
       })
       return
     } catch (err) {
@@ -66,6 +83,9 @@ async function uploadFile(name) {
 const files = fs
   .readdirSync(localDir)
   .filter((name) => fs.statSync(path.join(localDir, name)).isFile())
+  .sort((a, b) => uploadRank(a) - uploadRank(b) || a.localeCompare(b))
+
+console.log('OTA upload order:', files.join(', '))
 
 for (const name of files) {
   await uploadFile(name)
