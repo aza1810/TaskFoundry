@@ -185,7 +185,6 @@ function Shell() {
       <div className={`game-stage ${playing ? 'is-front' : 'is-back'}`}>
         <FactoryFloor
           highlight={highlight}
-          pedometer={pedometer}
           onOpenTasks={() => setTabSafe('habits')}
           onOpenSteps={() => setTabSafe('steps')}
           onOpenSettings={() => setTabSafe('settings')}
@@ -257,9 +256,6 @@ function Shell() {
                 <TabIcon id={t.id} />
               </span>
               <span className="bottom-nav-label">{t.short}</span>
-              {t.id === 'steps' && pedometer.status === 'listening' && (
-                <span className="bottom-nav-live">live</span>
-              )}
               {t.id === 'craft' && state.craftQueue.length > 0 && (
                 <span className="bottom-nav-live">{state.craftQueue.length}</span>
               )}

@@ -39,14 +39,33 @@ export function StepsPanel({
   }
 
   return (
-    <section className="panel">
+    <section className="panel steps-hub">
       <div className="panel-head">
-        <h2>Step Cycles</h2>
+        <h2>Steps</h2>
         <p>
-          {healthSteps.isNative
-            ? 'Sync steps from Apple Health / Health Connect, or use the live pedometer. Each step runs one mining cycle on every drill.'
-            : 'Start the phone pedometer and walk with this page open. For Health / Fit sync, install the native Task Foundry app.'}
+          This is the only place to sync health or run the pedometer. Every step runs one mining
+          cycle on every drill. Today&apos;s total stays in the top bar on the Floor.
         </p>
+      </div>
+
+      <div className="steps-today-card" aria-live="polite">
+        <div className="steps-today-main">
+          <span className="steps-today-num">{formatNum(state.stepsToday)}</span>
+          <span className="steps-today-label">steps today</span>
+        </div>
+        <div className="steps-today-meta">
+          <p>
+            <strong>{drills}</strong> drill{drills === 1 ? '' : 's'} on the floor
+          </p>
+          <p>
+            Lifetime {formatNum(state.stepsLifetime)} · Mine cycles {formatNum(state.mineCycles)}
+          </p>
+          {listening && (
+            <p className="steps-today-live">
+              Pedometer live · +{formatNum(pedometer.sessionSteps)} this session
+            </p>
+          )}
+        </div>
       </div>
 
       {healthSteps.isNative ? (
@@ -68,8 +87,8 @@ export function StepsPanel({
             </span>
           </div>
           <p className="pedo-copy">
-            Reads today&apos;s steps from {healthSteps.platformLabel}. Only new steps since the last
-            sync are imported.
+            Pull today&apos;s steps from {healthSteps.platformLabel}. Only new steps since the last
+            sync are added to your foundry total.
           </p>
           <div className="pedo-session">
             <span className="pedo-session-num">
@@ -77,7 +96,7 @@ export function StepsPanel({
                 ? '-'
                 : formatNum(healthSteps.healthStepsToday)}
             </span>
-            <span className="pedo-session-label">steps in health today</span>
+            <span className="pedo-session-label">in health today</span>
           </div>
           <div className="pedo-actions">
             <button
@@ -106,12 +125,12 @@ export function StepsPanel({
       ) : (
         <div className="pedo-card">
           <div className="pedo-head">
-            <h3>Native health sync</h3>
-            <span className="pedo-status status-web">Web only</span>
+            <h3>Health sync</h3>
+            <span className="pedo-status status-web">App only</span>
           </div>
           <p className="pedo-copy">
-            This browser site cannot read Apple Health or Google Health Connect. Use the native
-            Android / iOS app for that, or the live pedometer below.
+            Apple Health and Google Health Connect need the native Task Foundry app. On the web,
+            use the phone pedometer below.
           </p>
         </div>
       )}
@@ -122,7 +141,7 @@ export function StepsPanel({
         }`}
       >
         <div className="pedo-head">
-          <h3>Phone pedometer</h3>
+          <h3>Live pedometer</h3>
           <span className={`pedo-status status-${pedometer.status}`}>
             {pedometer.status === 'listening' && 'Listening'}
             {pedometer.status === 'idle' && 'Off'}
@@ -132,8 +151,8 @@ export function StepsPanel({
           </span>
         </div>
         <p className="pedo-copy">
-          Uses your phone&apos;s motion sensors while this page stays open. Useful as a backup when
-          health sync isn&apos;t available.
+          Uses motion sensors while Task Foundry stays open. Start it here, then walk - keep this
+          tab or the app in the foreground for best results.
         </p>
         <div className="pedo-session">
           <span className="pedo-session-num">{formatNum(pedometer.sessionSteps)}</span>
@@ -153,7 +172,7 @@ export function StepsPanel({
                 !pedometer.supported
               }
             >
-              {pedometer.supported ? 'Start live pedometer' : 'Sensors unavailable'}
+              {pedometer.supported ? 'Start pedometer' : 'Sensors unavailable'}
             </button>
           ) : (
             <button type="button" className="primary-btn pedo-stop" onClick={pedometer.stop}>
@@ -163,36 +182,20 @@ export function StepsPanel({
         </div>
         {pedometer.status === 'denied' && (
           <p className="hint pedo-hint">
-            Allow motion / accelerometer access for this site in your browser settings,
-            then try again. On iPhone use Safari and tap Allow when prompted.
+            Allow motion / accelerometer access in your browser or phone settings, then try again.
           </p>
         )}
         {pedometer.status === 'unsupported' && (
           <p className="hint pedo-hint">
-            This browser has no motion sensors. Open Task Foundry on your phone (Chrome or
-            Safari), or skip this tour step for now.
+            This browser has no motion sensors. Open Task Foundry on your phone, or use the native
+            app with Health Connect.
           </p>
         )}
       </div>
 
-      <div className="steps-hero">
-        <div className="steps-count">
-          <span className="steps-num">{formatNum(state.stepsToday)}</span>
-          <span className="steps-label">steps today</span>
-        </div>
-        <div className="steps-goal">
-          <p>
-            Drills on floor: <strong>{drills}</strong>
-          </p>
-          <p>
-            Lifetime steps {formatNum(state.stepsLifetime)} · Mine cycles{' '}
-            {formatNum(state.mineCycles)}
-          </p>
-          <p className="hint">
-            Tip: fuel burner drills with coal (toolbar or inserter from a coal line).
-          </p>
-        </div>
-      </div>
+      <p className="hint steps-hub-tip">
+        Tip: fuel burner drills with coal so walking actually mines ore.
+      </p>
     </section>
   )
 }

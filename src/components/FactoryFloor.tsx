@@ -20,7 +20,6 @@ import {
   isFurnaceKind,
   isInserterKind,
   storeTotal,
-  titleForLevel,
   xpForLevel,
 } from '../game/data'
 import { useGame } from '../game/GameContext'
@@ -40,7 +39,6 @@ import {
   ToolIcon,
 } from '../sprites/Sprites'
 import { useProductionRates } from '../hooks/useProductionRates'
-import type { PedometerApi } from '../hooks/usePedometer'
 import { resolveTheme, subscribeTheme } from '../theme'
 import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
 
@@ -261,13 +259,11 @@ let floaterSeq = 0
 
 export function FactoryFloor({
   highlight = null,
-  pedometer,
   onOpenTasks,
   onOpenSteps,
   onOpenSettings,
 }: {
   highlight?: Highlight
-  pedometer: PedometerApi
   onOpenTasks: () => void
   onOpenSteps: () => void
   onOpenSettings: () => void
@@ -879,17 +875,13 @@ export function FactoryFloor({
           </div>
           <button
             type="button"
-            className={`game-hud-steps ${stepPulse ? 'is-pulse' : ''} ${
-              pedometer.status === 'listening' ? 'is-live' : ''
-            }`}
+            className={`game-hud-steps ${stepPulse ? 'is-pulse' : ''}`}
             onClick={onOpenSteps}
-            title={`${state.playerName} · ${titleForLevel(state.level)}`}
+            title="Today's steps - open Steps"
+            aria-label={`${formatNum(state.stepsToday)} steps today`}
           >
-            <span className="game-hud-steps-label">Steps</span>
+            <span className="game-hud-steps-label">Today</span>
             <span className="game-hud-steps-num">{formatNum(state.stepsToday)}</span>
-            {pedometer.status === 'listening' && (
-              <span className="game-hud-steps-live">+{pedometer.sessionSteps}</span>
-            )}
           </button>
           <button
             type="button"
@@ -980,16 +972,6 @@ export function FactoryFloor({
               aria-hidden
               style={{ '--craft-pct': `${craftPct}%` } as CSSProperties}
             />
-          </div>
-        )}
-
-        {pedometer.status === 'listening' && (
-          <div className="game-walk-banner">
-            <span className="game-walk-dot" aria-hidden />
-            Walking - drills mine with each step
-            <button type="button" onClick={pedometer.stop}>
-              Stop
-            </button>
           </div>
         )}
       </div>
@@ -1353,18 +1335,6 @@ export function FactoryFloor({
                     onClick={() => buildStarter()}
                   >
                     Starter
-                  </button>
-                )}
-                {pedometer.status !== 'listening' && pedometer.supported && (
-                  <button
-                    type="button"
-                    className="rail-chip is-walk"
-                    onClick={() => {
-                      void pedometer.start()
-                      buzz(12)
-                    }}
-                  >
-                    Walk
                   </button>
                 )}
               </div>
