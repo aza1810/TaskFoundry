@@ -3097,14 +3097,14 @@ button {
     'label title prog'
     'bar bar bar';
   align-items: baseline;
-  column-gap: 0.45rem;
-  row-gap: 0.28rem;
+  column-gap: 0.4rem;
+  row-gap: 0.2rem;
   min-width: 0;
   text-align: left;
-  padding: 0.28rem 0.5rem 0.38rem;
+  padding: 0.2rem 0.45rem 0.28rem;
   border: 1px solid #3a3020;
   border-left: 3px solid var(--belt);
-  background: rgba(36, 28, 16, 0.88);
+  background: rgba(36, 28, 16, 0.82);
   color: #e8e0d4;
   font: inherit;
   border-radius: 7px;
