@@ -1160,16 +1160,11 @@ button {
 }
 
 .manual-steps {
-  margin-top: 1.4rem;
-  padding-top: 1rem;
-  border-top: 1px solid #2a3028;
+  display: none;
 }
 
 .manual-title {
-  margin: 0 0 0.65rem;
-  font-size: 0.95rem;
-  color: #c4b8a0;
-  font-weight: 600;
+  display: none;
 }
 
 .pedo-chip {
@@ -2162,13 +2157,17 @@ button {
   border-left: 4px solid var(--belt);
 }
 
-/* Lift toasts above the open build tool dock */
-.app-game:has(.build-console.is-open) .toast {
-  bottom: calc(12.5rem + env(safe-area-inset-bottom, 0px));
+/* Lift toasts above the floating build rail */
+.app-game:has(.build-rail.is-expanded) .toast {
+  bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px));
 }
 
-.app-game:has(.build-console.is-open) .tutorial-root.is-coach {
-  padding-bottom: calc(12.5rem + env(safe-area-inset-bottom, 0px));
+.app-game:has(.build-rail.is-expanded) .tutorial-root.is-coach {
+  padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.app-game.is-playing:not(:has(.build-rail.is-expanded)) .toast {
+  bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px));
 }
 
 .toast.is-ok {
@@ -2774,6 +2773,10 @@ button {
   padding: 0 0 calc(4.6rem + env(safe-area-inset-bottom, 0px));
 }
 
+.app-game.is-playing .game-stage {
+  padding-bottom: calc(3.55rem + env(safe-area-inset-bottom, 0px));
+}
+
 .game-stage.is-back {
   position: fixed;
   inset: 0;
@@ -2875,24 +2878,47 @@ button {
   border-color: #c9a227;
 }
 
+.app-game.is-playing .bottom-nav {
+  padding: 0.22rem 0.28rem calc(0.28rem + env(safe-area-inset-bottom, 0px));
+  gap: 0.12rem;
+}
+
+.app-game.is-playing .bottom-nav-btn {
+  min-height: 2.75rem;
+  padding: 0.22rem 0.05rem 0.16rem;
+  gap: 0.1rem;
+  border-radius: 8px;
+}
+
+.app-game.is-playing .bottom-nav-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.app-game.is-playing .bottom-nav-label {
+  font-size: clamp(0.52rem, 2vw, 0.64rem);
+}
+
 .factory-floor.is-playable {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0;
   flex: 1;
   min-height: 0;
   height: 100%;
   color: #e8e0d4;
+  position: relative;
 }
 
 .game-hud {
   z-index: 6;
   display: grid;
-  gap: 0.28rem;
-  padding: 0.3rem 0.45rem 0.35rem;
-  padding-top: calc(0.25rem + env(safe-area-inset-top, 0px));
-  background: var(--bg-hud);
-  border-bottom: 1px solid var(--border-chrome);
+  gap: 0.18rem;
+  padding: 0.22rem 0.4rem 0.28rem;
+  padding-top: calc(0.18rem + env(safe-area-inset-top, 0px));
+  background: color-mix(in srgb, var(--bg-hud) 92%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-chrome) 70%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .game-hud-top {
@@ -3313,6 +3339,7 @@ button {
   overflow: hidden;
   min-height: 220px;
   height: 100%;
+  --rail-clearance: 3.35rem;
   background:
     radial-gradient(ellipse at 30% 20%, rgba(201, 162, 39, 0.1), transparent 50%),
     radial-gradient(ellipse at 80% 80%, rgba(61, 122, 82, 0.08), transparent 45%),
@@ -3323,6 +3350,10 @@ button {
   box-shadow: inset 0 0 0 1px var(--viewport-border);
   touch-action: none;
   cursor: grab;
+}
+
+.factory-viewport.is-tools-open {
+  --rail-clearance: 6.4rem;
 }
 
 .factory-vignette {
@@ -3567,24 +3598,26 @@ button {
 
 .viewport-fabs {
   position: absolute;
-  right: 0.45rem;
-  bottom: 2.6rem;
+  right: 0.4rem;
+  bottom: calc(var(--rail-clearance) + 0.35rem);
   z-index: 4;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.28rem;
+  transition: bottom 0.2s ease;
 }
 
 .fab-btn {
-  width: 2.55rem;
-  height: 2.55rem;
-  border: 1px solid #4a3a24;
-  background: rgba(28, 24, 18, 0.92);
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid rgba(74, 58, 36, 0.95);
+  background: rgba(22, 18, 14, 0.82);
   color: #f0e0a0;
   font: inherit;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  border-radius: 10px;
-  backdrop-filter: blur(6px);
+  border-radius: 9px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .fab-rotate {
@@ -3594,17 +3627,18 @@ button {
 
 .minimap {
   position: absolute;
-  left: 0.45rem;
-  bottom: 2.6rem;
+  left: 0.4rem;
+  bottom: calc(var(--rail-clearance) + 0.35rem);
   z-index: 4;
-  width: 84px;
-  height: 56px;
+  width: 76px;
+  height: 50px;
   padding: 0;
   border: 1px solid #c9a227;
   background: var(--minimap-bg);
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 6px 16px var(--shadow);
+  transition: bottom 0.2s ease;
 }
 
 .minimap canvas {
@@ -3677,16 +3711,22 @@ button {
 }
 
 .machine-sheet {
-  z-index: 7;
-  padding: 0.7rem 0.8rem;
-  background: var(--bg-sheet);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  padding: 0.55rem 0.7rem 0.65rem;
+  background: color-mix(in srgb, var(--bg-sheet) 94%, transparent);
   border: 1px solid var(--border-chrome);
   border-left: none;
   border-right: none;
+  border-bottom: none;
   border-top-color: #c9a227;
-  box-shadow: 0 -8px 24px var(--shadow);
+  box-shadow: 0 -10px 28px var(--shadow);
   animation: rise-in 0.2s ease-out;
   color: var(--text-chrome);
+  backdrop-filter: blur(10px);
 }
 
 .machine-sheet-head {
@@ -3722,146 +3762,187 @@ button {
   color: #f0c8c0 !important;
 }
 
-.build-console {
-  z-index: 8;
-  padding: 0.35rem 0.45rem 0.5rem;
-  background: rgba(12, 12, 10, 0.97);
-  border-top: 1px solid #3a3020;
-  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.45);
-}
-
-.build-console-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 0.35rem;
-  border: 1px solid #3a3020;
-  background: #1a1612;
-  color: #d4c4a0;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0.45rem 0.65rem;
-  border-radius: 8px;
-}
-
-.build-console-toggle span {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: #f0e0a0;
-}
-
-.build-console.is-collapsed {
-  padding-bottom: 0.4rem;
-}
-
-.build-mode-row {
+.build-rail {
+  position: absolute;
+  left: 0.35rem;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  z-index: 5;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.3rem;
-  margin-bottom: 0.4rem;
+  gap: 0.28rem;
+  pointer-events: none;
 }
 
-.build-mode-row button {
-  border: 1px solid #3a3020;
-  background: #1a1612;
-  color: #a89878;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0.55rem 0.2rem;
-  border-radius: 8px;
+.build-rail > * {
+  pointer-events: auto;
 }
 
-.build-mode-row button.is-active {
-  background: #2a2218;
-  border-color: #c9a227;
-  color: #f0e0a0;
-}
-
-.build-icon-dock {
+.build-rail-tray {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35rem;
+  gap: 0.28rem;
+  padding: 0.32rem;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 12px;
+  background: rgba(12, 11, 9, 0.78);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: rail-rise 0.18s ease-out;
 }
 
-@media (min-width: 520px) {
-  .build-icon-dock {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+@keyframes rail-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.build-icon {
+.build-rail-tools {
+  display: flex;
+  gap: 0.28rem;
+  overflow-x: auto;
+  padding-bottom: 0.05rem;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.build-rail-tools::-webkit-scrollbar {
+  display: none;
+}
+
+.rail-tool {
   position: relative;
+  flex: 0 0 auto;
   display: grid;
-  justify-items: center;
-  gap: 0.2rem;
-  min-height: 4.2rem;
-  padding: 0.45rem 0.25rem 0.4rem;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  padding: 0;
   border: 1px solid #3a3020;
-  background: linear-gradient(180deg, #2a2418, #18140e);
+  background: linear-gradient(180deg, rgba(42, 36, 24, 0.95), rgba(22, 18, 12, 0.95));
   color: #e8e0d4;
-  font: inherit;
-  border-radius: 10px;
+  border-radius: 9px;
 }
 
-.build-icon .sprite,
-.build-icon svg {
-  width: 34px;
-  height: 34px;
+.rail-tool .sprite,
+.rail-tool svg {
+  width: 22px;
+  height: 22px;
 }
 
-.build-icon-name {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-align: center;
-  line-height: 1.15;
-}
-
-.build-icon-count {
+.rail-tool-count {
   position: absolute;
-  top: 0.25rem;
-  right: 0.3rem;
+  top: -0.2rem;
+  right: -0.15rem;
+  min-width: 1rem;
+  padding: 0.02rem 0.22rem;
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: #f0e0a0;
-  background: rgba(0, 0, 0, 0.45);
-  padding: 0.05rem 0.25rem;
-  border-radius: 4px;
+  font-size: 0.55rem;
+  line-height: 1.2;
+  color: #1a1612;
+  background: #f0c860;
+  border-radius: 999px;
+  text-align: center;
 }
 
-.build-icon.is-active {
+.rail-tool.is-active {
   border-color: #f0a020;
-  box-shadow: 0 0 0 1px #f0a020, 0 0 16px rgba(240, 160, 32, 0.25);
+  box-shadow: 0 0 0 1px #f0a020, 0 0 12px rgba(240, 160, 32, 0.28);
   transform: translateY(-1px);
 }
 
-.build-icon.is-empty {
-  opacity: 0.45;
+.rail-tool.is-empty {
+  opacity: 0.4;
 }
 
-.build-quick {
+.build-rail-quick {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem 0.85rem;
-  margin-top: 0.4rem;
+  gap: 0.28rem;
 }
 
-.build-quick .ghost-btn {
+.rail-chip {
+  border: 1px solid #3a3020;
+  background: rgba(26, 22, 18, 0.9);
   color: #d4c4a0;
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.28rem 0.5rem;
+  border-radius: 999px;
 }
 
-.build-quick .walk-btn {
+.rail-chip.is-walk {
   color: #7dff9a;
   border-color: #3d9e5f;
 }
 
+.build-rail-modes {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.22rem;
+  padding: 0.22rem;
+  border: 1px solid rgba(58, 48, 32, 0.9);
+  border-radius: 11px;
+  background: rgba(12, 11, 9, 0.72);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.rail-mode {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #a89878;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.42rem 0.1rem;
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.rail-mode.is-active {
+  background: rgba(42, 34, 24, 0.95);
+  border-color: #c9a227;
+  color: #f0e0a0;
+}
+
+.rail-mode.is-toggle {
+  color: #c9a227;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.build-console {
+  display: none;
+}
+
+.build-console-toggle {
+  display: none;
+}
+
+.build-mode-row {
+  display: none;
+}
+
+.build-icon-dock {
+  display: none;
+}
+
+.build-icon {
+  display: none;
+}
+
+.build-quick {
+  display: none;
+}
+
 .build-hint {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: #7a7060;
+  display: none;
 }
 
 .app-game.is-coaching .factory-floor.is-playable {
@@ -4753,7 +4834,8 @@ button {
 
 .tool.is-tutorial-pulse,
 .habit.is-tutorial-pulse,
-.manual-steps.is-tutorial-pulse {
+.pedo-card.is-tutorial-pulse,
+.rail-tool.is-tutorial-pulse {
   box-shadow: 0 0 0 2px #c9a227, 0 0 16px rgba(201, 162, 39, 0.35);
   animation: tut-pulse 1.2s ease-in-out infinite;
 }
@@ -4832,31 +4914,35 @@ html[data-theme='light'] .fab-btn {
   color: #241e18;
 }
 
-html[data-theme='light'] .build-console {
-  background: linear-gradient(180deg, rgba(255, 250, 242, 0.96), rgba(232, 223, 208, 0.98));
-  border-top-color: #c4b8a4;
+html[data-theme='light'] .build-rail-tray,
+html[data-theme='light'] .build-rail-modes {
+  background: rgba(255, 250, 242, 0.88);
+  border-color: #c4b8a4;
   color: #241e18;
-  box-shadow: 0 -8px 24px rgba(26, 22, 18, 0.12);
+  box-shadow: 0 8px 20px rgba(26, 22, 18, 0.12);
 }
 
-html[data-theme='light'] .build-console-toggle,
-html[data-theme='light'] .build-mode-row button,
-html[data-theme='light'] .build-icon,
-html[data-theme='light'] .build-quick .ghost-btn {
+html[data-theme='light'] .rail-mode {
+  color: #6a5a48;
+}
+
+html[data-theme='light'] .rail-mode.is-active,
+html[data-theme='light'] .rail-tool.is-active {
+  border-color: #c47a12;
+  background: rgba(240, 160, 32, 0.18);
+  color: #1a1612;
+}
+
+html[data-theme='light'] .rail-tool,
+html[data-theme='light'] .rail-chip {
   color: #241e18;
   border-color: #c4b8a4;
   background: #fffaf2;
 }
 
-html[data-theme='light'] .build-console-toggle span {
-  color: #8a5a10;
-}
-
-html[data-theme='light'] .build-mode-row button.is-active,
-html[data-theme='light'] .build-icon.is-active {
-  border-color: #c47a12;
-  background: rgba(240, 160, 32, 0.18);
-  color: #1a1612;
+html[data-theme='light'] .rail-chip.is-walk {
+  color: #1f6a3a;
+  border-color: #3d9e5f;
 }
 
 html[data-theme='light'] .goals-bar {

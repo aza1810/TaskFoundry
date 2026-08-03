@@ -8,7 +8,7 @@ export type TutorialStepId =
   | 'tasks'
   | 'done'
 
-export type TutorialHighlight = 'ore' | 'drillTool' | 'beltTool' | 'manualSteps' | 'habit' | null
+export type TutorialHighlight = 'ore' | 'drillTool' | 'beltTool' | 'walkSteps' | 'habit' | null
 
 export interface TutorialStepDef {
   id: TutorialStepId
@@ -28,14 +28,14 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'Real-world steps power your factory. Walk (or tap +10), drills mine, belts move ore, furnaces smelt. Start with a drill - or plant a whole starter line in one tap.',
+    body: 'Real-world steps power your factory. Walk with Health Connect or the pedometer, drills mine, belts move ore, furnaces smelt. Start with a drill - or plant a whole starter line in one tap.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },
   {
     id: 'placeDrill',
     title: 'Sink a drill on iron',
-    body: 'Build → Drill is selected. Tap a glowing brown iron-ore tile. Pinch to zoom; Hand mode pans the map.',
+    body: 'Build is selected. Tap a glowing brown iron-ore tile. Pinch to zoom; Hand mode pans the map.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place a burner drill on iron ore',
@@ -46,11 +46,11 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'logSteps',
     title: 'Feed the drills',
-    body: 'Every step runs one mining cycle on every drill. Tap +10 below, sync Apple Health / Health Connect in the native app, or start the live pedometer.',
+    body: 'Every step runs one mining cycle on every drill. Sync Health Connect / Apple Health, or start the live pedometer and take a short walk.',
     mode: 'coach',
     tab: 'steps',
-    action: 'Log at least 10 steps',
-    highlight: 'manualSteps',
+    action: 'Sync health or walk at least 10 steps',
+    highlight: 'walkSteps',
     unlockTabs: ['factory', 'inventory', 'steps'],
   },
   {

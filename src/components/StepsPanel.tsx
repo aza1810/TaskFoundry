@@ -4,19 +4,16 @@ import { useGame } from '../game/GameContext'
 import type { HealthStepsApi } from '../hooks/useHealthSteps'
 import type { PedometerApi } from '../hooks/usePedometer'
 
-const PRESETS = [1, 10, 50, 100, 500, 1000]
-
 export function StepsPanel({
   pedometer,
   healthSteps,
-  highlightManual = false,
+  highlightWalk = false,
 }: {
   pedometer: PedometerApi
   healthSteps: HealthStepsApi
-  highlightManual?: boolean
+  highlightWalk?: boolean
 }) {
-  const { state, logSteps, importHealthSteps } = useGame()
-  const [custom, setCustom] = useState('100')
+  const { state, importHealthSteps } = useGame()
   const [syncBusy, setSyncBusy] = useState(false)
   const drills = Object.values(state.entities).filter(
     (e) => e.kind === 'drill' || e.kind === 'electricDrill',
@@ -48,12 +45,16 @@ export function StepsPanel({
         <p>
           {healthSteps.isNative
             ? 'Sync steps from Apple Health / Health Connect, or use the live pedometer. Each step runs one mining cycle on every drill.'
-            : 'Start the phone pedometer and walk with this page open, or log steps manually. For Health / Fit sync, install the native Task Foundry app.'}
+            : 'Start the phone pedometer and walk with this page open. For Health / Fit sync, install the native Task Foundry app.'}
         </p>
       </div>
 
       {healthSteps.isNative ? (
-        <div className={`pedo-card ${healthReady ? 'is-live' : ''}`}>
+        <div
+          className={`pedo-card ${healthReady ? 'is-live' : ''} ${
+            highlightWalk ? 'is-tutorial-pulse' : ''
+          }`}
+        >
           <div className="pedo-head">
             <h3>{healthSteps.platformLabel}</h3>
             <span className={`pedo-status status-${healthSteps.status}`}>
@@ -68,7 +69,7 @@ export function StepsPanel({
           </div>
           <p className="pedo-copy">
             Reads today&apos;s steps from {healthSteps.platformLabel}. Only new steps since the last
-            sync are imported - manual logs stay separate.
+            sync are imported.
           </p>
           <div className="pedo-session">
             <span className="pedo-session-num">
@@ -81,7 +82,7 @@ export function StepsPanel({
           <div className="pedo-actions">
             <button
               type="button"
-              className="primary-btn pedo-start"
+              className={`primary-btn pedo-start ${highlightWalk ? 'is-tutorial-cta' : ''}`}
               onClick={() => void syncFromHealth()}
               disabled={syncBusy || healthSteps.status === 'unavailable'}
             >
@@ -110,12 +111,16 @@ export function StepsPanel({
           </div>
           <p className="pedo-copy">
             This browser site cannot read Apple Health or Google Health Connect. Use the native
-            Android / iOS app for that - or the live pedometer / manual log below.
+            Android / iOS app for that, or the live pedometer below.
           </p>
         </div>
       )}
 
-      <div className={`pedo-card ${listening ? 'is-live' : ''}`}>
+      <div
+        className={`pedo-card ${listening ? 'is-live' : ''} ${
+          highlightWalk && !healthSteps.isNative ? 'is-tutorial-pulse' : ''
+        }`}
+      >
         <div className="pedo-head">
           <h3>Phone pedometer</h3>
           <span className={`pedo-status status-${pedometer.status}`}>
@@ -127,8 +132,8 @@ export function StepsPanel({
           </span>
         </div>
         <p className="pedo-copy">
-          Uses your phone's motion sensors while this page stays open. Useful as a backup when
-          health sync isn't available.
+          Uses your phone&apos;s motion sensors while this page stays open. Useful as a backup when
+          health sync isn&apos;t available.
         </p>
         <div className="pedo-session">
           <span className="pedo-session-num">{formatNum(pedometer.sessionSteps)}</span>
@@ -138,7 +143,9 @@ export function StepsPanel({
           {!listening ? (
             <button
               type="button"
-              className="primary-btn pedo-start"
+              className={`primary-btn pedo-start ${
+                highlightWalk && !healthSteps.isNative ? 'is-tutorial-cta' : ''
+              }`}
               onClick={() => void pedometer.start()}
               disabled={
                 pedometer.status === 'starting' ||
@@ -163,7 +170,7 @@ export function StepsPanel({
         {pedometer.status === 'unsupported' && (
           <p className="hint pedo-hint">
             This browser has no motion sensors. Open Task Foundry on your phone (Chrome or
-            Safari), or log steps manually below.
+            Safari), or skip this tour step for now.
           </p>
         )}
       </div>
@@ -185,52 +192,6 @@ export function StepsPanel({
             Tip: fuel burner drills with coal (toolbar or inserter from a coal line).
           </p>
         </div>
-      </div>
-
-      <div className={`manual-steps ${highlightManual ? 'is-tutorial-pulse' : ''}`}>
-        <h3 className="manual-title">Manual log (desktop / backup)</h3>
-        <div className="step-actions">
-          {PRESETS.map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`primary-btn ${highlightManual && n === 10 ? 'is-tutorial-cta' : ''}`}
-              onClick={() => logSteps(n)}
-              title={
-                drills > 0
-                  ? `${n} steps × ${drills} drills = ${n * drills} mine cycles`
-                  : 'Place a drill so steps mine ore'
-              }
-            >
-              +{n}
-              {drills > 0 ? (
-                <span className="step-btn-sub">
-                  {drills} drill{drills === 1 ? '' : 's'}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-
-        <form
-          className="custom-steps"
-          onSubmit={(e) => {
-            e.preventDefault()
-            logSteps(Number(custom) || 0)
-          }}
-        >
-          <input
-            type="number"
-            min={1}
-            max={100000}
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            aria-label="Custom step count"
-          />
-          <button type="submit" className="primary-btn">
-            Log steps / mine cycles
-          </button>
-        </form>
       </div>
     </section>
   )

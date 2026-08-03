@@ -96,7 +96,7 @@ const HUD_RESOURCES: ItemId[] = [
   'steel',
 ]
 
-type Highlight = 'ore' | 'drillTool' | 'beltTool' | 'manualSteps' | 'habit' | null
+type Highlight = 'ore' | 'drillTool' | 'beltTool' | 'walkSteps' | 'habit' | null
 type ToolTab = 'build' | 'belts' | 'edit'
 
 type Floater = {
@@ -308,7 +308,7 @@ export function FactoryFloor({
   const [flash, setFlash] = useState<string | null>(null)
   const [floaters, setFloaters] = useState<Floater[]>([])
   const [stepPulse, setStepPulse] = useState(false)
-  const [dockOpen, setDockOpen] = useState(true)
+  const [railOpen, setRailOpen] = useState(false)
   const [paintActive, setPaintActive] = useState(false)
   const [edgeFlash, setEdgeFlash] = useState(false)
   const edgeFlashTimer = useRef(0)
@@ -411,8 +411,14 @@ export function FactoryFloor({
   }, [state.stats.oreMined, state.mineCycles, entities, tiles, spawnFloater])
 
   useEffect(() => {
-    if (highlight === 'beltTool') setToolTab('belts')
-    if (highlight === 'ore' || highlight === 'drillTool') setToolTab('build')
+    if (highlight === 'beltTool') {
+      setToolTab('belts')
+      setRailOpen(true)
+    }
+    if (highlight === 'ore' || highlight === 'drillTool') {
+      setToolTab('build')
+      setRailOpen(true)
+    }
   }, [highlight])
 
   const bumpEdge = useCallback(() => {
@@ -778,6 +784,10 @@ export function FactoryFloor({
     }
   }
 
+  useEffect(() => {
+    if (selected) setRailOpen(true)
+  }, [selected])
+
   const toolLabel = !selected
     ? 'Drag to pan · tap machines'
     : selected === 'remove'
@@ -981,6 +991,7 @@ export function FactoryFloor({
           'factory-viewport',
           'is-pan',
           selected ? 'is-build' : '',
+          railOpen && selected ? 'is-tools-open' : '',
           edgeFlash ? 'is-edge' : '',
         ]
           .filter(Boolean)
@@ -1249,6 +1260,175 @@ export function FactoryFloor({
                 }`}
           </span>
         </div>
+
+        <div
+          className={`build-rail ${railOpen && selected ? 'is-expanded' : 'is-slim'}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+        >
+          {railOpen && selected && (
+            <div className="build-rail-tray" role="toolbar" aria-label="Build tools">
+              <div className="build-rail-tools">
+                {toolsForTab.map((tool) => {
+                  const unlocked = isUnlocked(tool, state.researched)
+                  if (!unlocked) return null
+                  const label =
+                    tool === 'remove'
+                      ? 'Demolish'
+                      : tool === 'rotate'
+                        ? 'Rotate'
+                        : tool === 'copy'
+                          ? 'Copy'
+                          : tool === 'paste'
+                            ? 'Paste'
+                            : PLACEABLE_META[tool].label
+                  const count = isEditMetaTool(tool)
+                    ? tool === 'paste' && state.blueprint
+                      ? state.blueprint.length
+                      : null
+                    : state.inventory[PLACEABLE_META[tool].inventoryKey]
+                  const pulse =
+                    (highlight === 'drillTool' && tool === 'drill') ||
+                    (highlight === 'ore' && tool === 'drill') ||
+                    (highlight === 'beltTool' && tool === 'belt')
+                  const affordable =
+                    isEditMetaTool(tool) || (count !== null && count > 0)
+                  return (
+                    <button
+                      key={tool}
+                      type="button"
+                      className={[
+                        'rail-tool',
+                        selected === tool ? 'is-active' : '',
+                        !affordable ? 'is-empty' : '',
+                        pulse ? 'is-tutorial-pulse' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => {
+                        selectTool(selected === tool ? null : tool)
+                        setInspect(null)
+                        buzz(6)
+                      }}
+                      title={label}
+                      aria-label={
+                        count !== null ? `${label}, ${formatNum(count)}` : label
+                      }
+                    >
+                      <ToolIcon kind={tool} />
+                      {count !== null && (
+                        <span className="rail-tool-count">{formatNum(count)}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="build-rail-quick">
+                <button
+                  type="button"
+                  className="rail-chip"
+                  onClick={() => {
+                    const beforeCoal = state.inventory.coal
+                    const preview = fuelAllDrills(state)
+                    fuelDrills()
+                    const spent = beforeCoal - preview.inventory.coal
+                    buzz(spent > 0 ? 10 : 4)
+                  }}
+                >
+                  Fuel
+                </button>
+                {!state.tutorialComplete && (
+                  <button
+                    type="button"
+                    className="rail-chip"
+                    onClick={() => buildStarter()}
+                  >
+                    Starter
+                  </button>
+                )}
+                {pedometer.status !== 'listening' && pedometer.supported && (
+                  <button
+                    type="button"
+                    className="rail-chip is-walk"
+                    onClick={() => {
+                      void pedometer.start()
+                      buzz(12)
+                    }}
+                  >
+                    Walk
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="build-rail-modes" role="tablist" aria-label="Tool groups">
+            <button
+              type="button"
+              className={`rail-mode ${!selected ? 'is-active' : ''}`}
+              onClick={() => {
+                selectTool(null)
+                setRailOpen(false)
+                setInspect(null)
+              }}
+              title="Hand - pan the map"
+            >
+              Hand
+            </button>
+            {(
+              [
+                ['build', 'Build'],
+                ['belts', 'Belts'],
+                ['edit', 'Edit'],
+              ] as const
+            ).map(([id, label]) => {
+              const list =
+                id === 'build' ? BUILD_TOOLS : id === 'belts' ? BELT_TOOLS : EDIT_TOOLS
+              const tabActive = toolTab === id && !!selected && list.includes(selected)
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`rail-mode ${tabActive ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setToolTab(id)
+                    const next = pickTool(list)
+                    if (next) {
+                      selectTool(next)
+                      setRailOpen(true)
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              className="rail-mode is-toggle"
+              onClick={() => {
+                if (railOpen && selected) {
+                  setRailOpen(false)
+                } else {
+                  const list =
+                    toolTab === 'build'
+                      ? BUILD_TOOLS
+                      : toolTab === 'belts'
+                        ? BELT_TOOLS
+                        : EDIT_TOOLS
+                  const next = selected ?? pickTool(list)
+                  if (next) selectTool(next)
+                  setRailOpen(true)
+                }
+              }}
+              aria-expanded={railOpen && !!selected}
+              title={railOpen && selected ? 'Hide tools' : 'Show tools'}
+            >
+              {railOpen && selected ? '▾' : '▴'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {inspectEnt && inspect && (
@@ -1358,180 +1538,6 @@ export function FactoryFloor({
           </div>
         </div>
       )}
-
-      <div className={`build-console ${dockOpen ? 'is-open' : 'is-collapsed'}`}>
-        <button
-          type="button"
-          className="build-console-toggle"
-          onClick={() => setDockOpen((v) => !v)}
-          aria-expanded={dockOpen}
-        >
-          {dockOpen ? 'Hide tools' : 'Show tools'}
-          <span>
-            {selected === 'remove'
-              ? 'Demolish'
-              : selected === 'rotate'
-                ? 'Rotate'
-                : selected === 'copy'
-                  ? 'Copy'
-                  : selected === 'paste'
-                    ? 'Paste'
-                    : selected
-                      ? PLACEABLE_META[selected as Placeable]?.label ?? selected
-                      : 'Hand'}
-          </span>
-        </button>
-
-        {dockOpen && (
-          <>
-            <div className="build-mode-row" role="tablist" aria-label="Tool groups">
-              <button
-                type="button"
-                className={!selected ? 'is-active' : ''}
-                onClick={() => selectTool(null)}
-              >
-                Hand
-              </button>
-              {(
-                [
-                  ['build', 'Build'],
-                  ['belts', 'Belts'],
-                  ['edit', 'Edit'],
-                ] as const
-              ).map(([id, label]) => {
-                const list =
-                  id === 'build' ? BUILD_TOOLS : id === 'belts' ? BELT_TOOLS : EDIT_TOOLS
-                const tabActive = toolTab === id && !!selected && list.includes(selected)
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    className={tabActive ? 'is-active' : ''}
-                    onClick={() => {
-                      setToolTab(id)
-                      setDockOpen(true)
-                      const next = pickTool(list)
-                      if (next) selectTool(next)
-                    }}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="build-icon-dock" role="toolbar" aria-label="Build tools">
-              {toolsForTab.map((tool) => {
-                const unlocked = isUnlocked(tool, state.researched)
-                if (!unlocked) return null
-                const label =
-                  tool === 'remove'
-                    ? 'Demolish'
-                    : tool === 'rotate'
-                      ? 'Rotate'
-                      : tool === 'copy'
-                        ? 'Copy'
-                        : tool === 'paste'
-                          ? 'Paste'
-                          : PLACEABLE_META[tool].label
-                const count = isEditMetaTool(tool)
-                  ? tool === 'paste' && state.blueprint
-                    ? state.blueprint.length
-                    : null
-                  : state.inventory[PLACEABLE_META[tool].inventoryKey]
-                const pulse =
-                  (highlight === 'drillTool' && tool === 'drill') ||
-                  (highlight === 'ore' && tool === 'drill') ||
-                  (highlight === 'beltTool' && tool === 'belt')
-                const affordable =
-                  isEditMetaTool(tool) || (count !== null && count > 0)
-                return (
-                  <button
-                    key={tool}
-                    type="button"
-                    className={[
-                      'build-icon',
-                      selected === tool ? 'is-active' : '',
-                      !affordable ? 'is-empty' : '',
-                      pulse ? 'is-tutorial-pulse' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => {
-                      selectTool(selected === tool ? null : tool)
-                      setInspect(null)
-                      buzz(6)
-                    }}
-                    title={label}
-                  >
-                    <ToolIcon kind={tool} />
-                    <span className="build-icon-name">{label}</span>
-                    {count !== null && (
-                      <span className="build-icon-count">{formatNum(count)}</span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            {toolTab === 'build' &&
-              BUILD_TOOLS.every(
-                (t) =>
-                  !isUnlocked(t, state.researched) ||
-                  (state.inventory[PLACEABLE_META[t].inventoryKey] ?? 0) <= 0,
-              ) && (
-                <p className="build-empty-hint">
-                  No buildings in stock - craft more on the Craft tab, or complete Tasks.
-                </p>
-              )}
-            {toolTab === 'belts' &&
-              BELT_TOOLS.every(
-                (t) =>
-                  !isUnlocked(t, state.researched) ||
-                  (state.inventory[PLACEABLE_META[t].inventoryKey] ?? 0) <= 0,
-              ) && (
-                <p className="build-empty-hint">
-                  No belts or inserters in stock - craft them, or stamp Tasks for parts.
-                </p>
-              )}
-
-            <div className="build-quick">
-              <button
-                type="button"
-                className="ghost-btn"
-                onClick={() => {
-                  const beforeCoal = state.inventory.coal
-                  const preview = fuelAllDrills(state)
-                  fuelDrills()
-                  const spent = beforeCoal - preview.inventory.coal
-                  buzz(spent > 0 ? 10 : 4)
-                }}
-              >
-                Fuel all
-              </button>
-              {!state.tutorialComplete && (
-                <button type="button" className="ghost-btn" onClick={() => buildStarter()}>
-                  Starter line
-                </button>
-              )}
-              {pedometer.status !== 'listening' && pedometer.supported && (
-                <button
-                  type="button"
-                  className="ghost-btn walk-btn"
-                  onClick={() => {
-                    void pedometer.start()
-                    buzz(12)
-                  }}
-                >
-                  Start walk
-                </button>
-              )}
-              <span className="build-hint">
-                Drag pans · tap places · hold then drag paints belts
-              </span>
-            </div>
-          </>
-        )}
-      </div>
     </section>
   )
 }

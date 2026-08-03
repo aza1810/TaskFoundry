@@ -215,7 +215,7 @@ function Shell() {
               <StepsPanel
                 pedometer={pedometer}
                 healthSteps={healthSteps}
-                highlightManual={highlight === 'manualSteps'}
+                highlightWalk={highlight === 'walkSteps'}
               />
             )}
             {tab === 'skills' && <SkillsPanel />}
