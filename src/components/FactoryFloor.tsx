@@ -317,6 +317,18 @@ export function FactoryFloor({
   const [paintActive, setPaintActive] = useState(false)
   const [resPulse, setResPulse] = useState<Partial<Record<ItemId, boolean>>>({})
   const prevInv = useRef(state.inventory)
+  const inspectOpenedAt = useRef(0)
+
+  const openInspect = useCallback((cell: { x: number; y: number }) => {
+    inspectOpenedAt.current = performance.now()
+    setInspect(cell)
+  }, [])
+
+  const closeInspect = useCallback(() => {
+    // Same tap that opens the card would otherwise hit the scrim and close it.
+    if (performance.now() - inspectOpenedAt.current < 350) return
+    setInspect(null)
+  }, [])
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -750,13 +762,15 @@ export function FactoryFloor({
           paintCell(cell.x, cell.y)
         } else if (!selected && cell) {
           const tile = tiles[idx(cell.x, cell.y)]
-          setInspect(cell)
+          // Prevent the synthetic click from landing on the new scrim.
+          e.preventDefault()
+          openInspect(cell)
           buzz(6)
           if (tile?.ore) {
             spawnFloater(cell.x, cell.y, ITEM_META[tile.ore].short, 'ore')
           }
         } else if (!selected) {
-          setInspect(null)
+          closeInspect()
         }
       }
 
@@ -1429,7 +1443,16 @@ export function FactoryFloor({
             type="button"
             className="inspect-modal-scrim"
             aria-label="Close"
-            onClick={() => setInspect(null)}
+            onPointerUp={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              closeInspect()
+            }}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              closeInspect()
+            }}
           />
           <div
             className={`inspect-card ${inspectEnt ? 'is-entity' : 'is-ground'}`}
@@ -1463,7 +1486,10 @@ export function FactoryFloor({
               <button
                 type="button"
                 className="inspect-card-close"
-                onClick={() => setInspect(null)}
+                onClick={() => {
+                  inspectOpenedAt.current = 0
+                  setInspect(null)
+                }}
                 aria-label="Close"
               >
                 ×
