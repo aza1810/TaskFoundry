@@ -23,10 +23,10 @@ import type { TabId } from './game/types'
 import './index.css'
 
 const TABS: { id: TabId; label: string; short: string }[] = [
-  { id: 'factory', label: 'Factory', short: 'Factory' },
   { id: 'inventory', label: 'Inventory', short: 'Inv' },
   { id: 'steps', label: 'Steps', short: 'Steps' },
   { id: 'craft', label: 'Craft', short: 'Craft' },
+  { id: 'factory', label: 'Factory', short: 'Factory' },
   { id: 'research', label: 'Research', short: 'Lab' },
   { id: 'skills', label: 'Skills', short: 'Skills' },
   { id: 'habits', label: 'Tasks', short: 'Tasks' },

@@ -3008,6 +3008,28 @@ html[data-theme='light'] .ghost-btn.is-danger {
   background: var(--bg-dock);
   border-top-color: #c9a227;
   color: var(--text-chrome);
+  /* Factory sits in the center column and gets a bit more room */
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.22fr) repeat(3, minmax(0, 1fr));
+}
+
+.bottom-nav-btn.is-floor-btn {
+  padding: 0.5rem 0.12rem 0.38rem;
+  min-height: 4rem;
+}
+
+.bottom-nav-btn.is-floor-btn .bottom-nav-icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+.bottom-nav-btn.is-floor-btn .bottom-nav-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.bottom-nav-btn.is-floor-btn .bottom-nav-label {
+  font-size: clamp(0.66rem, 2.45vw, 0.8rem);
+  letter-spacing: 0.03em;
 }
 
 .bottom-nav-btn.is-floor-btn.is-active {
