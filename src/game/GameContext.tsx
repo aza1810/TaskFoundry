@@ -12,6 +12,7 @@ import {
   addHabit as addHabitLogic,
   clearToast as clearToastLogic,
   clearOfflineReport as clearOfflineReportLogic,
+  clearSkillGains as clearSkillGainsLogic,
   collectChest as collectChestLogic,
   completeHabit as completeHabitLogic,
   craftRecipe as craftRecipeLogic,
@@ -60,6 +61,7 @@ type Action =
   | { type: 'FUEL_AT'; x: number; y: number }
   | { type: 'CLEAR_TOAST' }
   | { type: 'CLEAR_OFFLINE_REPORT' }
+  | { type: 'CLEAR_SKILL_GAINS' }
   | { type: 'RESET' }
   | { type: 'RENAME'; name: string }
   | { type: 'FOCUS'; id: SkillId }
@@ -108,6 +110,8 @@ function reducer(state: GameState, action: Action): GameState {
       return clearToastLogic(state)
     case 'CLEAR_OFFLINE_REPORT':
       return clearOfflineReportLogic(state)
+    case 'CLEAR_SKILL_GAINS':
+      return clearSkillGainsLogic(state)
     case 'RESET':
       return resetGame()
     case 'RENAME':
@@ -213,6 +217,15 @@ export function GameProvider({
     const id = window.setTimeout(() => dispatch({ type: 'CLEAR_TOAST' }), 3200)
     return () => window.clearTimeout(id)
   }, [state.unlockedToast])
+
+  useEffect(() => {
+    if (!state.lastSkillGains) return
+    const id = window.setTimeout(
+      () => dispatch({ type: 'CLEAR_SKILL_GAINS' }),
+      1600,
+    )
+    return () => window.clearTimeout(id)
+  }, [state.lastSkillGains])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

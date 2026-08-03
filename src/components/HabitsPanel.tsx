@@ -22,11 +22,17 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
   const [category, setCategory] = useState<HabitCategory>('logistics')
   const done = state.habits.filter((h) => h.completedToday).length
   const firstOpen = state.habits.find((h) => !h.completedToday)
+  const allDone = state.habits.length > 0 && done === state.habits.length
 
   function onAdd(e: FormEvent) {
     e.preventDefault()
     addHabit(title, category)
     setTitle('')
+  }
+
+  function onRemove(id: string, name: string) {
+    if (!window.confirm(`Remove task "${name}"?`)) return
+    removeHabit(id)
   }
 
   return (
@@ -41,6 +47,16 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
           Today {done}/{state.habits.length} · Lifetime {state.totalHabitsCompleted}
         </p>
       </div>
+
+      {state.habits.length === 0 ? (
+        <p className="habit-empty">
+          No daily tasks on the belt - add one below to restock coal and parts.
+        </p>
+      ) : allDone ? (
+        <p className="habit-empty is-done">
+          All tasks stamped today. Come back tomorrow, or add another shift.
+        </p>
+      ) : null}
 
       <ul className="habit-list">
         {state.habits.map((habit) => {
@@ -76,7 +92,7 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => removeHabit(habit.id)}
+                onClick={() => onRemove(habit.id, habit.title)}
                 aria-label={`Remove ${habit.title}`}
               >
                 ×
@@ -90,7 +106,7 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="New habit on the belt…"
+          placeholder="New habit on the belt..."
           maxLength={48}
         />
         <select

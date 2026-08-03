@@ -14,6 +14,7 @@ import {
   ITEM_META,
   OPPOSITE,
   PLACEABLE_META,
+  RECIPE_MAP,
   formatNum,
   idx,
   isFurnaceKind,
@@ -24,8 +25,9 @@ import {
 } from '../game/data'
 import { useGame } from '../game/GameContext'
 import { activeGoal } from '../game/goals'
+import { contractComplete } from '../game/contracts'
 import {
-  collectChest,
+  fuelAllDrills,
   fuelDrillAt,
   placeEntity,
 } from '../game/logic'
@@ -287,6 +289,14 @@ export function FactoryFloor({
   const rates = useProductionRates(state.stats)
   const goal = activeGoal(state)
   const goalProg = goal?.progress?.(state) ?? null
+  const claimableContracts = (state.contracts ?? []).filter(
+    (c) => !c.claimed && contractComplete(state, c),
+  )
+  const activeCraft = state.craftQueue[0]
+  const activeCraftRecipe = activeCraft ? RECIPE_MAP[activeCraft.recipeId] : null
+  const craftPct = activeCraft
+    ? Math.min(100, (activeCraft.elapsed / activeCraft.duration) * 100)
+    : 0
   const xpNeeded = xpForLevel(state.level)
   const xpPct = Math.min(100, (state.xp / xpNeeded) * 100)
 
@@ -510,30 +520,60 @@ export function FactoryFloor({
       if (gesture.current.lastCell === key) return
       gesture.current.lastCell = key
       const beforeId = state.tiles[idx(x, y)]?.entityId
+      const beforeDir = beforeId ? state.entities[beforeId]?.dir : null
       const preview = placeEntity(state, x, y)
       place(x, y)
       const afterId = preview.tiles[idx(x, y)]?.entityId
-      const changed = preview !== state
+      const afterDir = afterId ? preview.entities[afterId]?.dir : null
+      const placed = Boolean(afterId && afterId !== beforeId)
+      const removed = Boolean(beforeId && !afterId)
+      const rotated = Boolean(
+        beforeId && afterId && beforeId === afterId && beforeDir !== afterDir,
+      )
 
-      if (!changed) {
-        buzz(4)
-        if (selected === 'remove' && !beforeId) {
+      if (selected === 'remove') {
+        if (removed) {
+          setFlash(key)
+          window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
+          buzz(8)
+          spawnFloater(x, y, 'scrap', 'warn')
+        } else {
+          buzz(4)
           spawnFloater(x, y, 'empty', 'warn')
-        } else if (selected && !isEditMetaTool(selected)) {
+        }
+        return
+      }
+
+      if (selected === 'rotate') {
+        if (rotated) {
+          setFlash(key)
+          window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
+          buzz(8)
+          spawnFloater(x, y, 'turn', 'place')
+        } else {
+          buzz(4)
+        }
+        return
+      }
+
+      if (selected && !isEditMetaTool(selected)) {
+        if (placed) {
+          setFlash(key)
+          window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
+          buzz(8)
+          spawnFloater(x, y, PLACEABLE_META[selected].label.split(' ')[0], 'place')
+        } else {
+          buzz(4)
           spawnFloater(x, y, 'blocked', 'warn')
         }
         return
       }
 
-      setFlash(key)
-      window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
-      buzz(8)
-      if (selected && !isEditMetaTool(selected) && afterId && afterId !== beforeId) {
-        spawnFloater(x, y, PLACEABLE_META[selected].label.split(' ')[0], 'place')
-      } else if (selected === 'remove' && beforeId && !afterId) {
-        spawnFloater(x, y, 'scrap', 'warn')
-      } else if (selected === 'rotate' && beforeId) {
-        spawnFloater(x, y, 'turn', 'place')
+      // copy / paste / other meta - still flash on any entity change
+      if (placed || removed || rotated || preview.blueprint !== state.blueprint) {
+        setFlash(key)
+        window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
+        buzz(8)
       }
     },
     [place, selected, spawnFloater, state],
@@ -878,11 +918,51 @@ export function FactoryFloor({
               />
             )}
           </button>
+        ) : claimableContracts.length > 0 ? (
+          <button
+            type="button"
+            className="game-objective is-claim"
+            onClick={onOpenTasks}
+          >
+            <span>Contracts</span>
+            <strong>
+              {claimableContracts.length === 1
+                ? 'Claim ready'
+                : `${claimableContracts.length} claims ready`}
+            </strong>
+          </button>
         ) : (
           <button type="button" className="game-objective is-clear" onClick={onOpenTasks}>
             <span>Contracts</span>
             <strong>All clear - expand</strong>
           </button>
+        )}
+
+        {claimableContracts.length > 0 && goal && (
+          <button
+            type="button"
+            className="game-claim-pill"
+            onClick={onOpenTasks}
+          >
+            Claim {claimableContracts.length}
+          </button>
+        )}
+
+        {activeCraftRecipe && (
+          <div className="game-craft-chip" aria-live="polite">
+            <span className="game-craft-chip-label">Crafting</span>
+            <strong>{activeCraftRecipe.name}</strong>
+            <em>
+              {state.craftQueue.length > 1
+                ? `+${state.craftQueue.length - 1} queued`
+                : `${Math.round(craftPct)}%`}
+            </em>
+            <span
+              className="game-craft-chip-bar"
+              aria-hidden
+              style={{ '--craft-pct': `${craftPct}%` } as CSSProperties}
+            />
+          </div>
         )}
 
         {pedometer.status === 'listening' && (
@@ -1224,9 +1304,11 @@ export function FactoryFloor({
                 className="primary-btn"
                 disabled={state.inventory.coal < 1}
                 onClick={() => {
+                  const beforeCoal = state.inventory.coal
                   const preview = fuelDrillAt(state, inspect.x, inspect.y)
                   fuelAt(inspect.x, inspect.y)
-                  if (preview === state) {
+                  const spent = beforeCoal - preview.inventory.coal
+                  if (spent <= 0) {
                     spawnFloater(inspect.x, inspect.y, 'no fuel', 'warn')
                     buzz(4)
                   } else {
@@ -1243,9 +1325,12 @@ export function FactoryFloor({
                 type="button"
                 className="primary-btn"
                 onClick={() => {
-                  const preview = collectChest(state, inspect.x, inspect.y)
+                  const beforeHeld = Object.values(inspectEnt.store).reduce(
+                    (s, n) => s + (n ?? 0),
+                    0,
+                  )
                   collect(inspect.x, inspect.y)
-                  if (preview === state) {
+                  if (beforeHeld <= 0) {
                     spawnFloater(inspect.x, inspect.y, 'empty', 'warn')
                     buzz(4)
                   } else {
@@ -1404,8 +1489,11 @@ export function FactoryFloor({
                 type="button"
                 className="ghost-btn"
                 onClick={() => {
+                  const beforeCoal = state.inventory.coal
+                  const preview = fuelAllDrills(state)
                   fuelDrills()
-                  buzz(10)
+                  const spent = beforeCoal - preview.inventory.coal
+                  buzz(spent > 0 ? 10 : 4)
                 }}
               >
                 Fuel all

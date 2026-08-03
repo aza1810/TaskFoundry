@@ -56,6 +56,7 @@ import type {
   GameState,
   Habit,
   HabitCategory,
+  Inventory,
   ItemId,
   OfflineReport,
   Placeable,
@@ -817,7 +818,30 @@ export function completeHabit(state: GameState, habitId: string): GameState {
     }
   }
   next = addXp(next, Math.round(reward.xp * rewardMult))
-  return claimGoals(next)
+  const afterXpToast =
+    next.unlockedToast && next.unlockedToast !== state.unlockedToast
+      ? next.unlockedToast
+      : null
+  next = { ...next, unlockedToast: null }
+  next = claimGoals(next)
+  if (next.unlockedToast) return next
+  const loot = rewardLabel(reward.items, rewardMult)
+  return {
+    ...next,
+    unlockedToast:
+      afterXpToast ??
+      (loot ? `Task stamped: ${loot}` : `Task stamped: ${habit.title}`),
+  }
+}
+
+function rewardLabel(
+  items: Partial<Inventory>,
+  mult = 1,
+): string {
+  return (Object.entries(items) as [ItemId, number][])
+    .filter(([, n]) => (n ?? 0) > 0)
+    .map(([id, n]) => `+${Math.floor((n ?? 0) * mult)} ${ITEM_META[id].short}`)
+    .join(' · ')
 }
 
 export function addHabit(
@@ -915,6 +939,10 @@ export function collectChest(state: GameState, x: number, y: number): GameState 
   if (!tile?.entityId) return state
   const ent = state.entities[tile.entityId]
   if (!ent || ent.kind !== 'chest') return state
+  const held = Object.values(ent.store).reduce((s, n) => s + (n ?? 0), 0)
+  if (held <= 0) {
+    return { ...state, unlockedToast: 'Chest empty' }
+  }
   return claimGoals({
     ...state,
     inventory: gain(state.inventory, ent.store as Partial<typeof state.inventory>),
@@ -985,6 +1013,11 @@ export function clearToast(state: GameState): GameState {
   return { ...state, unlockedToast: null }
 }
 
+export function clearSkillGains(state: GameState): GameState {
+  if (!state.lastSkillGains) return state
+  return { ...state, lastSkillGains: null }
+}
+
 export function resetGame(): GameState {
   localStorage.removeItem(ACTIVE_SAVE_KEY)
   return createInitialState()
@@ -1036,15 +1069,22 @@ export function renamePlayer(state: GameState, name: string): GameState {
 }
 
 export function setFocusSkill(state: GameState, id: SkillId): GameState {
-  const focusSkills = toggleFocusSkill(state.focusSkills ?? [], id)
+  const prev = state.focusSkills ?? []
+  const focusSkills = toggleFocusSkill(prev, id)
   const names = focusSkills.map((s) => SKILL_DEFS[s].name).join(' + ')
+  let unlockedToast: string
+  if (focusSkills.length === 0) {
+    unlockedToast = 'Skill focus cleared'
+  } else if (prev.length >= 2 && !prev.includes(id) && focusSkills.includes(id)) {
+    const dropped = SKILL_DEFS[prev[0]].name
+    unlockedToast = `Focus: ${names} (dropped ${dropped})`
+  } else {
+    unlockedToast = `Focus: ${names} (×${1.5} step XP)`
+  }
   return {
     ...state,
     focusSkills,
-    unlockedToast:
-      focusSkills.length === 0
-        ? 'Skill focus cleared'
-        : `Focus: ${names} (×${1.5} step XP)`,
+    unlockedToast,
   }
 }
 

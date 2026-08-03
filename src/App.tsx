@@ -17,6 +17,7 @@ import { GameProvider, useGame } from './game/GameContext'
 import { useHealthSteps } from './hooks/useHealthSteps'
 import { usePedometer } from './hooks/usePedometer'
 import { getTutorialStep, unlockedTabsFor } from './game/tutorial'
+import { contractComplete } from './game/contracts'
 import type { TabId } from './game/types'
 import './index.css'
 
@@ -102,14 +103,14 @@ function TabIcon({ id }: { id: TabId }) {
 
 function toastTone(message: string): 'ok' | 'warn' | 'info' {
   if (
-    /need |required|full|fail|blocked|nothing|no |already |not finished|skip/i.test(
+    /need |required|full|fail|blocked|nothing|no |already |not finished|skip|empty|chest empty/i.test(
       message,
     )
   ) {
     return 'warn'
   }
   if (
-    /complete|researched|fueled|finished|queued|pasted|copied|hand-crafting|synced|planted|tour complete|claimed/i.test(
+    /complete|researched|fueled|finished|queued|pasted|copied|hand-crafting|synced|planted|tour complete|claimed|stamped|focus:/i.test(
       message,
     )
   ) {
@@ -259,6 +260,13 @@ function Shell() {
               {t.id === 'steps' && pedometer.status === 'listening' && (
                 <span className="bottom-nav-live">live</span>
               )}
+              {t.id === 'craft' && state.craftQueue.length > 0 && (
+                <span className="bottom-nav-live">{state.craftQueue.length}</span>
+              )}
+              {t.id === 'habits' &&
+                (state.contracts ?? []).some(
+                  (c) => !c.claimed && contractComplete(state, c),
+                ) && <span className="bottom-nav-live">!</span>}
             </button>
           )
         })}

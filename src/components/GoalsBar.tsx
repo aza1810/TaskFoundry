@@ -32,6 +32,25 @@ export function GoalsBar() {
           <>
             <h3 className="goals-title">{goal.title}</h3>
             <p className="goals-detail">{goal.detail}</p>
+            {goal.progress && (
+              <div className="goals-track" aria-hidden>
+                <div
+                  className="goals-fill"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (goal.progress(state).cur / goal.progress(state).max) * 100,
+                    )}%`,
+                  }}
+                />
+              </div>
+            )}
+            {goal.progress && (
+              <p className="goals-prog">
+                {goal.progress(state).cur.toLocaleString()}/
+                {goal.progress(state).max.toLocaleString()}
+              </p>
+            )}
             <p className="goals-reward">Reward: {goal.rewardLabel}</p>
           </>
         ) : (

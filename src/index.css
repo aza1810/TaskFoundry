@@ -2143,6 +2143,11 @@ button {
   border-left: 4px solid var(--belt);
 }
 
+/* Lift toasts above the open build tool dock */
+.app-game:has(.build-console.is-open) .toast {
+  bottom: calc(12.5rem + env(safe-area-inset-bottom, 0px));
+}
+
 .toast.is-ok {
   border-left-color: #7dff9a;
 }
@@ -3105,6 +3110,119 @@ button {
   border-left-color: #3d7a52;
   grid-template-areas: 'label title';
   grid-template-columns: auto 1fr;
+}
+
+.game-objective.is-claim {
+  border-left-color: #8fd19a;
+  grid-template-areas: 'label title';
+  grid-template-columns: auto 1fr;
+}
+
+.game-claim-pill {
+  justify-self: start;
+  padding: 0.22rem 0.55rem;
+  border: 1px solid rgba(143, 209, 154, 0.45);
+  border-radius: 999px;
+  background: rgba(45, 80, 55, 0.85);
+  color: #c8f0d0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.game-craft-chip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'label title pct'
+    'bar bar bar';
+  column-gap: 0.4rem;
+  row-gap: 0.22rem;
+  min-width: 0;
+  padding: 0.28rem 0.5rem 0.35rem;
+  border: 1px solid #3a3020;
+  border-left: 3px solid #4a6a8a;
+  border-radius: 7px;
+  background: rgba(28, 32, 40, 0.9);
+  color: #e8e0d4;
+}
+
+.game-craft-chip-label {
+  grid-area: label;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8aa0b8;
+}
+
+.game-craft-chip strong {
+  grid-area: title;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-craft-chip em {
+  grid-area: pct;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-style: normal;
+  color: #9ec0e0;
+}
+
+.game-craft-chip-bar {
+  grid-area: bar;
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.game-craft-chip-bar::after {
+  content: '';
+  display: block;
+  width: var(--craft-pct, 0%);
+  height: 100%;
+  background: linear-gradient(90deg, #4a6a8a, #8ab4d8);
+}
+
+.goals-track {
+  margin-top: 0.35rem;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.goals-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c4783a, var(--belt));
+}
+
+.goals-prog {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #c9a227;
+}
+
+.habit-empty {
+  margin: 0 0 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px dashed rgba(201, 162, 39, 0.35);
+  color: #a89880;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.habit-empty.is-done {
+  border-style: solid;
+  border-color: rgba(61, 122, 82, 0.4);
+  color: #8fd19a;
 }
 
 .game-hud-rates {
