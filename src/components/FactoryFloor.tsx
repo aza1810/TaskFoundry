@@ -310,6 +310,7 @@ export function FactoryFloor({
   const [pan, setPan] = useState({ x: 12, y: 48 })
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
   const [inspect, setInspect] = useState<{ x: number; y: number } | null>(null)
+  const [inspectScrimArmed, setInspectScrimArmed] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
   const [floaters, setFloaters] = useState<Floater[]>([])
   const [stepPulse, setStepPulse] = useState(false)
@@ -317,18 +318,61 @@ export function FactoryFloor({
   const [paintActive, setPaintActive] = useState(false)
   const [resPulse, setResPulse] = useState<Partial<Record<ItemId, boolean>>>({})
   const prevInv = useRef(state.inventory)
-  const inspectOpenedAt = useRef(0)
+  const inspectScrimArmedRef = useRef(false)
 
   const openInspect = useCallback((cell: { x: number; y: number }) => {
-    inspectOpenedAt.current = performance.now()
+    inspectScrimArmedRef.current = false
+    setInspectScrimArmed(false)
     setInspect(cell)
   }, [])
 
   const closeInspect = useCallback(() => {
-    // Same tap that opens the card would otherwise hit the scrim and close it.
-    if (performance.now() - inspectOpenedAt.current < 350) return
+    // Opening tap can synthesize a click on the new scrim; ignore until armed.
+    if (!inspectScrimArmedRef.current) return
+    inspectScrimArmedRef.current = false
+    setInspectScrimArmed(false)
     setInspect(null)
   }, [])
+
+  // Opening tap often synthesizes click/pointerup on the new scrim. Swallow
+  // those scrim hits until the gesture settles, then allow dismiss.
+  useEffect(() => {
+    if (!inspect) {
+      inspectScrimArmedRef.current = false
+      setInspectScrimArmed(false)
+      return
+    }
+
+    const isScrimEvent = (e: Event) => {
+      const t = e.target
+      return t instanceof Element && !!t.closest('.inspect-modal-scrim')
+    }
+
+    const swallow = (e: Event) => {
+      if (!isScrimEvent(e)) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
+    window.addEventListener('click', swallow, true)
+    window.addEventListener('pointerup', swallow, true)
+    window.addEventListener('mouseup', swallow, true)
+
+    const armTimer = window.setTimeout(() => {
+      window.removeEventListener('click', swallow, true)
+      window.removeEventListener('pointerup', swallow, true)
+      window.removeEventListener('mouseup', swallow, true)
+      inspectScrimArmedRef.current = true
+      setInspectScrimArmed(true)
+    }, 450)
+
+    return () => {
+      window.clearTimeout(armTimer)
+      window.removeEventListener('click', swallow, true)
+      window.removeEventListener('pointerup', swallow, true)
+      window.removeEventListener('mouseup', swallow, true)
+    }
+  }, [inspect])
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -1443,14 +1487,18 @@ export function FactoryFloor({
             type="button"
             className="inspect-modal-scrim"
             aria-label="Close"
+            aria-disabled={!inspectScrimArmed}
+            tabIndex={inspectScrimArmed ? 0 : -1}
             onPointerUp={(e) => {
               e.preventDefault()
               e.stopPropagation()
+              if (!inspectScrimArmed) return
               closeInspect()
             }}
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+              if (!inspectScrimArmed) return
               closeInspect()
             }}
           />
@@ -1487,7 +1535,8 @@ export function FactoryFloor({
                 type="button"
                 className="inspect-card-close"
                 onClick={() => {
-                  inspectOpenedAt.current = 0
+                  inspectScrimArmedRef.current = false
+                  setInspectScrimArmed(false)
                   setInspect(null)
                 }}
                 aria-label="Close"
