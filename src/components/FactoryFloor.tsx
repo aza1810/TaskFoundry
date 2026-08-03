@@ -43,7 +43,10 @@ const ZOOM_MAX = 2.2
 const PAN_SLOP = 10
 const PAINT_HOLD_MS = 280
 
-/** Keep the factory grid inside the viewport - no empty panning past the edges. */
+/** Extra pixels past the map edge so you can see you've hit the border. */
+const PAN_EDGE_SLACK = 56
+
+/** Keep the factory grid near the viewport - slight overscroll shows the map edge. */
 function clampPan(
   pan: { x: number; y: number },
   zoom: number,
@@ -57,18 +60,21 @@ function clampPan(
 
   const worldW = mapW * CELL * zoom
   const worldH = mapH * CELL * zoom
+  const slack = PAN_EDGE_SLACK
 
   let x: number
   let y: number
   if (worldW <= vw) {
-    x = (vw - worldW) / 2
+    const center = (vw - worldW) / 2
+    x = Math.min(center + slack, Math.max(center - slack, pan.x))
   } else {
-    x = Math.min(0, Math.max(vw - worldW, pan.x))
+    x = Math.min(slack, Math.max(vw - worldW - slack, pan.x))
   }
   if (worldH <= vh) {
-    y = (vh - worldH) / 2
+    const center = (vh - worldH) / 2
+    y = Math.min(center + slack, Math.max(center - slack, pan.y))
   } else {
-    y = Math.min(0, Math.max(vh - worldH, pan.y))
+    y = Math.min(slack, Math.max(vh - worldH - slack, pan.y))
   }
   return { x, y }
 }
