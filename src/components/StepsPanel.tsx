@@ -127,8 +127,8 @@ export function StepsPanel({
           </span>
         </div>
         <p className="pedo-copy">
-          Uses your phone’s motion sensors while this page stays open. Useful as a backup when
-          health sync isn’t available.
+          Uses your phone's motion sensors while this page stays open. Useful as a backup when
+          health sync isn't available.
         </p>
         <div className="pedo-session">
           <span className="pedo-session-num">{formatNum(pedometer.sessionSteps)}</span>

@@ -96,7 +96,7 @@ export function TutorialOverlay({
                 Plant starter line
               </button>
               <button type="button" className="ghost-btn" onClick={skipTutorial}>
-                Skip - I’ll explore
+                Skip - I'll explore
               </button>
             </div>
           ) : (

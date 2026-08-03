@@ -1046,7 +1046,7 @@ export function skipTutorial(state: GameState): GameState {
   }
 }
 
-/** One-tap: plant starter smelting line and jump to the “log steps” coach. */
+/** One-tap: plant starter smelting line and jump to the "log steps" coach. */
 export function quickStartTutorial(state: GameState): GameState {
   const planted = buildStarterLine(state)
   const logIdx = tutorialStepIndex('logSteps')
