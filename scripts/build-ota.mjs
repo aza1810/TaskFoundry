@@ -25,7 +25,7 @@ const publicBase = (
 const appId = 'online.azztech.taskfoundry'
 
 if (!fs.existsSync(path.join(dist, 'index.html'))) {
-  console.error('dist/ missing — run npm run build:native first')
+  console.error('dist/ missing - run npm run build:native first')
   process.exit(1)
 }
 

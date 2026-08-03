@@ -248,7 +248,7 @@ function tryDrillEject(
   }
 
   const tile = getTile(state.tiles, drill.x, drill.y)
-  // Never dump burner fuel — only eject the resource being mined
+  // Never dump burner fuel - only eject the resource being mined
   const prefer: ItemId[] =
     tile?.ore === 'coal' ? ['coal'] : ['ironOre', 'copperOre']
 
@@ -261,7 +261,7 @@ function tryDrillEject(
   return true
 }
 
-/** One mining cycle per drill — driven by player steps */
+/** One mining cycle per drill - driven by player steps */
 export function runMineCycles(state: GameState, cycles: number): GameState {
   if (cycles <= 0) return state
   const entities: Record<string, Entity> = {}

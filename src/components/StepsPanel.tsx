@@ -68,12 +68,12 @@ export function StepsPanel({
           </div>
           <p className="pedo-copy">
             Reads today&apos;s steps from {healthSteps.platformLabel}. Only new steps since the last
-            sync are imported — manual logs stay separate.
+            sync are imported - manual logs stay separate.
           </p>
           <div className="pedo-session">
             <span className="pedo-session-num">
               {healthSteps.healthStepsToday == null
-                ? '—'
+                ? '-'
                 : formatNum(healthSteps.healthStepsToday)}
             </span>
             <span className="pedo-session-label">steps in health today</span>
@@ -110,7 +110,7 @@ export function StepsPanel({
           </div>
           <p className="pedo-copy">
             This browser site cannot read Apple Health or Google Health Connect. Use the native
-            Android / iOS app for that — or the live pedometer / manual log below.
+            Android / iOS app for that - or the live pedometer / manual log below.
           </p>
         </div>
       )}

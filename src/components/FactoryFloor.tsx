@@ -39,7 +39,7 @@ import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '.
 const CELL = 56
 const ZOOM_MIN = 0.45
 const ZOOM_MAX = 2.2
-/** Touch browsers often report movementX/Y as 0 — use client deltas instead. */
+/** Touch browsers often report movementX/Y as 0 - use client deltas instead. */
 const PAN_SLOP = 10
 const PAINT_HOLD_MS = 280
 const HUD_RESOURCES: ItemId[] = [
@@ -505,7 +505,7 @@ export function FactoryFloor({
     const cell = cellFromPoint(e.clientX, e.clientY)
     if (cell) setHover(cell)
 
-    // Don't place yet — wait for tap vs drag. Drag always pans the map.
+    // Don't place yet - wait for tap vs drag. Drag always pans the map.
     gesture.current = {
       kind: 'pending',
       startZoom: zoom,
@@ -756,14 +756,14 @@ export function FactoryFloor({
         ) : (
           <button type="button" className="game-objective is-clear" onClick={onOpenTasks}>
             <span>Contracts</span>
-            <strong>All clear — expand</strong>
+            <strong>All clear - expand</strong>
           </button>
         )}
 
         {pedometer.status === 'listening' && (
           <div className="game-walk-banner">
             <span className="game-walk-dot" aria-hidden />
-            Walking — drills mine with each step
+            Walking - drills mine with each step
             <button type="button" onClick={pedometer.stop}>
               Stop
             </button>
@@ -1024,7 +1024,7 @@ export function FactoryFloor({
           className={`mode-banner${paintActive ? ' is-painting' : ''}`}
           aria-live="polite"
         >
-          <strong>{paintActive ? 'Painting — drag to continue' : toolLabel}</strong>
+          <strong>{paintActive ? 'Painting - drag to continue' : toolLabel}</strong>
           <span>
             {paintActive
               ? selected === 'remove'
@@ -1237,7 +1237,7 @@ export function FactoryFloor({
                   (state.inventory[PLACEABLE_META[t].inventoryKey] ?? 0) <= 0,
               ) && (
                 <p className="build-empty-hint">
-                  No buildings in stock — craft more on the Craft tab, or complete Tasks.
+                  No buildings in stock - craft more on the Craft tab, or complete Tasks.
                 </p>
               )}
 
@@ -1350,7 +1350,7 @@ function Minimap({
     <button
       type="button"
       className="minimap"
-      aria-label="Minimap — tap to jump"
+      aria-label="Minimap - tap to jump"
       onClick={(e) => {
         const rect = e.currentTarget.getBoundingClientRect()
         const x = ((e.clientX - rect.left) / rect.width) * width

@@ -72,7 +72,7 @@ export function ResearchPanel() {
       <div className="panel-head">
         <h2>Research tree</h2>
         <p>
-          Unlock branches left to right. Tap a node for details — only Research
+          Unlock branches left to right. Tap a node for details - only Research
           spends materials.
         </p>
         <p className="panel-stat">

@@ -65,7 +65,7 @@ export function AuthScreen() {
   }
 
   useEffect(() => {
-    // Native app uses Credential Manager / Google Sign-In SDK — skip GIS web button.
+    // Native app uses Credential Manager / Google Sign-In SDK - skip GIS web button.
     if (nativeGoogle) {
       setGoogleReady(Boolean(clientId))
       return
@@ -144,7 +144,7 @@ export function AuthScreen() {
           <p className="tagline">{APP_TAGLINE}</p>
           <p className="auth-pitch">
             Walk to power drills, clear daily tasks for parts, automate a factory.
-            Sign in to keep your foundry on this device — or continue as guest.
+            Sign in to keep your foundry on this device - or continue as guest.
           </p>
         </div>
 

@@ -19,7 +19,7 @@ import {
 } from '../theme'
 
 function formatBuiltAt(iso: string | null): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   try {
     return new Date(iso).toLocaleString()
   } catch {
@@ -140,7 +140,7 @@ export function SettingsPanel() {
           </div>
           <div>
             <dt>Latest on server</dt>
-            <dd>{ota.remoteVersion ?? '—'}</dd>
+            <dd>{ota.remoteVersion ?? '-'}</dd>
           </div>
           <div>
             <dt>Server build</dt>

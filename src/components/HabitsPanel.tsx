@@ -34,7 +34,7 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
       <div className="panel-head">
         <h2>Daily Tasks</h2>
         <p>
-          Check off daily tasks to restock the foundry — ore, plates, belts, inserters —
+          Check off daily tasks to restock the foundry - ore, plates, belts, inserters -
           so you can expand the floor.
         </p>
         <p className="panel-stat">

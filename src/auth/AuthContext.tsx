@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInGoogleCredential = useCallback(async (credential: string) => {
     const clientId = getGoogleClientId()
     if (!clientId) return 'Add a Google Client ID to enable Sign in with Google'
-    // Native apps already have an ID token from Credential Manager — no GIS script needed.
+    // Native apps already have an ID token from Credential Manager - no GIS script needed.
     const payload = decodeGoogleCredential(credential)
     if (!payload) return 'Invalid Google credential'
     const result = signInWithGoogle(payload, clientId)

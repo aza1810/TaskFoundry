@@ -48,7 +48,7 @@ let state: OtaState = {
   message:
     Capacitor.isNativePlatform()
       ? 'Tap Check for update to look for a newer build.'
-      : 'Web build — refresh the page for the latest version. OTA applies to the Android APK.',
+      : 'Web build - refresh the page for the latest version. OTA applies to the Android APK.',
 }
 
 function emit(patch: Partial<OtaState>) {
@@ -121,7 +121,7 @@ async function downloadBundle(latest: LatestManifest) {
       ...(latest.checksum ? { checksum: latest.checksum } : {}),
     })
   } catch (first) {
-    // Retry without checksum — some hosts alter ETag/bytes in transit.
+    // Retry without checksum - some hosts alter ETag/bytes in transit.
     if (!latest.checksum) throw first
     console.warn('[ota] download with checksum failed, retrying bare', first)
     return CapacitorUpdater.download({
@@ -201,7 +201,7 @@ export async function checkForUpdate(apply = false): Promise<OtaState> {
   }
 }
 
-/** Quiet launch/resume check — applies updates when found. */
+/** Quiet launch/resume check - applies updates when found. */
 export async function initNativeOta(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return
 

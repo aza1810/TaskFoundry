@@ -82,7 +82,7 @@ export function InventoryPanel() {
 
       {total <= 0 && (
         <p className="inv-empty">
-          Empty — mine ore, complete Tasks for free parts, or Craft buildings.
+          Empty - mine ore, complete Tasks for free parts, or Craft buildings.
         </p>
       )}
 

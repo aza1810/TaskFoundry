@@ -9,7 +9,7 @@
  * Optional:
  *   FTP_HOST         (default FTP.fasthosts.co.uk)
  *   FTP_PORT         (default 21)
- *   FTP_REMOTE_DIR   (default apps/tf — relative to FTP login home /htdocs)
+ *   FTP_REMOTE_DIR   (default apps/tf - relative to FTP login home /htdocs)
  *   FTP_SECURE       (1 to enable explicit TLS)
  *   FTP_ATTEMPTS     (default 12)
  */
@@ -39,7 +39,7 @@ if (!user || !pass) {
   process.exit(1)
 }
 if (!fs.existsSync(path.join(dist, 'index.html'))) {
-  console.error('dist/ missing — run npm run build:azz first')
+  console.error('dist/ missing - run npm run build:azz first')
   process.exit(1)
 }
 
@@ -99,7 +99,7 @@ async function uploadFile(basicFtp, localPath, remoteRel) {
 
   for (let i = 1; i <= attempts; i++) {
     try {
-      // Fresh login each attempt — CWD starts at Fasthosts /htdocs
+      // Fresh login each attempt - CWD starts at Fasthosts /htdocs
       await withClient(basicFtp, async (client) => {
         await client.ensureDir(remoteParent)
         await client.uploadFrom(localPath, name)

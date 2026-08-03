@@ -28,7 +28,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'Real-world steps power your factory. Walk (or tap +10), drills mine, belts move ore, furnaces smelt. Start with a drill — or plant a whole starter line in one tap.',
+    body: 'Real-world steps power your factory. Walk (or tap +10), drills mine, belts move ore, furnaces smelt. Start with a drill - or plant a whole starter line in one tap.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },

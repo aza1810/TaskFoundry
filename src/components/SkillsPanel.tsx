@@ -44,7 +44,7 @@ export function SkillsPanel() {
       <div className="skill-focus-bar">
         Focus:{' '}
         {focused.length === 0 ? (
-          <em>none — tap Focus on a skill</em>
+          <em>none - tap Focus on a skill</em>
         ) : (
           focused.map((id) => SKILL_DEFS[id].name).join(' · ')
         )}
@@ -68,7 +68,7 @@ export function SkillsPanel() {
                   } ${isFocus ? 'is-focus' : ''}`}
                   onClick={() => setSelected(id)}
                   aria-pressed={isSelected}
-                  title={`${d.name} — level ${s.level}`}
+                  title={`${d.name} - level ${s.level}`}
                 >
                   <SkillIcon id={id} level={s.level} lit={isTraining || pulse > 0} size="lg" />
                   <span className="skill-tile-name">{d.name}</span>
@@ -104,7 +104,7 @@ export function SkillsPanel() {
           <div className="skill-xp-block">
             <div className="skill-xp-meta">
               <span>{maxed ? 'Max level' : 'Experience'}</span>
-              <span>{maxed ? '—' : `${Math.floor(skill.xp)} / ${need}`}</span>
+              <span>{maxed ? '-' : `${Math.floor(skill.xp)} / ${need}`}</span>
             </div>
             <div className="skill-track" aria-hidden>
               <div

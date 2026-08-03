@@ -86,7 +86,7 @@ export function createInitialState(): GameState {
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
-      'Welcome — place a drill on iron ore, or plant a Starter line. Steps power every drill.',
+      'Welcome - place a drill on iron ore, or plant a Starter line. Steps power every drill.',
     offlineReport: null,
     stats: emptyStats(),
     completedGoals: [],
@@ -189,7 +189,7 @@ function addXp(state: GameState, amount: number): GameState {
   while (xp >= needed) {
     xp -= needed
     level += 1
-    toast = `Level ${level} — clearance upgraded`
+    toast = `Level ${level} - clearance upgraded`
     needed = xpForLevel(level)
   }
   return { ...state, xp, level, unlockedToast: toast }
@@ -237,7 +237,7 @@ export function claimGoals(state: GameState): GameState {
       ...next,
       completedGoals: [...next.completedGoals, goal.id],
       inventory: gain(next.inventory, goal.reward),
-      unlockedToast: `Objective complete: ${goal.title} — ${goal.rewardLabel}`,
+      unlockedToast: `Objective complete: ${goal.title} - ${goal.rewardLabel}`,
       tipIndex: (next.tipIndex + 1) % TIPS.length,
     }
     next = addXp(next, 25)
@@ -318,7 +318,7 @@ function addItemCounts(
   }
 }
 
-/** Inventory + machine stores + belt cargo — what the factory is holding. */
+/** Inventory + machine stores + belt cargo - what the factory is holding. */
 function snapshotItems(state: GameState): Partial<Record<ItemId, number>> {
   const out: Partial<Record<ItemId, number>> = {}
   addItemCounts(out, state.inventory)
@@ -446,7 +446,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   if (tile.entityId) return state
   const meta = PLACEABLE_META[tool]
   if (asItemCount(state.inventory[meta.inventoryKey]) < 1) {
-    return { ...state, unlockedToast: `No ${meta.label} in inventory — craft one` }
+    return { ...state, unlockedToast: `No ${meta.label} in inventory - craft one` }
   }
 
   if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) {
@@ -583,14 +583,14 @@ function handleCopyClick(state: GameState, x: number, y: number): GameState {
     blueprint,
     copyCorner: null,
     selected: 'paste',
-    unlockedToast: `Copied ${blueprint.length} buildings — tap to paste`,
+    unlockedToast: `Copied ${blueprint.length} buildings - tap to paste`,
   }
 }
 
 function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
   const bp = state.blueprint
   if (!bp || bp.length === 0) {
-    return { ...state, unlockedToast: 'No blueprint — use Copy first' }
+    return { ...state, unlockedToast: 'No blueprint - use Copy first' }
   }
 
   const need: Partial<Record<Placeable, number>> = {}
@@ -616,7 +616,7 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     }
     const tile = state.tiles[idx(x, y)]
     if (tile.entityId) {
-      return { ...state, unlockedToast: 'Paste area is blocked — clear tiles first' }
+      return { ...state, unlockedToast: 'Paste area is blocked - clear tiles first' }
     }
     if (isDrillKind(piece.kind) && !tile.ore) {
       return {
@@ -734,7 +734,7 @@ export function logSteps(state: GameState, amount: number): GameState {
     const perk = def.perks.find((p) => p.level === lvl)
     next = {
       ...next,
-      unlockedToast: `${def.name} → Lv ${lvl}${perk ? ` — ${perk.label}` : ''}`,
+      unlockedToast: `${def.name} → Lv ${lvl}${perk ? ` - ${perk.label}` : ''}`,
     }
   } else {
     const summary = formatSkillGains(gains)
@@ -853,7 +853,7 @@ export function craftRecipe(state: GameState, recipeId: string): GameState {
   if (state.craftQueue.length >= MAX_CRAFT_QUEUE) {
     return {
       ...state,
-      unlockedToast: `Craft queue full (${MAX_CRAFT_QUEUE}) — wait for the bench`,
+      unlockedToast: `Craft queue full (${MAX_CRAFT_QUEUE}) - wait for the bench`,
     }
   }
   if (!canAfford(state.inventory, recipe.inputs)) {
@@ -906,7 +906,7 @@ export function cancelCraft(state: GameState, jobId: string): GameState {
     ...state,
     craftQueue: queue,
     inventory,
-    unlockedToast: `Cancelled ${recipe?.name ?? 'craft'} — materials returned`,
+    unlockedToast: `Cancelled ${recipe?.name ?? 'craft'} - materials returned`,
   }
 }
 
@@ -998,7 +998,7 @@ export function advanceTutorial(state: GameState): GameState {
       ...state,
       tutorialStep: null,
       tutorialComplete: true,
-      unlockedToast: 'Tour complete — walk the line, operator',
+      unlockedToast: 'Tour complete - walk the line, operator',
     }
   }
   return { ...state, tutorialStep: next }
@@ -1009,7 +1009,7 @@ export function skipTutorial(state: GameState): GameState {
     ...state,
     tutorialStep: null,
     tutorialComplete: true,
-    unlockedToast: 'Tour skipped — explore Floor, Steps, and Tasks at your pace',
+    unlockedToast: 'Tour skipped - explore Floor, Steps, and Tasks at your pace',
   }
 }
 
@@ -1027,7 +1027,7 @@ export function quickStartTutorial(state: GameState): GameState {
   return {
     ...planted,
     tutorialStep: logIdx >= 0 ? logIdx : planted.tutorialStep,
-    unlockedToast: 'Starter line planted — log steps (or walk) to mine ore',
+    unlockedToast: 'Starter line planted - log steps (or walk) to mine ore',
   }
 }
 
@@ -1061,7 +1061,7 @@ export function claimContract(state: GameState, contractId: string): GameState {
     contracts: next.contracts.map((x) =>
       x.id === contractId ? { ...x, claimed: true } : x,
     ),
-    unlockedToast: `Contract complete: ${c.title} — ${c.rewardLabel}`,
+    unlockedToast: `Contract complete: ${c.title} - ${c.rewardLabel}`,
   }
   return addXp(claimGoals(next), 20)
 }
@@ -1090,7 +1090,7 @@ export function researchTech(state: GameState, techId: TechId): GameState {
       ...state,
       inventory: spend(state.inventory, tech.cost),
       researched: [...state.researched, techId],
-      unlockedToast: `Researched ${tech.name} — ${tech.unlocks}`,
+      unlockedToast: `Researched ${tech.name} - ${tech.unlocks}`,
     },
     35,
   )
@@ -1167,7 +1167,7 @@ export function buildStarterLine(state: GameState): GameState {
     entities,
     placeDir: 'E',
     selected: 'belt',
-    unlockedToast: 'Starter smelting line planted — log steps to feed it',
+    unlockedToast: 'Starter smelting line planted - log steps to feed it',
   })
 }
 

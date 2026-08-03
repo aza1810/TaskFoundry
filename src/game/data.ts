@@ -21,7 +21,7 @@ export function setActiveSaveKey(key: string): void {
 export const GRID_W = 24
 export const GRID_H = 16
 export const MAX_CRAFT_QUEUE = 8
-/** Factory keeps running while away (seconds) — max 24 hours */
+/** Factory keeps running while away (seconds) - max 24 hours */
 export const OFFLINE_CAP_SECONDS = 24 * 60 * 60
 /** Show the away summary when the gap is longer than this */
 export const OFFLINE_REPORT_SECONDS = 30

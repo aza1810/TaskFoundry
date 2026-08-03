@@ -21,7 +21,7 @@ if (!host || !user || !pass) {
   process.exit(1)
 }
 if (!fs.existsSync(path.join(localDir, 'latest.json'))) {
-  console.error('ota-dist/ missing — run node scripts/build-ota.mjs first')
+  console.error('ota-dist/ missing - run node scripts/build-ota.mjs first')
   process.exit(1)
 }
 

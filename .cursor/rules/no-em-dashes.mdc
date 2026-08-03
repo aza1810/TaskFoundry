@@ -1,0 +1,22 @@
+---
+description: Never use em dashes in Task Foundry (or related) writing
+alwaysApply: true
+---
+
+# No em dashes
+
+Never use the em dash character (`-`, U+2014) or en dash (`-`, U+2013) anywhere in this project.
+
+That includes:
+- User-facing UI copy (titles, toasts, empty states, buttons, dialogs)
+- Comments and docstrings
+- README / markdown
+- HTML titles and meta descriptions
+- Scripts, workflows, and log messages
+- CSS comments
+
+Use a regular hyphen (`-`), a colon, a period, or rephrase the sentence instead.
+
+Empty / missing-value placeholders should be `-` or `n/a`, never `-`.
+
+If you see an existing em dash while editing, remove it in the same change.

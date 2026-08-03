@@ -85,7 +85,7 @@ export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; 
   const tooth = fast ? '#f09090' : '#f0b040'
   const gap = fast ? '#7a1818' : '#8a5010'
   const rail = fast ? '#4a1010' : '#5c3a08'
-  // Seamless 16px period — CSS scrolls by the same distance.
+  // Seamless 16px period - CSS scrolls by the same distance.
   const stripes = Array.from({ length: 10 }, (_, i) => {
     const x = i * 16 - 16
     return (
@@ -116,7 +116,7 @@ export function BeltSprite({ dir, moving, fast }: { dir: Dir; moving?: boolean; 
       <g className="belt-stripes" clipPath={`url(#${clipId})`}>
         {stripes}
       </g>
-      {/* Rollers — spin when belt is moving */}
+      {/* Rollers - spin when belt is moving */}
       {[10, 32, 54].map((cx) => (
         <g key={cx} className="belt-roller">
           <circle cx={cx} cy="32" r="3.2" fill="#2a2620" stroke="#0a0806" strokeWidth="1" />

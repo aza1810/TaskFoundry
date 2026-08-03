@@ -213,7 +213,7 @@ export interface GameState {
   lastTick: number
   totalHabitsCompleted: number
   unlockedToast: string | null
-  /** Ephemeral — set after offline catch-up, cleared by the player, not saved */
+  /** Ephemeral - set after offline catch-up, cleared by the player, not saved */
   offlineReport: OfflineReport | null
   stats: FactoryStats
   completedGoals: string[]

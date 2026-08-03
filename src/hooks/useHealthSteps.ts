@@ -52,7 +52,7 @@ async function sumTodaySteps(): Promise<number> {
       return Math.floor(total)
     }
   } catch {
-    // Fall through to sample sum — some devices only expose samples.
+    // Fall through to sample sum - some devices only expose samples.
   }
 
   const { samples } = await Health.readSamples({
@@ -67,7 +67,7 @@ async function sumTodaySteps(): Promise<number> {
 
 /**
  * Native HealthKit / Health Connect step reader.
- * On the azztech.online website this stays inactive — browsers cannot access those APIs.
+ * On the azztech.online website this stays inactive - browsers cannot access those APIs.
  */
 export function useHealthSteps(): HealthStepsApi {
   const isNative = Capacitor.isNativePlatform()

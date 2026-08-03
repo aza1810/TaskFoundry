@@ -62,7 +62,7 @@ export function CraftPanel() {
       <div className="panel-head">
         <h2>Hand Crafting Bench</h2>
         <p>
-          Hand crafts take real time — slower than furnaces and assemblers. Queue up to{' '}
+          Hand crafts take real time - slower than furnaces and assemblers. Queue up to{' '}
           {MAX_CRAFT_QUEUE} jobs; materials are reserved when you start.
         </p>
       </div>
@@ -87,7 +87,7 @@ export function CraftPanel() {
               </div>
             </>
           ) : (
-            <p className="craft-idle">Bench idle — pick a recipe below.</p>
+            <p className="craft-idle">Bench idle - pick a recipe below.</p>
           )}
         </div>
 
@@ -247,8 +247,8 @@ export function CraftPanel() {
                       .join(' ')}
                     title={
                       locked
-                        ? `${recipe.name} — research required`
-                        : `${recipe.name} (${canMake} craftable) — tap for details`
+                        ? `${recipe.name} - research required`
+                        : `${recipe.name} (${canMake} craftable) - tap for details`
                     }
                     aria-label={
                       locked

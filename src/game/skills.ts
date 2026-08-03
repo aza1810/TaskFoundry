@@ -24,7 +24,7 @@ export interface SkillDef {
   perks: SkillPerk[]
 }
 
-/** XP required to go from `level` → `level + 1` (level is current, 0–4). */
+/** XP required to go from `level` → `level + 1` (level is current, 0-4). */
 export function skillXpForLevel(level: number): number {
   return Math.floor(35 * Math.pow(1.55, Math.max(0, level)))
 }
@@ -85,7 +85,7 @@ export const SKILL_DEFS: Record<SkillId, SkillDef> = {
   fieldwork: {
     id: 'fieldwork',
     name: 'Fieldwork',
-    detail: 'Trained by every step — even with an empty foundry floor.',
+    detail: 'Trained by every step - even with an empty foundry floor.',
     color: '#7dff9a',
     perks: [
       { level: 1, label: 'Task rewards +10%' },

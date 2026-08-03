@@ -100,7 +100,7 @@ export function AwaySummary() {
           ) : (
             <>
               Here&apos;s what ran while you were gone
-              {busy ? ':' : ' — the floor was quiet.'}
+              {busy ? ':' : ' - the floor was quiet.'}
             </>
           )}
         </p>
@@ -167,7 +167,7 @@ export function AwaySummary() {
         {!busy && (
           <p className="away-empty">
             Fuel drills, fill furnaces, or queue crafts before you leave next time
-            — the foundry only works what you leave loaded.
+            - the foundry only works what you leave loaded.
           </p>
         )}
 

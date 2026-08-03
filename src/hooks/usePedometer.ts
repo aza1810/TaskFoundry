@@ -45,7 +45,7 @@ export interface PedometerApi {
 
 /**
  * Phone pedometer via DeviceMotion accelerometer peaks.
- * Browsers cannot read Apple Health / Google Fit totals — this counts live steps
+ * Browsers cannot read Apple Health / Google Fit totals - this counts live steps
  * while Task Foundry is open on the phone.
  */
 export function usePedometer(onSteps: (n: number) => void): PedometerApi {

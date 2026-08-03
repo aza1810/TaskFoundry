@@ -30,7 +30,7 @@ export const TECHS: TechDef[] = [
   {
     id: 'logistics',
     name: 'Logistics',
-    detail: 'Study belt routing and item flow — gateway to faster logistics.',
+    detail: 'Study belt routing and item flow - gateway to faster logistics.',
     cost: { ironPlate: 15, gear: 8, belt: 4 },
     unlocks: 'Logistics 2 research',
     prerequisites: ['automation'],
@@ -41,7 +41,7 @@ export const TECHS: TechDef[] = [
   {
     id: 'electricMining',
     name: 'Electric mining',
-    detail: 'Unlock electric drills — no coal, 2 ore per step cycle.',
+    detail: 'Unlock electric drills - no coal, 2 ore per step cycle.',
     cost: { copperPlate: 25, gear: 20, ironPlate: 20 },
     unlocks: 'Electric mining drill crafting',
     prerequisites: ['automation'],

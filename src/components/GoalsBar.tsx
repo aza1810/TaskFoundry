@@ -35,7 +35,7 @@ export function GoalsBar() {
             <p className="goals-reward">Reward: {goal.rewardLabel}</p>
           </>
         ) : (
-          <p className="goals-detail">All objectives clear — research upgrades and expand.</p>
+          <p className="goals-detail">All objectives clear - research upgrades and expand.</p>
         )}
       </div>
 

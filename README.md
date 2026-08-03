@@ -23,8 +23,8 @@ The website keeps the browser pedometer + manual step log. Browsers cannot read 
 
 Same React app, wrapped with [Capacitor](https://capacitorjs.com/). On device it can sync today’s steps from:
 
-- **iOS** — Apple Health (HealthKit)
-- **Android** — Health Connect
+- **iOS** - Apple Health (HealthKit)
+- **Android** - Health Connect
 
 ```bash
 npm install
@@ -87,4 +87,4 @@ CI publishes on push to `main` via [.github/workflows/deploy-azz.yml](.github/wo
 npm run deploy:azz
 ```
 
-The uploader reconnects per file and retries on Fasthosts `425` data-channel errors. Remote path is `apps/tf` under the FTP login home (`/htdocs`) — do not prefix `htdocs/`.
+The uploader reconnects per file and retries on Fasthosts `425` data-channel errors. Remote path is `apps/tf` under the FTP login home (`/htdocs`) - do not prefix `htdocs/`.

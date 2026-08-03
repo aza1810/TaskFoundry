@@ -17,7 +17,7 @@
   --font-display: 'Oxanium', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  /* App chrome (dark default — matches current factory UI) */
+  /* App chrome (dark default - matches current factory UI) */
   --bg-app: #0e100c;
   --bg-sheet: #1a1612;
   --bg-sheet-bar: rgba(18, 16, 12, 0.96);
@@ -83,7 +83,7 @@ html[data-theme='light'] {
   --panel: rgba(255, 250, 242, 0.92);
   --panel-solid: #fffaf2;
 
-  /* Sunny factory floor — matches light chrome */
+  /* Sunny factory floor - matches light chrome */
   --ground-a: #a8bc6e;
   --ground-b: #9bb262;
   --ground-c: #b3c57a;
@@ -255,7 +255,7 @@ button {
   gap: 0.65rem;
 }
 
-/* —— Sticky top status —— */
+/* -- Sticky top status -- */
 .topbar {
   position: sticky;
   top: 0;
@@ -437,7 +437,7 @@ button {
   background: rgba(240, 160, 32, 0.15);
 }
 
-/* —— Bottom section nav —— */
+/* -- Bottom section nav -- */
 .bottom-nav {
   position: fixed;
   left: 0;
@@ -1741,7 +1741,7 @@ button {
   margin-top: 0.45rem;
 }
 
-/* —— Research tree —— */
+/* -- Research tree -- */
 .research-panel {
   display: flex;
   flex-direction: column;
@@ -2029,7 +2029,7 @@ button {
   }
 }
 
-/* —— Settings —— */
+/* -- Settings -- */
 .settings-panel .settings-block {
   margin-top: 1.1rem;
   padding-top: 0.9rem;
@@ -2163,7 +2163,7 @@ button {
   font-size: 1.1rem;
 }
 
-/* —— Grid factory (Factorio-style) —— */
+/* -- Grid factory (Factorio-style) -- */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -2716,7 +2716,7 @@ button {
 }
 
 
-/* —— Full-screen mobile factory game —— */
+/* -- Full-screen mobile factory game -- */
 .app-game {
   height: 100%;
   height: 100dvh;
@@ -4554,7 +4554,7 @@ button {
   }
 }
 
-/* —— Light theme chrome overrides —— */
+/* -- Light theme chrome overrides -- */
 html[data-theme='light'] .game-hud-brand {
   color: #8a5a10;
 }
@@ -4774,7 +4774,7 @@ html[data-theme='light'] .machine-sheet .primary-btn {
   color: inherit;
 }
 
-/* —— Away from factory summary —— */
+/* -- Away from factory summary -- */
 .away-root {
   position: fixed;
   inset: 0;
