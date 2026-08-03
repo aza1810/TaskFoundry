@@ -1270,6 +1270,24 @@ button {
   margin-top: 1rem;
 }
 
+.step-actions .primary-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 4.2rem;
+  line-height: 1.15;
+}
+
+.step-btn-sub {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
 .craft-queue {
   margin-top: 1rem;
   display: grid;
@@ -1854,10 +1872,11 @@ button {
 .research-node.is-ready {
   background: rgba(240, 160, 32, 0.16);
   border-color: var(--belt-dark);
+  animation: research-ready-pulse 1.6s ease-in-out infinite;
 }
 
 .research-node.is-ready.is-selected {
-  animation: research-ready-pulse 1.6s ease-in-out infinite;
+  animation: research-ready-pulse 1.1s ease-in-out infinite;
 }
 
 @keyframes research-ready-pulse {

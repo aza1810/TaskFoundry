@@ -76,7 +76,7 @@ export function InventoryPanel() {
     <section className="panel inventory-panel">
       <div className="panel-head">
         <h2>Inventory</h2>
-        <p>Materials and buildings ready to place. Zeros stay visible so you know what’s missing.</p>
+        <p>Materials and buildings ready to place. Zeros stay visible so you know what's missing.</p>
         <p className="panel-stat">{formatNum(total)} items on hand</p>
       </div>
 

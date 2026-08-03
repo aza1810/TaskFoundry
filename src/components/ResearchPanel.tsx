@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ITEM_META, canAfford } from '../game/data'
 import {
   TECHS,
@@ -66,6 +66,22 @@ export function ResearchPanel() {
   const affordable = canAfford(state.inventory, selected.cost)
   const canResearch = !done && unlocked && affordable
   const researchedCount = state.researched.length
+
+  useEffect(() => {
+    if (!state.researched.includes(selectedId)) return
+    const nextReady =
+      TECHS.find(
+        (t) =>
+          !state.researched.includes(t.id) &&
+          prereqsMet(t, state.researched) &&
+          canAfford(state.inventory, t.cost),
+      ) ??
+      TECHS.find(
+        (t) =>
+          !state.researched.includes(t.id) && prereqsMet(t, state.researched),
+      )
+    if (nextReady) setSelectedId(nextReady.id)
+  }, [state.researched, state.inventory, selectedId])
 
   return (
     <section className="panel research-panel">

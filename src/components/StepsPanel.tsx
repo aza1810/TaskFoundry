@@ -196,8 +196,18 @@ export function StepsPanel({
               type="button"
               className={`primary-btn ${highlightManual && n === 10 ? 'is-tutorial-cta' : ''}`}
               onClick={() => logSteps(n)}
+              title={
+                drills > 0
+                  ? `${n} steps × ${drills} drills = ${n * drills} mine cycles`
+                  : 'Place a drill so steps mine ore'
+              }
             >
-              +{n} {n === 1 ? 'step' : 'steps'}
+              +{n}
+              {drills > 0 ? (
+                <span className="step-btn-sub">
+                  {drills} drill{drills === 1 ? '' : 's'}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
