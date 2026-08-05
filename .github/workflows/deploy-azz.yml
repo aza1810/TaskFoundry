@@ -19,7 +19,9 @@ on:
       - 'scripts/deploy-ftp.mjs'
       - 'scripts/build-ota.mjs'
       - 'scripts/upload-ota-ftp.mjs'
+      - 'scripts/upload-api-ftp.mjs'
       - 'ota/**'
+      - 'api/**'
       - 'capacitor.config.ts'
       - '.github/workflows/deploy-azz.yml'
   workflow_dispatch:
@@ -143,6 +145,15 @@ jobs:
           npm install --no-save basic-ftp
           node scripts/upload-ota-ftp.mjs
 
+      - name: FTP publish cloud save API
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          npm install --no-save basic-ftp
+          node scripts/upload-api-ftp.mjs
+
       - name: Smoke check live site + OTA
         run: |
           set -e
@@ -165,6 +176,12 @@ jobs:
           echo "js $js_code  css $css_code"
           test "$js_code" = "200"
           test "$css_code" = "200"
+          api_code=$(curl -sS -o /tmp/api-session.json -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' \
+            https://azztech.online/apps/tf/api/session.php)
+          echo "API session.php HTTP $api_code"
+          test "$api_code" = "400"
+          grep -q 'idToken' /tmp/api-session.json
           ota_code=$(curl -sS -o /tmp/ota.json -w '%{http_code}' https://azztech.online/apps/tf/ota/latest.json)
           echo "OTA latest.json HTTP $ota_code"
           test "$ota_code" = "200"

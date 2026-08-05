@@ -46,3 +46,7 @@ TaskFoundry-debug.apk
 *.apk
 ota-dist/
 *.zip
+api/data/saves/*
+!api/data/saves/.gitkeep
+api/data/sessions/*
+!api/data/sessions/.gitkeep

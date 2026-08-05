@@ -6,6 +6,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from 'react'
 import {
@@ -40,6 +41,13 @@ import {
   tickState,
 } from './logic'
 import type { Dir, GameState, HabitCategory, Placeable, SkillId, TechId } from './types'
+import {
+  bumpLocalSavedAt,
+  loadCloudSession,
+  pushCloudSave,
+  resolveCloudHydration,
+  type CloudSyncStatus,
+} from '../cloud/saveSync'
 
 type Action =
   | { type: 'TICK'; now: number }
@@ -69,6 +77,7 @@ type Action =
   | { type: 'ADVANCE_TUTORIAL' }
   | { type: 'SKIP_TUTORIAL' }
   | { type: 'QUICK_START_TUTORIAL' }
+  | { type: 'HYDRATE'; state: GameState }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -126,6 +135,8 @@ function reducer(state: GameState, action: Action): GameState {
       return skipTutorialLogic(state)
     case 'QUICK_START_TUTORIAL':
       return quickStartTutorialLogic(state)
+    case 'HYDRATE':
+      return action.state
     default:
       return state
   }
@@ -133,6 +144,7 @@ function reducer(state: GameState, action: Action): GameState {
 
 interface GameContextValue {
   state: GameState
+  cloudSync: CloudSyncStatus
   selectTool: (tool: GameState['selected']) => void
   rotateDir: () => void
   place: (x: number, y: number) => void
@@ -168,10 +180,12 @@ export function GameProvider({
   children,
   saveKey,
   displayName,
+  enableCloudSync = false,
 }: {
   children: ReactNode
   saveKey: string
   displayName?: string
+  enableCloudSync?: boolean
 }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => {
     const loaded = loadState(saveKey)
@@ -180,7 +194,56 @@ export function GameProvider({
     }
     return loaded
   })
+  const [cloudSync, setCloudSync] = useState<CloudSyncStatus>(() =>
+    enableCloudSync
+      ? loadCloudSession()
+        ? 'syncing'
+        : 'error'
+      : 'local-only',
+  )
   const saveTimer = useRef<number | null>(null)
+  const cloudTimer = useRef<number | null>(null)
+  const cloudReady = useRef(!enableCloudSync)
+  const stateRef = useRef(state)
+  stateRef.current = state
+
+  useEffect(() => {
+    if (!enableCloudSync) {
+      setCloudSync('local-only')
+      cloudReady.current = true
+      return
+    }
+    if (!loadCloudSession()) {
+      setCloudSync('error')
+      cloudReady.current = true
+      return
+    }
+
+    let cancelled = false
+    setCloudSync('syncing')
+    void (async () => {
+      const result = await resolveCloudHydration(saveKey, stateRef.current)
+      if (cancelled) return
+      if (result?.fromCloud) {
+        const { offlineReport: _o, ...persisted } = result.state
+        localStorage.setItem(saveKey, JSON.stringify(persisted))
+        const next = loadState(saveKey)
+        dispatch({
+          type: 'HYDRATE',
+          state:
+            displayName && next.playerName === 'Operator'
+              ? { ...next, playerName: displayName }
+              : next,
+        })
+      }
+      cloudReady.current = true
+      setCloudSync(loadCloudSession() ? 'synced' : 'error')
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [enableCloudSync, saveKey, displayName])
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -206,11 +269,44 @@ export function GameProvider({
 
   useEffect(() => {
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => saveState(state), 400)
+    saveTimer.current = window.setTimeout(() => {
+      saveState(state)
+      const savedAt = bumpLocalSavedAt(saveKey)
+      if (!enableCloudSync || !cloudReady.current || !loadCloudSession()) return
+      if (cloudTimer.current) window.clearTimeout(cloudTimer.current)
+      cloudTimer.current = window.setTimeout(() => {
+        setCloudSync('syncing')
+        void pushCloudSave(saveKey, stateRef.current, savedAt)
+          .then(() => setCloudSync('synced'))
+          .catch(() => setCloudSync(loadCloudSession() ? 'offline' : 'error'))
+      }, 2500)
+    }, 400)
     return () => {
       if (saveTimer.current) window.clearTimeout(saveTimer.current)
+      if (cloudTimer.current) window.clearTimeout(cloudTimer.current)
     }
-  }, [state])
+  }, [state, saveKey, enableCloudSync])
+
+  useEffect(() => {
+    if (!enableCloudSync) return
+    function flush() {
+      if (!cloudReady.current || !loadCloudSession()) return
+      const savedAt = bumpLocalSavedAt(saveKey)
+      saveState(stateRef.current)
+      void pushCloudSave(saveKey, stateRef.current, savedAt).catch(() => {
+        /* best-effort on hide */
+      })
+    }
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [enableCloudSync, saveKey])
 
   useEffect(() => {
     if (!state.unlockedToast) return
@@ -336,6 +432,7 @@ export function GameProvider({
   const value = useMemo(
     () => ({
       state,
+      cloudSync,
       selectTool,
       rotateDir,
       place,
@@ -366,6 +463,7 @@ export function GameProvider({
     }),
     [
       state,
+      cloudSync,
       selectTool,
       rotateDir,
       place,
