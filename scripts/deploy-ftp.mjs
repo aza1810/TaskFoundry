@@ -10,6 +10,7 @@
  *   FTP_HOST         (default FTP.fasthosts.co.uk)
  *   FTP_PORT         (default 21)
  *   FTP_REMOTE_DIR   (default apps/tf - relative to FTP login home /htdocs)
+ *   FTP_LOCAL_DIR    (default dist; CI uses dist-web so OTA can rebuild dist/)
  *   FTP_SECURE       (1 to enable explicit TLS)
  *   FTP_ATTEMPTS     (default 12)
  */
@@ -20,12 +21,14 @@ import { execSync } from 'node:child_process'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
-const dist = path.join(root, 'dist')
 
 const host = process.env.FTP_HOST || 'FTP.fasthosts.co.uk'
 const user = process.env.FTP_USER
 const pass = process.env.FTP_PASS
 const port = Number(process.env.FTP_PORT || 21)
+/** Local folder to upload (default dist). CI uses dist-web after OTA rebuilds dist/. */
+const localDirName = (process.env.FTP_LOCAL_DIR || 'dist').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+const dist = path.join(root, localDirName)
 /** Relative to FTP login home (Fasthosts lands in /htdocs). Never prefix htdocs/. */
 const remoteDir = (process.env.FTP_REMOTE_DIR || 'apps/tf')
   .replace(/\\/g, '/')
@@ -39,7 +42,15 @@ if (!user || !pass) {
   process.exit(1)
 }
 if (!fs.existsSync(path.join(dist, 'index.html'))) {
-  console.error('dist/ missing - run npm run build:azz first')
+  console.error(`${localDirName}/ missing - run npm run build:azz first`)
+  process.exit(1)
+}
+const indexHtml = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
+if (!indexHtml.includes('/apps/tf/assets/')) {
+  console.error(
+    `${localDirName}/index.html is missing /apps/tf/assets/ paths. ` +
+      'Refusing to publish a root-relative (base `/`) build to /apps/tf/.',
+  )
   process.exit(1)
 }
 
