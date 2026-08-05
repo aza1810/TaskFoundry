@@ -307,6 +307,7 @@ function AuthenticatedApp() {
       key={session.accountId}
       saveKey={saveKeyForAccount(session.accountId)}
       displayName={session.displayName}
+      enableCloudSync={session.provider === 'google' && !session.isGuest}
     >
       <Shell />
     </GameProvider>

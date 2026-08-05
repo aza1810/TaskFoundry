@@ -34,7 +34,7 @@ const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
 ]
 
 export function SettingsPanel() {
-  const { state, reset, rename } = useGame()
+  const { state, reset, rename, cloudSync } = useGame()
   const { session, signOut } = useAuth()
   const [ota, setOta] = useState<OtaState>(getOtaState)
   const [busy, setBusy] = useState(false)
@@ -47,6 +47,21 @@ export function SettingsPanel() {
       ? 'iOS app'
       : 'Android APK'
     : 'Web browser'
+
+  const cloudHint =
+    session?.provider === 'google' && !session.isGuest
+      ? cloudSync === 'synced'
+        ? `Signed in as ${session.displayName}. Cloud save synced - use Google on another device to restore this foundry.`
+        : cloudSync === 'syncing'
+          ? `Signed in as ${session.displayName}. Syncing foundry to the cloud…`
+          : cloudSync === 'offline'
+            ? `Signed in as ${session.displayName}. Offline - progress is on this device and will sync when you are back online.`
+            : `Signed in as ${session.displayName}. Cloud sync needs a fresh Google sign-in. Sign out, then Continue with Google.`
+      : session?.isGuest
+        ? 'Signed in as guest (save stays on this device). Use Google Sign-In for cloud sync.'
+        : session
+          ? `Signed in as @${session.username}. Local accounts stay on this device - use Google Sign-In for cloud sync.`
+          : 'Not signed in'
 
   useEffect(() => subscribeOta(setOta), [])
   useEffect(() => setName(state.playerName), [state.playerName])
@@ -206,15 +221,7 @@ export function SettingsPanel() {
 
       <div className="settings-block">
         <h3>Account</h3>
-        <p className="settings-hint">
-          {session
-            ? session.isGuest
-              ? 'Signed in as guest (save stays on this device).'
-              : session.provider === 'google'
-                ? `Signed in as ${session.displayName}`
-                : `Signed in as @${session.username}`
-            : 'Not signed in'}
-        </p>
+        <p className="settings-hint">{cloudHint}</p>
         <div className="settings-actions">
           <button type="button" className="ghost-btn" onClick={() => signOut()}>
             Sign out
@@ -225,7 +232,9 @@ export function SettingsPanel() {
             onClick={() => {
               if (
                 window.confirm(
-                  'Scrap this save? Factory, inventory, and progress on this account will be wiped.',
+                  session?.provider === 'google' && !session.isGuest
+                    ? 'Scrap this save on this device and in the cloud? Factory, inventory, and progress will be wiped.'
+                    : 'Scrap this save? Factory, inventory, and progress on this account will be wiped.',
                 )
               ) {
                 reset()

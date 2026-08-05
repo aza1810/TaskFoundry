@@ -16,6 +16,7 @@ import {
   type Session,
 } from './auth'
 import { decodeGoogleCredential, getGoogleClientId } from './google'
+import { clearCloudSession, createCloudSession } from '../cloud/saveSync'
 
 interface AuthContextValue {
   session: Session | null
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const doSignIn = useCallback(async (username: string, password: string) => {
     const result = await signIn(username, password)
     if (!result.ok) return result.error
+    clearCloudSession()
     setSession(result.session)
     return null
   }, [])
@@ -46,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (username: string, password: string, displayName?: string) => {
       const result = await createAccount(username, password, displayName)
       if (!result.ok) return result.error
+      clearCloudSession()
       setSession(result.session)
       return null
     },
@@ -60,15 +63,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!payload) return 'Invalid Google credential'
     const result = signInWithGoogle(payload, clientId)
     if (!result.ok) return result.error
+    try {
+      await createCloudSession(credential)
+    } catch {
+      // Local Google account still works; cloud sync activates once the API is reachable.
+    }
     setSession(result.session)
     return null
   }, [])
 
   const guest = useCallback(() => {
+    clearCloudSession()
     setSession(continueAsGuest())
   }, [])
 
   const signOut = useCallback(() => {
+    clearCloudSession()
     signOutAuth()
     setSession(null)
   }, [])
