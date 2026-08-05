@@ -49,12 +49,20 @@ jobs:
         run: npm ci
 
       - name: Build web (/apps/tf/)
-        run: npm run build:azz
+        run: |
+          npm run build:azz
+          # Keep a copy for FTP. The OTA step rebuilds dist/ with base `/`
+          # for Capacitor; publishing that would break /apps/tf/ asset URLs.
+          rm -rf dist-web
+          cp -a dist dist-web
 
       - name: Verify web dist
         run: |
-          test -f dist/index.html
-          ls -la dist dist/assets
+          test -f dist-web/index.html
+          ls -la dist-web dist-web/assets
+          # Fail fast if Vite base was wrong (root-relative /assets/ → 404 on live).
+          grep -q '/apps/tf/assets/' dist-web/index.html
+          ! grep -qE 'src="/assets/|href="/assets/' dist-web/index.html
 
       - name: Build native OTA bundle
         env:
@@ -66,6 +74,9 @@ jobs:
           test -f ota-dist/latest.json
           test -f ota-dist/update.php
           cat ota-dist/latest.json
+          # Native bundle must keep root base; web publish uses dist-web only.
+          test -f dist/index.html
+          grep -qE 'src="/assets/|href="/assets/' dist/index.html
 
       - name: Check FTP secrets
         env:
@@ -96,7 +107,7 @@ jobs:
           password: ${{ secrets.FTP_PASS }}
           protocol: ftp
           port: 21
-          local-dir: ./dist/
+          local-dir: ./dist-web/
           server-dir: apps/tf/
           # Keep apps/tf/ota/ (APK auto-update) - clean-slate would wipe it
           dangerous-clean-slate: false
@@ -117,6 +128,7 @@ jobs:
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASS: ${{ secrets.FTP_PASS }}
           FTP_REMOTE_DIR: apps/tf
+          FTP_LOCAL_DIR: dist-web
           FTP_ATTEMPTS: '16'
         run: |
           npm install --no-save basic-ftp
@@ -139,12 +151,15 @@ jobs:
           echo "HTTP $code"
           test "$code" = "200"
           grep -q 'Task Foundry' /tmp/tf.html
+          # Must be under /apps/tf/assets/ (not /assets/) or the browser 404s.
+          grep -q '/apps/tf/assets/' /tmp/tf.html
+          ! grep -qE 'src="/assets/|href="/assets/' /tmp/tf.html
           # Vite may emit chunked assets (index-*.js + web-*.js); check the main bundle.
-          js=$(basename dist/assets/index-*.js | head -n1)
-          css=$(basename dist/assets/index-*.css | head -n1)
+          js=$(basename dist-web/assets/index-*.js | head -n1)
+          css=$(basename dist-web/assets/index-*.css | head -n1)
           echo "Expect js=$js css=$css"
-          grep -q "$js" /tmp/tf.html
-          grep -q "$css" /tmp/tf.html
+          grep -q "/apps/tf/assets/$js" /tmp/tf.html
+          grep -q "/apps/tf/assets/$css" /tmp/tf.html
           js_code=$(curl -sS -o /dev/null -w '%{http_code}' "https://azztech.online/apps/tf/assets/$js")
           css_code=$(curl -sS -o /dev/null -w '%{http_code}' "https://azztech.online/apps/tf/assets/$css")
           echo "js $js_code  css $css_code"
