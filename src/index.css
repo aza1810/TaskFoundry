@@ -4712,63 +4712,6 @@ html[data-theme='light'] .ghost-btn.is-danger {
   text-align: center;
 }
 
-.auth-google-setup-toggle {
-  justify-self: center;
-  color: var(--text-ghost);
-}
-
-.auth-google-setup {
-  display: grid;
-  gap: 0.55rem;
-  padding: 0.75rem;
-  border: 1px solid #3a3020;
-  background: #12100c;
-}
-
-.auth-google-setup label {
-  display: grid;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-  color: #c4b8a0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.auth-google-setup input {
-  font: inherit;
-  text-transform: none;
-  letter-spacing: normal;
-  color: #f5ecd8;
-  background: #0e0c0a;
-  border: 1px solid #3a3020;
-  padding: 0.55rem 0.65rem;
-  -webkit-text-fill-color: #f5ecd8;
-}
-
-.auth-google-hint {
-  margin: 0;
-  color: #a89878;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-.auth-origin {
-  display: block;
-  padding: 0.45rem 0.55rem;
-  background: #0a0806;
-  border: 1px solid #3a3020;
-  color: #f0e0a0;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  word-break: break-all;
-}
-
-.auth-client-save {
-  width: 100%;
-}
-
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4826,8 +4769,7 @@ html[data-theme='light'] .ghost-btn.is-danger {
 
 .auth-form input:-webkit-autofill,
 .auth-form input:-webkit-autofill:hover,
-.auth-form input:-webkit-autofill:focus,
-.auth-google-setup input:-webkit-autofill {
+.auth-form input:-webkit-autofill:focus {
   -webkit-text-fill-color: #f5ecd8;
   caret-color: #f0e0a0;
   box-shadow: 0 0 0 1000px #0e0c0a inset;

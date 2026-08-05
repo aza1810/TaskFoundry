@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { APP_NAME, APP_TAGLINE } from '../game/data'
 import { useAuth } from '../auth/AuthContext'
-import {
-  getGoogleClientId,
-  loadGoogleIdentityScript,
-  setGoogleClientId,
-} from '../auth/google'
+import { getGoogleClientId, loadGoogleIdentityScript } from '../auth/google'
 import {
   formatNativeGoogleError,
   isNativeGoogleAuth,
@@ -22,9 +18,7 @@ export function AuthScreen() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [clientId, setClientId] = useState(() => getGoogleClientId())
-  const [clientIdDraft, setClientIdDraft] = useState(() => getGoogleClientId())
-  const [showClientSetup, setShowClientSetup] = useState(false)
+  const [clientId] = useState(() => getGoogleClientId())
   const [googleReady, setGoogleReady] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
   const googleBtnRef = useRef<HTMLDivElement>(null)
@@ -40,14 +34,6 @@ export function AuthScreen() {
         : await register(username, password, displayName || username)
     setBusy(false)
     if (err) setError(err)
-  }
-
-  function saveClientId() {
-    setGoogleClientId(clientIdDraft)
-    const next = getGoogleClientId()
-    setClientId(next)
-    setShowClientSetup(!next)
-    setError(null)
   }
 
   async function onNativeGoogle() {
@@ -128,9 +114,6 @@ export function AuthScreen() {
     }
   }, [clientId, signInGoogleCredential, nativeGoogle])
 
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : 'https://your-app-url'
-
   return (
     <div className="auth-screen">
       <div className="auth-atmosphere" aria-hidden>
@@ -175,56 +158,9 @@ export function AuthScreen() {
               {googleBusy && !nativeGoogle && (
                 <p className="auth-google-status">Signing you in…</p>
               )}
-              <button
-                type="button"
-                className="ghost-btn auth-google-setup-toggle"
-                onClick={() => setShowClientSetup((v) => !v)}
-              >
-                {showClientSetup ? 'Hide Client ID' : 'Google setup help'}
-              </button>
             </>
           ) : (
-            <p className="auth-google-status">
-              Add a Google OAuth Client ID below to enable Sign in with Google.
-            </p>
-          )}
-
-          {showClientSetup && (
-            <div className="auth-google-setup">
-              <label>
-                Google OAuth Web Client ID
-                <input
-                  value={clientIdDraft}
-                  onChange={(e) => setClientIdDraft(e.target.value)}
-                  placeholder="123456789-abc.apps.googleusercontent.com"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </label>
-              {nativeGoogle ? (
-                <>
-                  <p className="auth-google-hint">
-                    Native Android also needs an <strong>Android</strong> OAuth client in the
-                    same Google Cloud project:
-                  </p>
-                  <code className="auth-origin">Package: online.azztech.taskfoundry</code>
-                  <code className="auth-origin">
-                    SHA-1: D6:73:A2:0F:34:7D:05:54:71:8F:EC:66:AE:51:96:7E:AD:13:FD:5B
-                  </code>
-                </>
-              ) : (
-                <>
-                  <p className="auth-google-hint">
-                    Create a Web client in Google Cloud Console → APIs &amp; Services →
-                    Credentials. Add this origin under Authorized JavaScript origins:
-                  </p>
-                  <code className="auth-origin">{origin}</code>
-                </>
-              )}
-              <button type="button" className="primary-btn auth-client-save" onClick={saveClientId}>
-                Save Client ID
-              </button>
-            </div>
+            <p className="auth-google-status">Google Sign-In is unavailable.</p>
           )}
         </div>
 

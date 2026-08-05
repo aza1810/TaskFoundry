@@ -68,12 +68,6 @@ export function getGoogleClientId(): string {
   return DEFAULT_GOOGLE_CLIENT_ID
 }
 
-export function setGoogleClientId(id: string): void {
-  const trimmed = id.trim()
-  if (trimmed) localStorage.setItem(CLIENT_ID_KEY, trimmed)
-  else localStorage.removeItem(CLIENT_ID_KEY)
-}
-
 export function loadGoogleIdentityScript(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve()
   if (scriptPromise) return scriptPromise
