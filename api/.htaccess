@@ -1,13 +1,6 @@
-# Task Foundry cloud API
+# Task Foundry cloud API CORS
 <IfModule mod_headers.c>
   Header set Access-Control-Allow-Origin "*"
   Header set Access-Control-Allow-Methods "GET, PUT, POST, OPTIONS"
   Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-</IfModule>
-
-# Block direct web access to stored sessions/saves.
-<IfModule mod_authz_core.c>
-  <DirectoryMatch "^.*/data">
-    Require all denied
-  </DirectoryMatch>
 </IfModule>
