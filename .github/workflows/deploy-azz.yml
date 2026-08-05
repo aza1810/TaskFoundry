@@ -180,6 +180,12 @@ jobs:
             -X POST -H 'Content-Type: application/json' -d '{}' \
             https://azztech.online/apps/tf/api/session.php)
           echo "API session.php HTTP $api_code"
+          echo "API body: $(head -c 200 /tmp/api-session.json)"
+          health_code=$(curl -sS -o /tmp/api-health.json -w '%{http_code}' \
+            https://azztech.online/apps/tf/api/health.php)
+          echo "API health.php HTTP $health_code"
+          test "$health_code" = "200"
+          grep -q '"ok":true\|"ok": true' /tmp/api-health.json
           test "$api_code" = "400"
           grep -q 'idToken' /tmp/api-session.json
           ota_code=$(curl -sS -o /tmp/ota.json -w '%{http_code}' https://azztech.online/apps/tf/ota/latest.json)
