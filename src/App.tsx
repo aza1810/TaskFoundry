@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { App as CapApp } from '@capacitor/app'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { saveKeyForAccount } from './auth/auth'
 import { AuthScreen } from './components/AuthScreen'
@@ -136,11 +137,91 @@ function Toast() {
 
 function Shell() {
   const [tab, setTab] = useState<TabId>('factory')
-  const { state, logSteps } = useGame()
+  const { state, logSteps, importHealthSteps, cloudSync } = useGame()
   const pedometer = usePedometer(logSteps)
   const healthSteps = useHealthSteps()
+  const [healthBootDone, setHealthBootDone] = useState(!healthSteps.isNative)
+  const syncingRef = useRef(false)
+  const readIfAuthorized = healthSteps.readTodayStepsIfAuthorized
+  const isNative = healthSteps.isNative
   const requestTab = useCallback((t: TabId) => setTab(t), [])
   const playing = tab === 'factory'
+
+  const syncHealthQuiet = useCallback(async () => {
+    if (!isNative || syncingRef.current) return
+    syncingRef.current = true
+    try {
+      const total = await readIfAuthorized()
+      if (total != null) importHealthSteps(total, { quiet: true })
+    } finally {
+      syncingRef.current = false
+    }
+  }, [isNative, readIfAuthorized, importHealthSteps])
+
+  // Auto-pull Health steps on login/boot so drills mine before the away recap.
+  useEffect(() => {
+    if (!isNative) {
+      setHealthBootDone(true)
+      return
+    }
+    let cancelled = false
+    let delayId = 0
+    let capId = 0
+    void (async () => {
+      // Wait for GameProvider's first catch-up tick so offlineReport exists.
+      await new Promise<void>((resolve) => {
+        delayId = window.setTimeout(resolve, 400)
+      })
+      if (cancelled) return
+      await Promise.race([
+        syncHealthQuiet(),
+        new Promise<void>((resolve) => {
+          capId = window.setTimeout(resolve, 4500)
+        }),
+      ])
+      if (!cancelled) setHealthBootDone(true)
+    })()
+    return () => {
+      cancelled = true
+      window.clearTimeout(delayId)
+      window.clearTimeout(capId)
+    }
+  }, [isNative, syncHealthQuiet])
+
+  // Re-sync after cloud hydrate lands a save, and whenever the app resumes.
+  useEffect(() => {
+    if (!isNative) return
+    if (cloudSync === 'syncing') return
+    if (!healthBootDone) return
+    void syncHealthQuiet()
+  }, [isNative, cloudSync, healthBootDone, syncHealthQuiet])
+
+  useEffect(() => {
+    if (!isNative) return
+    let remove: (() => void) | undefined
+    void CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) return
+      window.setTimeout(() => {
+        void syncHealthQuiet()
+      }, 500)
+    }).then((handle) => {
+      remove = () => {
+        void handle.remove()
+      }
+    })
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        window.setTimeout(() => {
+          void syncHealthQuiet()
+        }, 500)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      remove?.()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [isNative, syncHealthQuiet])
 
   const tutorialStep = getTutorialStep(
     state.tutorialComplete ? null : state.tutorialStep,
@@ -292,7 +373,7 @@ function Shell() {
       </nav>
 
       <TutorialOverlay onRequestTab={requestTab} />
-      <AwaySummary />
+      <AwaySummary holdForHealthSync={isNative && !healthBootDone} />
       <Toast />
     </div>
   )

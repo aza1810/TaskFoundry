@@ -348,6 +348,20 @@ function itemGains(
   return gains
 }
 
+function mergeItemGains(
+  a: Partial<Record<ItemId, number>>,
+  b: Partial<Record<ItemId, number>>,
+): Partial<Record<ItemId, number>> {
+  const out: Partial<Record<ItemId, number>> = { ...a }
+  for (const [key, value] of Object.entries(b)) {
+    const n = value ?? 0
+    if (n <= 0) continue
+    const id = key as ItemId
+    out[id] = (out[id] ?? 0) + n
+  }
+  return out
+}
+
 export function tickState(state: GameState, now = Date.now()): GameState {
   let next = refreshDaily(state)
   const rawDt = Math.max(0, (now - next.lastTick) / 1000)
@@ -359,6 +373,8 @@ export function tickState(state: GameState, now = Date.now()): GameState {
   const beforeStats = reportAway ? { ...next.stats } : null
   const beforeCrafts = reportAway ? next.craftQueue.length : 0
   const beforeItems = reportAway ? snapshotItems(next) : null
+  // Keep Health step gains if auto-sync already created/updated a report.
+  const priorReport = reportAway ? next.offlineReport : null
 
   // Adaptive chunks: keep short absences precise; bound work for long ones.
   // Furnaces/assemblers multi-cycle within a step, so larger steps stay accurate.
@@ -376,14 +392,26 @@ export function tickState(state: GameState, now = Date.now()): GameState {
   if (reportAway && beforeStats && beforeItems) {
     const simulatedSeconds = dt
     const report: OfflineReport = {
-      awaySeconds: rawDt,
+      awaySeconds: Math.max(rawDt, priorReport?.awaySeconds ?? 0),
       simulatedSeconds,
-      capped: rawDt > OFFLINE_CAP_SECONDS,
-      platesSmelted: Math.max(0, next.stats.platesSmelted - beforeStats.platesSmelted),
-      gearsMade: Math.max(0, next.stats.gearsMade - beforeStats.gearsMade),
-      itemsMoved: Math.max(0, next.stats.itemsMoved - beforeStats.itemsMoved),
-      craftsFinished: Math.max(0, beforeCrafts - next.craftQueue.length),
-      itemGains: itemGains(beforeItems, snapshotItems(next)),
+      capped: rawDt > OFFLINE_CAP_SECONDS || Boolean(priorReport?.capped),
+      platesSmelted:
+        Math.max(0, next.stats.platesSmelted - beforeStats.platesSmelted) +
+        (priorReport?.platesSmelted ?? 0),
+      gearsMade:
+        Math.max(0, next.stats.gearsMade - beforeStats.gearsMade) +
+        (priorReport?.gearsMade ?? 0),
+      itemsMoved:
+        Math.max(0, next.stats.itemsMoved - beforeStats.itemsMoved) +
+        (priorReport?.itemsMoved ?? 0),
+      craftsFinished:
+        Math.max(0, beforeCrafts - next.craftQueue.length) +
+        (priorReport?.craftsFinished ?? 0),
+      stepsSynced: priorReport?.stepsSynced ?? 0,
+      itemGains: mergeItemGains(
+        priorReport?.itemGains ?? {},
+        itemGains(beforeItems, snapshotItems(next)),
+      ),
     }
     next = { ...next, offlineReport: report, unlockedToast: null }
   }
@@ -751,11 +779,16 @@ export function logSteps(state: GameState, amount: number): GameState {
  * Import today's Apple Health / Health Connect total into the game.
  * Only the delta since the last import is applied, so manual logs stay separate
  * and re-syncing does not double-count.
+ *
+ * When returning from a long absence, mining from these steps is folded into the
+ * away summary so drills show up on the welcome-back recap.
  */
 export function importHealthSteps(
   state: GameState,
   healthStepsToday: number,
+  options?: { quiet?: boolean },
 ): GameState {
+  const quiet = Boolean(options?.quiet)
   let next = refreshDaily(state)
   const today = todayKey()
   const imported =
@@ -767,20 +800,49 @@ export function importHealthSteps(
       ...next,
       healthImportedToday: Math.max(imported, total),
       healthImportDate: today,
-      unlockedToast:
-        total > 0
+      unlockedToast: quiet
+        ? next.unlockedToast
+        : total > 0
           ? `Health already synced (${total.toLocaleString()} steps today)`
           : 'No new health steps yet today',
     }
   }
 
+  const beforeItems = snapshotItems(next)
   next = logSteps(next, delta)
-  return {
+  const minedGains = itemGains(beforeItems, snapshotItems(next))
+
+  next = {
     ...next,
     healthImportedToday: total,
     healthImportDate: today,
-    unlockedToast: `Synced +${delta.toLocaleString()} steps from health`,
+    unlockedToast: quiet
+      ? null
+      : `Synced +${delta.toLocaleString()} steps from health`,
   }
+
+  const awaySeconds = Math.max(
+    0,
+    (Date.now() - state.lastTick) / 1000,
+    next.offlineReport?.awaySeconds ?? 0,
+  )
+  const shouldReport =
+    Boolean(next.offlineReport) || awaySeconds > OFFLINE_REPORT_SECONDS
+  if (!shouldReport) return next
+
+  const prior = next.offlineReport
+  const report: OfflineReport = {
+    awaySeconds: Math.max(awaySeconds, prior?.awaySeconds ?? 0),
+    simulatedSeconds: prior?.simulatedSeconds ?? 0,
+    capped: Boolean(prior?.capped),
+    platesSmelted: prior?.platesSmelted ?? 0,
+    gearsMade: prior?.gearsMade ?? 0,
+    itemsMoved: prior?.itemsMoved ?? 0,
+    craftsFinished: prior?.craftsFinished ?? 0,
+    stepsSynced: (prior?.stepsSynced ?? 0) + delta,
+    itemGains: mergeItemGains(prior?.itemGains ?? {}, minedGains),
+  }
+  return { ...next, offlineReport: report }
 }
 
 export function completeHabit(state: GameState, habitId: string): GameState {

@@ -43,7 +43,7 @@ export function StepsPanel({
       <div className="panel-head">
         <h2>Steps</h2>
         <p>
-          This is the only place to sync health or run the pedometer. Every step runs one mining
+          Health syncs automatically when you open the app. Every step runs one mining
           cycle on every drill. Today&apos;s total stays in the top bar on the Factory.
         </p>
       </div>
@@ -87,8 +87,9 @@ export function StepsPanel({
             </span>
           </div>
           <p className="pedo-copy">
-            Pull today&apos;s steps from {healthSteps.platformLabel}. Only new steps since the last
-            sync are added to your foundry total.
+            Pulls today&apos;s steps from {healthSteps.platformLabel} on launch and
+            resume. Only new steps since the last sync are added. Use the button if
+            you need a manual refresh.
           </p>
           <div className="pedo-session">
             <span className="pedo-session-num">

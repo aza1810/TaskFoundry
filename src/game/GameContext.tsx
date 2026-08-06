@@ -57,7 +57,7 @@ type Action =
   | { type: 'ROTATE_AT'; x: number; y: number }
   | { type: 'COLLECT'; x: number; y: number }
   | { type: 'LOG_STEPS'; amount: number }
-  | { type: 'IMPORT_HEALTH_STEPS'; healthStepsToday: number }
+  | { type: 'IMPORT_HEALTH_STEPS'; healthStepsToday: number; quiet?: boolean }
   | { type: 'COMPLETE_HABIT'; id: string }
   | { type: 'ADD_HABIT'; title: string; category: HabitCategory }
   | { type: 'REMOVE_HABIT'; id: string }
@@ -96,7 +96,9 @@ function reducer(state: GameState, action: Action): GameState {
     case 'LOG_STEPS':
       return logStepsLogic(state, action.amount)
     case 'IMPORT_HEALTH_STEPS':
-      return importHealthStepsLogic(state, action.healthStepsToday)
+      return importHealthStepsLogic(state, action.healthStepsToday, {
+        quiet: action.quiet,
+      })
     case 'COMPLETE_HABIT':
       return completeHabitLogic(state, action.id)
     case 'ADD_HABIT':
@@ -151,7 +153,7 @@ interface GameContextValue {
   rotateAt: (x: number, y: number) => void
   collect: (x: number, y: number) => void
   logSteps: (amount: number) => void
-  importHealthSteps: (healthStepsToday: number) => void
+  importHealthSteps: (healthStepsToday: number, options?: { quiet?: boolean }) => void
   completeHabit: (id: string) => void
   addHabit: (title: string, category: HabitCategory) => void
   removeHabit: (id: string) => void
@@ -246,6 +248,8 @@ export function GameProvider({
   }, [enableCloudSync, saveKey, displayName])
 
   useEffect(() => {
+    // Catch up immediately on mount, then on a short interval.
+    dispatch({ type: 'TICK', now: Date.now() })
     const id = window.setInterval(() => {
       dispatch({ type: 'TICK', now: Date.now() })
     }, 200)
@@ -367,8 +371,12 @@ export function GameProvider({
     [],
   )
   const importHealthSteps = useCallback(
-    (healthStepsToday: number) =>
-      dispatch({ type: 'IMPORT_HEALTH_STEPS', healthStepsToday }),
+    (healthStepsToday: number, options?: { quiet?: boolean }) =>
+      dispatch({
+        type: 'IMPORT_HEALTH_STEPS',
+        healthStepsToday,
+        quiet: options?.quiet,
+      }),
     [],
   )
   const completeHabit = useCallback(

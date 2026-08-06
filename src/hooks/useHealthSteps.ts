@@ -23,6 +23,11 @@ export interface HealthStepsApi {
   connect: () => Promise<boolean>
   /** Read today's health steps and return the count (null if unavailable). */
   readTodaySteps: () => Promise<number | null>
+  /**
+   * Read today's steps only if permission is already granted.
+   * Does not prompt - safe for boot / resume auto-sync.
+   */
+  readTodayStepsIfAuthorized: () => Promise<number | null>
 }
 
 function startOfLocalDay(d = new Date()): Date {
@@ -174,6 +179,36 @@ export function useHealthSteps(): HealthStepsApi {
     }
   }, [isNative])
 
+  /** Boot/resume path: never pops the permission dialog. */
+  const readTodayStepsIfAuthorized = useCallback(async () => {
+    if (!isNative) return null
+    setLastError(null)
+    try {
+      const availability = await Health.isAvailable()
+      setPlatformLabel(platformLabelFor(availability.platform ?? Capacitor.getPlatform()))
+      if (!availability.available) {
+        setStatus('unavailable')
+        setLastError(availability.reason ?? 'Health APIs unavailable')
+        return null
+      }
+      const auth = await Health.checkAuthorization({ read: ['steps'] })
+      if (!auth.readAuthorized.includes('steps')) {
+        if (auth.readDenied.includes('steps')) setStatus('denied')
+        else setStatus('ready')
+        return null
+      }
+      setStatus('syncing')
+      const steps = await sumTodaySteps()
+      setHealthStepsToday(steps)
+      setStatus('ready')
+      return steps
+    } catch (err) {
+      setStatus('error')
+      setLastError(err instanceof Error ? err.message : 'Could not read steps')
+      return null
+    }
+  }, [isNative])
+
   return {
     isNative,
     status,
@@ -183,5 +218,6 @@ export function useHealthSteps(): HealthStepsApi {
     refreshAvailability,
     connect,
     readTodaySteps,
+    readTodayStepsIfAuthorized,
   }
 }

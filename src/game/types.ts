@@ -154,6 +154,8 @@ export interface OfflineReport {
   gearsMade: number
   itemsMoved: number
   craftsFinished: number
+  /** Steps applied from Health during this return (drills mine on these). */
+  stepsSynced: number
   /** Net item gains across inventory + machine stores + belt cargo */
   itemGains: Partial<Record<ItemId, number>>
 }
