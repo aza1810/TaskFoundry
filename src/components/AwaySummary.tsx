@@ -50,7 +50,8 @@ function hasAnyProgress(report: OfflineReport): boolean {
     report.platesSmelted > 0 ||
     report.gearsMade > 0 ||
     report.itemsMoved > 0 ||
-    report.craftsFinished > 0
+    report.craftsFinished > 0 ||
+    (report.stepsSynced ?? 0) > 0
   ) {
     return true
   }
@@ -59,6 +60,13 @@ function hasAnyProgress(report: OfflineReport): boolean {
 
 function activityStats(report: OfflineReport) {
   const stats: { key: string; value: number; label: string }[] = []
+  if ((report.stepsSynced ?? 0) > 0) {
+    stats.push({
+      key: 'steps',
+      value: report.stepsSynced,
+      label: 'steps synced',
+    })
+  }
   if (report.platesSmelted > 0) {
     stats.push({
       key: 'plates',
@@ -96,6 +104,7 @@ function demoOfflineReport(): OfflineReport {
     gearsMade: 120,
     itemsMoved: 9320,
     craftsFinished: 4,
+    stepsSynced: 2840,
     itemGains: {
       ironPlate: 920,
       copperPlate: 640,
@@ -108,7 +117,12 @@ function demoOfflineReport(): OfflineReport {
   }
 }
 
-export function AwaySummary() {
+export function AwaySummary({
+  holdForHealthSync = false,
+}: {
+  /** Native boot: wait for Health auto-sync so drill ore appears on the recap. */
+  holdForHealthSync?: boolean
+}) {
   const { state, clearOfflineReport } = useGame()
   const [demoDismissed, setDemoDismissed] = useState(false)
   const demo =
@@ -135,11 +149,13 @@ export function AwaySummary() {
   )
 
   if (!report) return null
+  if (holdForHealthSync && state.offlineReport) return null
 
   const awayLabel = formatAwayDuration(report.awaySeconds)
   const simLabel = formatAwayDuration(report.simulatedSeconds)
   const busy = hasAnyProgress(report)
   const totalGained = gains.reduce((sum, g) => sum + g.amount, 0)
+  const stepsSynced = report.stepsSynced ?? 0
 
   const dismiss = () => {
     if (demo && !state.offlineReport) setDemoDismissed(true)
@@ -175,13 +191,15 @@ export function AwaySummary() {
             {busy ? (
               <>
                 Your factory kept running
-                {report.capped ? ' up to the offline cap' : ''}. Here&apos;s what
-                piled up while you were gone.
+                {report.capped ? ' up to the offline cap' : ''}
+                {stepsSynced > 0
+                  ? ', and Health steps ran your drills'
+                  : ''}. Here&apos;s what piled up while you were gone.
               </>
             ) : (
               <>
                 The floor was quiet. Offline progress needs loaded
-                furnaces/assemblers or a craft queue. Drills wait for your steps.
+                furnaces/assemblers, a craft queue, or Health steps for drills.
               </>
             )}
           </p>
