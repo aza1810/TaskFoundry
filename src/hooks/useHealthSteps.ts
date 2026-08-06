@@ -179,7 +179,7 @@ export function useHealthSteps(): HealthStepsApi {
     }
   }, [isNative])
 
-  /** Boot/resume path: never pops the permission dialog. */
+  /** Boot/resume path: never pops the permission dialog. Used by App Shell auto-sync. */
   const readTodayStepsIfAuthorized = useCallback(async () => {
     if (!isNative) return null
     setLastError(null)
