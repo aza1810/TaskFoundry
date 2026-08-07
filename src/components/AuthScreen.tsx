@@ -127,7 +127,7 @@ export function AuthScreen() {
           <p className="tagline">{APP_TAGLINE}</p>
           <p className="auth-pitch">
             Walk to power drills, clear daily tasks for parts, automate a factory.
-            Sign in with Google to sync your foundry to the cloud - or continue as guest.
+            Sign in with Google to sync your foundry across phone and web - or continue as guest.
           </p>
         </div>
 
@@ -251,8 +251,9 @@ export function AuthScreen() {
         </button>
 
         <p className="auth-note">
-          Google Sign-In syncs your foundry to the cloud across devices. Local username
-          accounts and guest mode keep saves only on this phone/browser.
+          Google Sign-In syncs your foundry across devices. If you already built as guest
+          on this device, Continue with Google will keep that factory and upload it.
+          Guest and local username saves stay on this device only.
         </p>
       </div>
     </div>

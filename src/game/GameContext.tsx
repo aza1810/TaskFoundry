@@ -48,6 +48,11 @@ import {
   resolveCloudHydration,
   type CloudSyncStatus,
 } from '../cloud/saveSync'
+import {
+  applyImportedSave,
+  exportSavePayload,
+  parseImportedSave,
+} from '../cloud/localTransfer'
 
 type Action =
   | { type: 'TICK'; now: number }
@@ -172,6 +177,9 @@ interface GameContextValue {
   advanceTutorial: () => void
   skipTutorial: () => void
   quickStartTutorial: () => void
+  pullCloudSaveNow: () => Promise<string | null>
+  exportSaveFile: () => void
+  importSaveFile: (file: File) => Promise<string | null>
   placeDir: Dir
   selected: GameState['selected']
 }
@@ -468,6 +476,95 @@ export function GameProvider({
     [],
   )
 
+  const hydrateLoaded = useCallback(
+    (nextState: GameState) => {
+      const { offlineReport: _o, ...persisted } = nextState
+      localStorage.setItem(saveKey, JSON.stringify(persisted))
+      const next = loadState(saveKey)
+      dispatch({
+        type: 'HYDRATE',
+        state:
+          displayName && next.playerName === 'Operator'
+            ? { ...next, playerName: displayName }
+            : next,
+      })
+    },
+    [saveKey, displayName],
+  )
+
+  const pullCloudSaveNow = useCallback(async () => {
+    if (!enableCloudSync) return 'Cloud sync is only for Google Sign-In'
+    if (!loadCloudSession()) {
+      return 'Cloud sync needs a fresh Google sign-in. Sign out, then Continue with Google.'
+    }
+    setCloudSync('syncing')
+    cloudReady.current = false
+    const result = await resolveCloudHydration(saveKey, stateRef.current)
+    if (!result.ok) {
+      cloudReady.current = false
+      setCloudSync(result.reason === 'no-session' ? 'error' : 'offline')
+      return result.reason === 'no-session'
+        ? 'Cloud session missing. Sign out and Continue with Google.'
+        : 'Could not reach cloud save. Try again when you are online.'
+    }
+    if (result.fromCloud) {
+      hydrateLoaded(result.state)
+    } else if (loadCloudSession()) {
+      const savedAt = bumpLocalSavedAt(saveKey)
+      try {
+        await pushCloudSave(saveKey, stateRef.current, savedAt)
+      } catch {
+        cloudReady.current = true
+        setCloudSync('offline')
+        return 'Kept this device save, but cloud upload failed.'
+      }
+    }
+    cloudReady.current = true
+    setCloudBootDone(true)
+    setCloudSync('synced')
+    return null
+  }, [enableCloudSync, saveKey, hydrateLoaded])
+
+  const exportSaveFile = useCallback(() => {
+    const blob = new Blob([exportSavePayload(stateRef.current)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `task-foundry-save-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [])
+
+  const importSaveFile = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text()
+        const imported = parseImportedSave(text)
+        applyImportedSave(saveKey, imported)
+        hydrateLoaded(imported)
+        if (enableCloudSync && loadCloudSession()) {
+          const savedAt = bumpLocalSavedAt(saveKey)
+          cloudReady.current = true
+          setCloudBootDone(true)
+          setCloudSync('syncing')
+          try {
+            await pushCloudSave(saveKey, imported, savedAt)
+            setCloudSync('synced')
+          } catch {
+            setCloudSync('offline')
+            return 'Save imported on this device, but cloud upload failed.'
+          }
+        }
+        return null
+      } catch (err) {
+        return err instanceof Error ? err.message : 'Could not import save'
+      }
+    },
+    [saveKey, hydrateLoaded, enableCloudSync],
+  )
+
   const value = useMemo(
     () => ({
       state,
@@ -497,6 +594,9 @@ export function GameProvider({
       advanceTutorial,
       skipTutorial,
       quickStartTutorial,
+      pullCloudSaveNow,
+      exportSaveFile,
+      importSaveFile,
       placeDir: state.placeDir,
       selected: state.selected,
     }),
@@ -528,6 +628,9 @@ export function GameProvider({
       advanceTutorial,
       skipTutorial,
       quickStartTutorial,
+      pullCloudSaveNow,
+      exportSaveFile,
+      importSaveFile,
     ],
   )
 

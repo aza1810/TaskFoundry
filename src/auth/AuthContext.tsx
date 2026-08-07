@@ -13,9 +13,11 @@ import {
   signIn,
   signInWithGoogle,
   signOut as signOutAuth,
+  saveKeyForAccount,
   type Session,
 } from './auth'
 import { decodeGoogleCredential, getGoogleClientId } from './google'
+import { adoptRicherLocalSave } from '../cloud/localTransfer'
 import { clearCloudSession, createCloudSession } from '../cloud/saveSync'
 
 interface AuthContextValue {
@@ -63,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!payload) return 'Invalid Google credential'
     const result = signInWithGoogle(payload, clientId)
     if (!result.ok) return result.error
+    // Pull guest/local factory into the Google slot before GameProvider mounts.
+    adoptRicherLocalSave(saveKeyForAccount(result.session.accountId))
     try {
       await createCloudSession(credential)
     } catch (err) {

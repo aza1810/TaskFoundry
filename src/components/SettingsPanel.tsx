@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { useAuth } from '../auth/AuthContext'
 import { useGame } from '../game/GameContext'
@@ -34,34 +34,45 @@ const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
 ]
 
 export function SettingsPanel() {
-  const { state, reset, rename, cloudSync } = useGame()
+  const {
+    state,
+    reset,
+    rename,
+    cloudSync,
+    pullCloudSaveNow,
+    exportSaveFile,
+    importSaveFile,
+  } = useGame()
   const { session, signOut } = useAuth()
   const [ota, setOta] = useState<OtaState>(getOtaState)
   const [busy, setBusy] = useState(false)
+  const [syncBusy, setSyncBusy] = useState(false)
+  const [transferMsg, setTransferMsg] = useState<string | null>(null)
   const [themePref, setThemePref] = useState<ThemePreference>(getThemePreference)
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark')
   const [name, setName] = useState(state.playerName)
+  const importRef = useRef<HTMLInputElement>(null)
   const native = Capacitor.isNativePlatform()
   const platform = native
     ? Capacitor.getPlatform() === 'ios'
       ? 'iOS app'
       : 'Android APK'
     : 'Web browser'
+  const googleCloud = session?.provider === 'google' && !session.isGuest
 
-  const cloudHint =
-    session?.provider === 'google' && !session.isGuest
-      ? cloudSync === 'synced'
-        ? `Signed in as ${session.displayName}. Cloud save synced - use Google on another device to restore this foundry.`
-        : cloudSync === 'syncing'
-          ? `Signed in as ${session.displayName}. Syncing foundry to the cloud…`
-          : cloudSync === 'offline'
-            ? `Signed in as ${session.displayName}. Offline - progress is on this device and will sync when you are back online.`
-            : `Signed in as ${session.displayName}. Cloud sync needs a fresh Google sign-in. Sign out, then Continue with Google.`
-      : session?.isGuest
-        ? 'Signed in as guest (save stays on this device). Use Google Sign-In for cloud sync.'
-        : session
-          ? `Signed in as @${session.username}. Local accounts stay on this device - use Google Sign-In for cloud sync.`
-          : 'Not signed in'
+  const cloudHint = googleCloud
+    ? cloudSync === 'synced'
+      ? `Signed in as ${session.displayName}. Cloud save synced - use Google on another device to restore this foundry.`
+      : cloudSync === 'syncing'
+        ? `Signed in as ${session.displayName}. Syncing foundry to the cloud…`
+        : cloudSync === 'offline'
+          ? `Signed in as ${session.displayName}. Offline - progress is on this device and will sync when you are back online.`
+          : `Signed in as ${session.displayName}. Cloud sync needs a fresh Google sign-in. Sign out, then Continue with Google.`
+    : session?.isGuest
+      ? 'Signed in as guest (save stays on this device). Use Google Sign-In on this same device to upload your factory to the cloud.'
+      : session
+        ? `Signed in as @${session.username}. Local accounts stay on this device - use Google Sign-In for cloud sync.`
+        : 'Not signed in'
 
   useEffect(() => subscribeOta(setOta), [])
   useEffect(() => setName(state.playerName), [state.playerName])
@@ -80,6 +91,30 @@ export function SettingsPanel() {
       await checkForUpdate(apply)
     } finally {
       setBusy(false)
+    }
+  }
+
+  const runPull = async () => {
+    setSyncBusy(true)
+    setTransferMsg(null)
+    try {
+      const err = await pullCloudSaveNow()
+      setTransferMsg(err ?? 'Cloud save checked.')
+    } finally {
+      setSyncBusy(false)
+    }
+  }
+
+  const onImport = async (file: File | undefined) => {
+    if (!file) return
+    setSyncBusy(true)
+    setTransferMsg(null)
+    try {
+      const err = await importSaveFile(file)
+      setTransferMsg(err ?? 'Save imported.')
+    } finally {
+      setSyncBusy(false)
+      if (importRef.current) importRef.current.value = ''
     }
   }
 
@@ -222,7 +257,48 @@ export function SettingsPanel() {
       <div className="settings-block">
         <h3>Account</h3>
         <p className="settings-hint">{cloudHint}</p>
+        {transferMsg ? (
+          <p className="settings-hint" role="status">
+            {transferMsg}
+          </p>
+        ) : null}
         <div className="settings-actions">
+          {googleCloud ? (
+            <button
+              type="button"
+              className="ghost-btn"
+              disabled={syncBusy}
+              onClick={() => void runPull()}
+            >
+              {syncBusy ? 'Syncing…' : 'Sync cloud now'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="ghost-btn"
+            disabled={syncBusy}
+            onClick={() => {
+              exportSaveFile()
+              setTransferMsg('Save file downloaded. Import it on your other device if needed.')
+            }}
+          >
+            Export save
+          </button>
+          <button
+            type="button"
+            className="ghost-btn"
+            disabled={syncBusy}
+            onClick={() => importRef.current?.click()}
+          >
+            Import save
+          </button>
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(e) => void onImport(e.target.files?.[0])}
+          />
           <button type="button" className="ghost-btn" onClick={() => signOut()}>
             Sign out
           </button>
@@ -232,7 +308,7 @@ export function SettingsPanel() {
             onClick={() => {
               if (
                 window.confirm(
-                  session?.provider === 'google' && !session.isGuest
+                  googleCloud
                     ? 'Scrap this save on this device and in the cloud? Factory, inventory, and progress will be wiped.'
                     : 'Scrap this save? Factory, inventory, and progress on this account will be wiped.',
                 )
