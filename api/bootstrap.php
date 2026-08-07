@@ -28,7 +28,9 @@ function tf_data_dir(): string {
 function tf_cors(): void {
   header('Access-Control-Allow-Origin: *');
   header('Access-Control-Allow-Methods: GET, PUT, POST, OPTIONS');
-  header('Access-Control-Allow-Headers: Content-Type, Authorization');
+  header(
+    'Access-Control-Allow-Headers: Content-Type, Authorization, X-TF-Authorization',
+  );
   header('Access-Control-Max-Age: 86400');
   if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     http_response_code(204);
@@ -308,9 +310,21 @@ function tf_verify_google_id_token(string $idToken): ?array {
 }
 
 function tf_bearer_token(): ?string {
-  $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
-  if (preg_match('/^\s*Bearer\s+(\S+)\s*$/i', $header, $m)) {
-    return $m[1];
+  $candidates = [
+    $_SERVER['HTTP_AUTHORIZATION'] ?? '',
+    $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '',
+    // Some Android / CGI hosts strip Authorization; client also sends this.
+    $_SERVER['HTTP_X_TF_AUTHORIZATION'] ?? '',
+    $_SERVER['REDIRECT_HTTP_X_TF_AUTHORIZATION'] ?? '',
+  ];
+  foreach ($candidates as $header) {
+    if (preg_match('/^\s*Bearer\s+(\S+)\s*$/i', $header, $m)) {
+      return $m[1];
+    }
+  }
+  // Last resort: query/body token (native clients when headers are stripped).
+  if (!empty($_GET['tf_token']) && is_string($_GET['tf_token'])) {
+    return trim($_GET['tf_token']);
   }
   return null;
 }

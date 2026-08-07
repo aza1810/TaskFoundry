@@ -505,18 +505,21 @@ export function GameProvider({
       setCloudSync(result.reason === 'no-session' ? 'error' : 'offline')
       return result.reason === 'no-session'
         ? 'Cloud session missing. Sign out and Continue with Google.'
-        : 'Could not reach cloud save. Try again when you are online.'
+        : result.message ||
+            'Could not reach cloud save. Try again when you are online.'
     }
     if (result.fromCloud) {
       hydrateLoaded(result.state)
-    } else if (loadCloudSession()) {
+      } else if (loadCloudSession()) {
       const savedAt = bumpLocalSavedAt(saveKey)
       try {
         await pushCloudSave(saveKey, stateRef.current, savedAt)
-      } catch {
+      } catch (err) {
         cloudReady.current = true
         setCloudSync('offline')
-        return 'Kept this device save, but cloud upload failed.'
+        return err instanceof Error
+          ? `Kept this device save, but cloud upload failed: ${err.message}`
+          : 'Kept this device save, but cloud upload failed.'
       }
     }
     cloudReady.current = true
