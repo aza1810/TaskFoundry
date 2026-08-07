@@ -39,6 +39,12 @@ const MACHINE_CAP: Record<string, number> = {
   assembler: 12,
 }
 
+/** Coal fuel buffer separate from ore/plate slots so ore cannot starve the furnace. */
+const FURNACE_FUEL_CAP = 5
+
+const FURNACE_OUTPUT_ITEMS: ItemId[] = ['ironPlate', 'copperPlate', 'steel']
+const FURNACE_ORE_ITEMS: ItemId[] = ['ironOre', 'copperOre']
+
 function storeSum(
   store: Partial<Record<ItemId, number>>,
   except?: ItemId[],
@@ -176,8 +182,17 @@ function tryAcceptItem(entity: Entity, item: ItemId): boolean {
     return addToStore(entity.store, item, 1, MACHINE_CAP.chest) > 0
   }
   if (isFurnaceKind(entity.kind)) {
-    if (item === 'coal' || item === 'ironOre' || item === 'copperOre') {
-      return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind] ?? 12) > 0
+    if (item === 'coal') {
+      // Fuel has its own slot so a full ore buffer cannot deadlock the furnace.
+      return addToStore(entity.store, item, 1, FURNACE_FUEL_CAP) > 0
+    }
+    if (item === 'ironOre' || item === 'copperOre') {
+      return (
+        addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind] ?? 12, [
+          'coal',
+          ...FURNACE_OUTPUT_ITEMS,
+        ]) > 0
+      )
     }
     return false
   }
@@ -393,7 +408,7 @@ export function simTick(state: GameState, dt: number): GameState {
       timeLeft -= need
       const out = SMELT_MAP[e.smelting as OreId]
       if (out !== 'coal') {
-        addToStore(e.store, out, 1, cap)
+        addToStore(e.store, out, 1, cap, ['coal', ...FURNACE_ORE_ITEMS])
         stats.platesSmelted += 1
       }
       e.smelting = null

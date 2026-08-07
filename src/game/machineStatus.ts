@@ -49,7 +49,13 @@ export function machineStatus(
       return { label: 'Needs ore + coal', tone: 'warn', floorClass: 'is-waiting' }
     }
     if (!hasOre) return { label: 'Waiting for ore', tone: 'idle', floorClass: 'is-waiting' }
-    if (!hasCoal) return { label: 'Needs coal', tone: 'warn', floorClass: 'is-needs-fuel' }
+    if (!hasCoal) {
+      return {
+        label: 'Needs coal (fuel)',
+        tone: 'warn',
+        floorClass: 'is-needs-fuel',
+      }
+    }
     return { label: 'Ready', tone: 'ok' }
   }
 
