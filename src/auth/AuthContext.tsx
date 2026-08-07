@@ -65,8 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!result.ok) return result.error
     try {
       await createCloudSession(credential)
-    } catch {
-      // Local Google account still works; cloud sync activates once the API is reachable.
+    } catch (err) {
+      // Local Google account still works; Settings prompts for a fresh sign-in
+      // if the cloud session never lands.
+      console.warn(
+        '[task-foundry] Cloud session failed',
+        err instanceof Error ? err.message : err,
+      )
     }
     setSession(result.session)
     return null

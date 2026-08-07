@@ -203,6 +203,9 @@ export function GameProvider({
         : 'error'
       : 'local-only',
   )
+  // True only after a successful cloud pull/push decision (or local-only mode).
+  // Prevents empty web tabs from bumping savedAt and overwriting phone saves.
+  const [cloudBootDone, setCloudBootDone] = useState(!enableCloudSync)
   const saveTimer = useRef<number | null>(null)
   const cloudTimer = useRef<number | null>(null)
   const cloudReady = useRef(!enableCloudSync)
@@ -213,20 +216,32 @@ export function GameProvider({
     if (!enableCloudSync) {
       setCloudSync('local-only')
       cloudReady.current = true
+      setCloudBootDone(true)
       return
     }
     if (!loadCloudSession()) {
       setCloudSync('error')
-      cloudReady.current = true
+      // Do not mark ready for pushes - local play stays device-only until
+      // the operator signs in with Google again and creates a cloud session.
+      cloudReady.current = false
+      setCloudBootDone(true)
       return
     }
 
     let cancelled = false
-    setCloudSync('syncing')
-    void (async () => {
+
+    async function hydrateFromCloud() {
+      cloudReady.current = false
+      setCloudSync('syncing')
       const result = await resolveCloudHydration(saveKey, stateRef.current)
       if (cancelled) return
-      if (result?.fromCloud) {
+      if (!result.ok) {
+        cloudReady.current = false
+        setCloudBootDone(true)
+        setCloudSync(result.reason === 'no-session' ? 'error' : 'offline')
+        return
+      }
+      if (result.fromCloud) {
         const { offlineReport: _o, ...persisted } = result.state
         localStorage.setItem(saveKey, JSON.stringify(persisted))
         const next = loadState(saveKey)
@@ -239,29 +254,43 @@ export function GameProvider({
         })
       }
       cloudReady.current = true
+      setCloudBootDone(true)
       setCloudSync(loadCloudSession() ? 'synced' : 'error')
-    })()
+    }
+
+    setCloudBootDone(false)
+    void hydrateFromCloud()
+
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return
+      if (cancelled || cloudReady.current) return
+      if (!loadCloudSession()) return
+      void hydrateFromCloud()
+    }
+    document.addEventListener('visibilitychange', onVisible)
 
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [enableCloudSync, saveKey, displayName])
 
   useEffect(() => {
-    // Catch up immediately on mount, then on a short interval.
+    // Wait for cloud hydration so we tick the restored foundry, not an empty local stub.
+    if (enableCloudSync && !cloudBootDone) return
     dispatch({ type: 'TICK', now: Date.now() })
     const id = window.setInterval(() => {
       dispatch({ type: 'TICK', now: Date.now() })
     }, 200)
     return () => window.clearInterval(id)
-  }, [])
+  }, [enableCloudSync, cloudBootDone])
 
   // Catch up immediately when returning to the tab (browsers throttle timers in background).
   useEffect(() => {
     function onVisible() {
-      if (document.visibilityState === 'visible') {
-        dispatch({ type: 'TICK', now: Date.now() })
-      }
+      if (document.visibilityState !== 'visible') return
+      if (enableCloudSync && !cloudReady.current) return
+      dispatch({ type: 'TICK', now: Date.now() })
     }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
@@ -269,14 +298,16 @@ export function GameProvider({
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }
-  }, [])
+  }, [enableCloudSync])
 
   useEffect(() => {
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => {
+      // Always persist locally; only bump sync timestamps after cloud boot.
       saveState(state)
+      if (enableCloudSync && !cloudReady.current) return
       const savedAt = bumpLocalSavedAt(saveKey)
-      if (!enableCloudSync || !cloudReady.current || !loadCloudSession()) return
+      if (!enableCloudSync || !loadCloudSession()) return
       if (cloudTimer.current) window.clearTimeout(cloudTimer.current)
       cloudTimer.current = window.setTimeout(() => {
         setCloudSync('syncing')
@@ -289,7 +320,7 @@ export function GameProvider({
       if (saveTimer.current) window.clearTimeout(saveTimer.current)
       if (cloudTimer.current) window.clearTimeout(cloudTimer.current)
     }
-  }, [state, saveKey, enableCloudSync])
+  }, [state, saveKey, enableCloudSync, cloudBootDone])
 
   useEffect(() => {
     if (!enableCloudSync) return
