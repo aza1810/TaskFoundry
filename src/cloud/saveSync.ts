@@ -194,38 +194,88 @@ export async function pushCloudSave(
   return true
 }
 
-/** Pull cloud save and decide whether it should replace local. */
+export type CloudHydrationResult =
+  | { ok: true; state: GameState; savedAt: number; fromCloud: boolean }
+  | { ok: false; reason: 'no-session' | 'error' }
+
+function factoryRichness(state: GameState): number {
+  return Object.keys(state.entities ?? {}).length
+}
+
+/**
+ * Pull cloud save and decide whether it should replace local.
+ *
+ * Snapshot local meta BEFORE the network round-trip. Autosave must not bump
+ * `savedAt` during hydration, or a fresh empty browser tab can look "newer"
+ * than the phone foundry and overwrite it.
+ */
 export async function resolveCloudHydration(
   saveKey: string,
   localState: GameState,
-): Promise<{ state: GameState; savedAt: number; fromCloud: boolean } | null> {
+): Promise<CloudHydrationResult> {
   const session = loadCloudSession()
-  if (!session) return null
+  if (!session) return { ok: false, reason: 'no-session' }
+
+  // Freeze comparison inputs before any await.
+  const localMeta = readSaveMeta(saveKey)
+  const baselineSavedAt = localMeta.savedAt || 0
+  const everCloudSynced = typeof localMeta.cloudSyncedAt === 'number'
+  const localRichness = factoryRichness(localState)
+
   try {
     const remote = await pullCloudSave(session)
-    const localMeta = readSaveMeta(saveKey)
     if (!remote) {
       // First cloud upload of whatever is local.
-      const savedAt = localMeta.savedAt || Date.now()
+      const savedAt = baselineSavedAt || Date.now()
       await pushCloudSave(saveKey, localState, savedAt, session)
-      return { state: localState, savedAt, fromCloud: false }
+      return { ok: true, state: localState, savedAt, fromCloud: false }
     }
-    if (remote.savedAt > (localMeta.savedAt || 0)) {
+
+    const remoteRichness = factoryRichness(remote.state)
+    // Empty cloud must not clobber a built local foundry (repairs the old web
+    // hydration race that could upload a blank tab with a fresh timestamp).
+    const hollowRemoteOverwrite =
+      remoteRichness === 0 && localRichness > 0
+
+    const preferRemote =
+      !hollowRemoteOverwrite &&
+      (remote.savedAt > baselineSavedAt ||
+        (!everCloudSynced &&
+          remoteRichness >= localRichness &&
+          (remote.savedAt >= baselineSavedAt || remoteRichness > localRichness)))
+
+    if (preferRemote) {
       writeSaveMeta(saveKey, {
         savedAt: remote.savedAt,
         cloudSyncedAt: Date.now(),
       })
-      return { state: remote.state, savedAt: remote.savedAt, fromCloud: true }
+      return {
+        ok: true,
+        state: remote.state,
+        savedAt: remote.savedAt,
+        fromCloud: true,
+      }
     }
-    if ((localMeta.savedAt || 0) > remote.savedAt) {
-      await pushCloudSave(saveKey, localState, localMeta.savedAt || Date.now(), session)
+
+    if (baselineSavedAt > remote.savedAt || hollowRemoteOverwrite) {
+      const savedAt = hollowRemoteOverwrite
+        ? Math.max(baselineSavedAt, Date.now())
+        : baselineSavedAt
+      await pushCloudSave(saveKey, localState, savedAt, session)
+      return {
+        ok: true,
+        state: localState,
+        savedAt,
+        fromCloud: false,
+      }
     }
     return {
+      ok: true,
       state: localState,
-      savedAt: localMeta.savedAt || remote.savedAt,
+      savedAt: baselineSavedAt || remote.savedAt,
       fromCloud: false,
     }
   } catch {
-    return null
+    return { ok: false, reason: 'error' }
   }
 }
