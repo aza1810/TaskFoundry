@@ -91,60 +91,111 @@ function persistCloudSession(session: CloudSession): void {
   localStorage.setItem(CLOUD_SESSION_KEY, JSON.stringify(session))
 }
 
+type ApiResult = {
+  ok: boolean
+  status: number
+  json: () => Promise<unknown>
+  text: () => Promise<string>
+}
+
+function asApiResult(status: number, bodyText: string): ApiResult {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async json() {
+      try {
+        return JSON.parse(bodyText || 'null')
+      } catch {
+        return {}
+      }
+    },
+    async text() {
+      return bodyText
+    },
+  }
+}
+
 async function apiFetch(
   path: string,
   init: RequestInit & { token?: string } = {},
-): Promise<Response> {
+): Promise<ApiResult> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
   }
-  if (init.body && !(init.headers as Record<string, string> | undefined)?.['Content-Type']) {
+  if (init.body) {
     headers['Content-Type'] = 'application/json'
   }
-  if (init.headers) {
-    const h = new Headers(init.headers)
-    h.forEach((v, k) => {
-      headers[k] = v
-    })
-  }
   if (init.token) {
-    headers.Authorization = `Bearer ${init.token}`
+    const bearer = `Bearer ${init.token}`
+    headers.Authorization = bearer
+    // Duplicate under a custom header - some hosts strip Authorization.
+    headers['X-TF-Authorization'] = bearer
   }
-  const { token: _t, headers: _h, ...rest } = init
-  const url = `${CLOUD_API_BASE}${path}`
-  const method = (rest.method ?? 'GET').toUpperCase()
+  const method = (init.method ?? 'GET').toUpperCase()
+  let url = `${CLOUD_API_BASE}${path}`
+  // Query token fallback when Authorization headers are stripped by the host.
+  if (init.token) {
+    url += (url.includes('?') ? '&' : '?') + `tf_token=${encodeURIComponent(init.token)}`
+  }
 
-  // Native WebView fetch to third-party hosts is flaky; use Capacitor HTTP.
+  const bodyStr = typeof init.body === 'string' ? init.body : undefined
+
+  // Native: CapacitorHttp first, then window.fetch fallback.
   if (Capacitor.isNativePlatform()) {
-    const data =
-      typeof rest.body === 'string'
+    try {
+      const data = bodyStr
         ? (() => {
             try {
-              return JSON.parse(rest.body)
+              return JSON.parse(bodyStr)
             } catch {
-              return rest.body
+              return bodyStr
             }
           })()
-        : rest.body
-    const native = await CapacitorHttp.request({
-      url,
-      method,
-      headers,
-      data,
-      connectTimeout: 15000,
-      readTimeout: 20000,
-    })
-    const bodyText =
-      typeof native.data === 'string'
-        ? native.data
-        : JSON.stringify(native.data ?? {})
-    return new Response(bodyText, {
-      status: native.status,
-      headers: native.headers ?? { 'Content-Type': 'application/json' },
-    })
+        : undefined
+      const native = await CapacitorHttp.request({
+        url,
+        method,
+        headers,
+        data,
+        connectTimeout: 20000,
+        readTimeout: 30000,
+        responseType: 'text',
+      })
+      const bodyText =
+        typeof native.data === 'string'
+          ? native.data
+          : native.data == null
+            ? ''
+            : JSON.stringify(native.data)
+      const status = typeof native.status === 'number' ? native.status : 0
+      if (status > 0) {
+        return asApiResult(status, bodyText)
+      }
+      throw new Error(`Native HTTP returned status ${status}`)
+    } catch (nativeErr) {
+      // Fall through to fetch - some OTA/WebView builds mis-route the plugin.
+      console.warn(
+        '[task-foundry] CapacitorHttp failed, trying fetch',
+        nativeErr instanceof Error ? nativeErr.message : nativeErr,
+      )
+    }
   }
 
-  return fetch(url, { ...rest, method, headers })
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: bodyStr,
+    })
+    const bodyText = await res.text()
+    return asApiResult(res.status, bodyText)
+  } catch (err) {
+    throw new Error(
+      err instanceof Error
+        ? `Network error: ${err.message}`
+        : 'Network error talking to cloud save',
+    )
+  }
 }
 
 /** Exchange a Google ID token for a long-lived cloud session. */
@@ -237,7 +288,7 @@ export async function pushCloudSave(
 
 export type CloudHydrationResult =
   | { ok: true; state: GameState; savedAt: number; fromCloud: boolean }
-  | { ok: false; reason: 'no-session' | 'error' }
+  | { ok: false; reason: 'no-session' | 'error'; message?: string }
 
 function factoryRichness(state: GameState): number {
   return Object.keys(state.entities ?? {}).length
@@ -316,7 +367,12 @@ export async function resolveCloudHydration(
       savedAt: baselineSavedAt || remote.savedAt,
       fromCloud: false,
     }
-  } catch {
-    return { ok: false, reason: 'error' }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Cloud sync failed'
+    writeSaveMeta(saveKey, {
+      ...readSaveMeta(saveKey),
+      lastError: message,
+    })
+    return { ok: false, reason: 'error', message }
   }
 }
