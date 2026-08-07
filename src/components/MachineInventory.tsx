@@ -42,7 +42,7 @@ function Slot({
             <span className="machine-slot-cap">/{cap}</span>
           </>
         ) : (
-          '—'
+          '-'
         )}
       </span>
     </div>
