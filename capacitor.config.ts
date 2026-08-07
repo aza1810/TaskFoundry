@@ -9,6 +9,10 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   plugins: {
+    CapacitorHttp: {
+      // Native HTTP for cloud save API (WebView fetch to azztech is unreliable).
+      enabled: true,
+    },
     CapacitorUpdater: {
       // Manual OTA from src/native/ota.ts (fetches latest.json on azztech).
       // autoUpdate stays false so we don't depend on Capgo cloud or PHP.
