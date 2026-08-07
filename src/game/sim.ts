@@ -183,8 +183,13 @@ function tryAcceptItem(entity: Entity, item: ItemId): boolean {
   }
   if (isFurnaceKind(entity.kind)) {
     if (item === 'coal') {
-      // Fuel has its own slot so a full ore buffer cannot deadlock the furnace.
-      return addToStore(entity.store, item, 1, FURNACE_FUEL_CAP) > 0
+      // Fuel cap counts coal only - ore/plates must not block fuel intake.
+      return (
+        addToStore(entity.store, item, 1, FURNACE_FUEL_CAP, [
+          ...FURNACE_ORE_ITEMS,
+          ...FURNACE_OUTPUT_ITEMS,
+        ]) > 0
+      )
     }
     if (item === 'ironOre' || item === 'copperOre') {
       return (
