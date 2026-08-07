@@ -3888,6 +3888,136 @@ html[data-theme='light'] .ghost-btn.is-danger {
   color: var(--text-empty);
 }
 
+.machine-inventory {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.55rem 0.5rem 0.6rem;
+  border: 1px solid var(--border-chrome);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.machine-flow {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.machine-flow-arrow {
+  align-self: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold, #c9a227);
+  padding: 0 0.1rem;
+}
+
+.machine-slot {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  gap: 0.2rem;
+  min-width: 3.6rem;
+  padding: 0.35rem 0.4rem 0.4rem;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 8px;
+  background: rgba(20, 24, 18, 0.65);
+}
+
+.machine-slot.is-empty {
+  border-color: rgba(255, 255, 255, 0.12);
+  opacity: 0.78;
+}
+
+.machine-slot-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.machine-slot-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  display: grid;
+  place-items: center;
+}
+
+.machine-slot-icon .sprite,
+.machine-slot-icon svg {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.machine-slot-placeholder {
+  color: var(--steel);
+  font-size: 0.95rem;
+}
+
+.machine-slot-amount {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--text-chrome);
+}
+
+.machine-slot-cap {
+  margin-left: 0.05rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--steel);
+}
+
+.machine-progress {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.machine-progress-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.machine-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7a8a3a, #c9a227);
+  transition: width 0.12s linear;
+}
+
+.machine-progress.is-active .machine-progress-fill {
+  background: linear-gradient(90deg, #c9a227, #e8c84a);
+}
+
+.machine-progress-label {
+  font-size: 0.72rem;
+  color: var(--steel);
+  text-align: center;
+}
+
+.machine-progress.is-active .machine-progress-label {
+  color: var(--gold, #c9a227);
+}
+
+html[data-theme='light'] .machine-inventory {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+html[data-theme='light'] .machine-slot {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(120, 100, 40, 0.35);
+}
+
+html[data-theme='light'] .machine-progress-track {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
 .inspect-card-meta {
   margin: 0;
   font-family: var(--font-mono);

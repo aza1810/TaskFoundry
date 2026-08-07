@@ -324,8 +324,14 @@ export const FURNACE_INPUT_ORES: OreId[] = ['ironOre', 'copperOre']
 export const FURNACE_COAL_PER_SMELT = 1
 export const FURNACE_SECONDS = 2.4
 export const STEEL_FURNACE_SECONDS = FURNACE_SECONDS / STEEL_FURNACE_MULT
+/** Dedicated coal fuel buffer (separate from ore/plate slots). */
+export const FURNACE_FUEL_CAP = 5
+/** Ore input / plate output slot capacity per furnace. */
+export const FURNACE_SLOT_CAP = 12
 export const ASSEMBLER_SECONDS = 1.6
 export const ASSEMBLER_PLATES_PER_GEAR = 2
+/** Assembler iron-plate input / gear output capacity. */
+export const ASSEMBLER_SLOT_CAP = 12
 export const BELT_SPEED = 1.8 // tiles per second
 export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT
 export const INSERTER_COOLDOWN = 0.45
