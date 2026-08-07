@@ -1,10 +1,13 @@
 import {
   ASSEMBLER_PLATES_PER_GEAR,
   ASSEMBLER_SECONDS,
+  ASSEMBLER_SLOT_CAP,
   DIR_DELTA,
   ELECTRIC_DRILL_YIELD,
   FURNACE_COAL_PER_SMELT,
+  FURNACE_FUEL_CAP,
   FURNACE_INPUT_ORES,
+  FURNACE_SLOT_CAP,
   INSERTER_COOLDOWN,
   MAX_UNDERGROUND,
   OPPOSITE,
@@ -33,14 +36,11 @@ import type {
 const MACHINE_CAP: Record<string, number> = {
   drill: 5,
   electricDrill: 8,
-  furnace: 12,
-  steelFurnace: 12,
+  furnace: FURNACE_SLOT_CAP,
+  steelFurnace: FURNACE_SLOT_CAP,
   chest: 50,
-  assembler: 12,
+  assembler: ASSEMBLER_SLOT_CAP,
 }
-
-/** Coal fuel buffer separate from ore/plate slots so ore cannot starve the furnace. */
-const FURNACE_FUEL_CAP = 5
 
 const FURNACE_OUTPUT_ITEMS: ItemId[] = ['ironPlate', 'copperPlate', 'steel']
 const FURNACE_ORE_ITEMS: ItemId[] = ['ironOre', 'copperOre']

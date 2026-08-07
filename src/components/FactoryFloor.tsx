@@ -42,6 +42,7 @@ import {
   ToolIcon,
 } from '../sprites/Sprites'
 import { useProductionRates } from '../hooks/useProductionRates'
+import { MachineInventory, hasMachineInventory } from './MachineInventory'
 import { resolveTheme, subscribeTheme } from '../theme'
 import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
 
@@ -1631,6 +1632,9 @@ export function FactoryFloor({
                     </p>
                   )
                 })()}
+                {hasMachineInventory(inspectEnt.kind) && (
+                  <MachineInventory entity={inspectEnt} />
+                )}
                 <p className="inspect-card-meta">
                   ({inspect.x},{inspect.y})
                   {inspectTile.ore
@@ -1640,7 +1644,9 @@ export function FactoryFloor({
                           : ''
                       }`
                     : ' · plain ground'}
-                  {storeSummary(inspectEnt) ? ` · ${storeSummary(inspectEnt)}` : ''}
+                  {!hasMachineInventory(inspectEnt.kind) && storeSummary(inspectEnt)
+                    ? ` · ${storeSummary(inspectEnt)}`
+                    : ''}
                   {inspectEnt.kind === 'drill'
                     ? ` · coal ${Math.floor(inspectEnt.store.coal ?? 0)}`
                     : ''}
