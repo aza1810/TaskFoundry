@@ -2,6 +2,7 @@
  * Cloud save sync for Google-signed-in operators.
  * Hosted at https://azztech.online/apps/tf/api/
  */
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import type { GameState } from '../game/types'
 
 const CLOUD_SESSION_KEY = 'task-foundry-cloud-session'
@@ -94,16 +95,56 @@ async function apiFetch(
   path: string,
   init: RequestInit & { token?: string } = {},
 ): Promise<Response> {
-  const headers = new Headers(init.headers)
-  headers.set('Accept', 'application/json')
-  if (init.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  }
+  if (init.body && !(init.headers as Record<string, string> | undefined)?.['Content-Type']) {
+    headers['Content-Type'] = 'application/json'
+  }
+  if (init.headers) {
+    const h = new Headers(init.headers)
+    h.forEach((v, k) => {
+      headers[k] = v
+    })
   }
   if (init.token) {
-    headers.set('Authorization', `Bearer ${init.token}`)
+    headers.Authorization = `Bearer ${init.token}`
   }
-  const { token: _t, ...rest } = init
-  return fetch(`${CLOUD_API_BASE}${path}`, { ...rest, headers })
+  const { token: _t, headers: _h, ...rest } = init
+  const url = `${CLOUD_API_BASE}${path}`
+  const method = (rest.method ?? 'GET').toUpperCase()
+
+  // Native WebView fetch to third-party hosts is flaky; use Capacitor HTTP.
+  if (Capacitor.isNativePlatform()) {
+    const data =
+      typeof rest.body === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(rest.body)
+            } catch {
+              return rest.body
+            }
+          })()
+        : rest.body
+    const native = await CapacitorHttp.request({
+      url,
+      method,
+      headers,
+      data,
+      connectTimeout: 15000,
+      readTimeout: 20000,
+    })
+    const bodyText =
+      typeof native.data === 'string'
+        ? native.data
+        : JSON.stringify(native.data ?? {})
+    return new Response(bodyText, {
+      status: native.status,
+      headers: native.headers ?? { 'Content-Type': 'application/json' },
+    })
+  }
+
+  return fetch(url, { ...rest, method, headers })
 }
 
 /** Exchange a Google ID token for a long-lived cloud session. */

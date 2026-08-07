@@ -19,10 +19,14 @@ if ($idToken === '') {
   tf_json_out(['error' => 'idToken required'], 400);
 }
 
-$payload = tf_verify_google_id_token($idToken);
-if ($payload === null) {
-  tf_json_out(['error' => 'Invalid Google ID token'], 401);
+$verified = tf_verify_google_id_token_detailed($idToken);
+if (!$verified['ok'] || empty($verified['payload']) || !is_array($verified['payload'])) {
+  tf_json_out(
+    ['error' => $verified['error'] ?? 'Invalid Google ID token'],
+    401,
+  );
 }
+$payload = $verified['payload'];
 
 $session = tf_create_session(
   (string) $payload['sub'],

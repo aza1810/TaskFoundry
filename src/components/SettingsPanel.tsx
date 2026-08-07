@@ -43,7 +43,7 @@ export function SettingsPanel() {
     exportSaveFile,
     importSaveFile,
   } = useGame()
-  const { session, signOut } = useAuth()
+  const { session, signOut, cloudError, reconnectCloud } = useAuth()
   const [ota, setOta] = useState<OtaState>(getOtaState)
   const [busy, setBusy] = useState(false)
   const [syncBusy, setSyncBusy] = useState(false)
@@ -66,8 +66,8 @@ export function SettingsPanel() {
       : cloudSync === 'syncing'
         ? `Signed in as ${session.displayName}. Syncing foundry to the cloud…`
         : cloudSync === 'offline'
-          ? `Signed in as ${session.displayName}. Offline - progress is on this device and will sync when you are back online.`
-          : `Signed in as ${session.displayName}. Cloud sync needs a fresh Google sign-in. Sign out, then Continue with Google.`
+          ? `Signed in as ${session.displayName}. Cloud unreachable right now. Tap Reconnect cloud or Sync cloud now. Your factory is still on this device - Export save as a backup.`
+          : `Signed in as ${session.displayName}. Cloud session is missing. Tap Reconnect cloud (or sign out and Continue with Google).`
     : session?.isGuest
       ? 'Signed in as guest (save stays on this device). Use Google Sign-In on this same device to upload your factory to the cloud.'
       : session
@@ -100,6 +100,22 @@ export function SettingsPanel() {
     try {
       const err = await pullCloudSaveNow()
       setTransferMsg(err ?? 'Cloud save checked.')
+    } finally {
+      setSyncBusy(false)
+    }
+  }
+
+  const runReconnect = async () => {
+    setSyncBusy(true)
+    setTransferMsg(null)
+    try {
+      const err = await reconnectCloud()
+      if (err) {
+        setTransferMsg(err)
+        return
+      }
+      const pullErr = await pullCloudSaveNow()
+      setTransferMsg(pullErr ?? 'Cloud reconnected and save synced.')
     } finally {
       setSyncBusy(false)
     }
@@ -257,6 +273,11 @@ export function SettingsPanel() {
       <div className="settings-block">
         <h3>Account</h3>
         <p className="settings-hint">{cloudHint}</p>
+        {cloudError ? (
+          <p className="settings-hint settings-cloud-error" role="alert">
+            {cloudError}
+          </p>
+        ) : null}
         {transferMsg ? (
           <p className="settings-hint" role="status">
             {transferMsg}
@@ -264,14 +285,24 @@ export function SettingsPanel() {
         ) : null}
         <div className="settings-actions">
           {googleCloud ? (
-            <button
-              type="button"
-              className="ghost-btn"
-              disabled={syncBusy}
-              onClick={() => void runPull()}
-            >
-              {syncBusy ? 'Syncing…' : 'Sync cloud now'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={syncBusy}
+                onClick={() => void runReconnect()}
+              >
+                {syncBusy ? 'Working…' : 'Reconnect cloud'}
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                disabled={syncBusy}
+                onClick={() => void runPull()}
+              >
+                {syncBusy ? 'Syncing…' : 'Sync cloud now'}
+              </button>
+            </>
           ) : null}
           <button
             type="button"
