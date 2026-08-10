@@ -104,7 +104,16 @@ const HUD_RESOURCES: ItemId[] = [
   'steel',
 ]
 
-type Highlight = 'ore' | 'drillTool' | 'beltTool' | 'walkSteps' | 'habit' | null
+type Highlight =
+  | 'ore'
+  | 'drillTool'
+  | 'beltTool'
+  | 'inserterTool'
+  | 'chestTool'
+  | 'furnaceTool'
+  | 'walkSteps'
+  | 'habit'
+  | null
 type ToolTab = 'build' | 'belts' | 'edit'
 
 type Floater = {
@@ -257,7 +266,7 @@ function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState)
   if (tile.entityId) return false
   if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) return false
   if (tool === 'chest') {
-    if (countPlacedChests(state.entities) >= maxChestsFor(state.researched)) return false
+    if (countPlacedChests(state.entities) >= maxChestsFor(state.researched, state.completedGoals)) return false
   }
   const meta = PLACEABLE_META[tool]
   return Math.floor((state.inventory[meta.inventoryKey] ?? 0) + 1e-9) >= 1
@@ -489,8 +498,17 @@ export function FactoryFloor({
       setToolTab('belts')
       setRailOpen(true)
     }
-    if (highlight === 'ore' || highlight === 'drillTool') {
+    if (
+      highlight === 'ore' ||
+      highlight === 'drillTool' ||
+      highlight === 'chestTool' ||
+      highlight === 'furnaceTool'
+    ) {
       setToolTab('build')
+      setRailOpen(true)
+    }
+    if (highlight === 'inserterTool') {
+      setToolTab('belts')
       setRailOpen(true)
     }
   }, [highlight])
@@ -1444,7 +1462,12 @@ export function FactoryFloor({
                   const pulse =
                     (highlight === 'drillTool' && tool === 'drill') ||
                     (highlight === 'ore' && tool === 'drill') ||
-                    (highlight === 'beltTool' && tool === 'belt')
+                    (highlight === 'beltTool' && tool === 'belt') ||
+                    (highlight === 'inserterTool' &&
+                      (tool === 'inserter' || tool === 'longInserter')) ||
+                    (highlight === 'chestTool' && tool === 'chest') ||
+                    (highlight === 'furnaceTool' &&
+                      (tool === 'furnace' || tool === 'steelFurnace'))
                   const affordable =
                     isEditMetaTool(tool) || (count !== null && count > 0)
                   return (

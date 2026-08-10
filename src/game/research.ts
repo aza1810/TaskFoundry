@@ -1,5 +1,5 @@
 import type { Inventory, ItemId, TechId } from './types'
-import { BASE_MAX_CHESTS } from './data'
+import { BASE_MAX_CHESTS, FURNACE_UNLOCK_MAX_CHESTS } from './data'
 
 export interface TechDef {
   id: TechId
@@ -110,7 +110,7 @@ export const TECHS: TechDef[] = [
     name: 'Factory storage',
     detail: 'Expand floor logistics. Raise the chest placement cap to 4.',
     cost: { ironPlate: 20, gear: 10, chest: 1 },
-    unlocks: 'Max 4 chests on the floor',
+    unlocks: 'Max 4 chests on the floor (after furnace unlock)',
     prerequisites: ['logistics'],
     icon: 'chest',
     col: 2,
@@ -136,10 +136,17 @@ export const TECH_MAP: Record<TechId, TechDef> = Object.fromEntries(
 export const TECH_TREE_COLS = 4
 export const TECH_TREE_ROWS = 3
 
-/** How many chests may be placed on the floor given researched storage techs. */
-export function maxChestsFor(researched: readonly string[]): number {
+/**
+ * How many chests may sit on the floor.
+ * Base 1 → 2 after place-furnace goal → 4/6 via storage research.
+ */
+export function maxChestsFor(
+  researched: readonly string[],
+  completedGoals: readonly string[] = [],
+): number {
   if (researched.includes('storage2')) return 6
   if (researched.includes('storage')) return 4
+  if (completedGoals.includes('place-furnace')) return FURNACE_UNLOCK_MAX_CHESTS
   return BASE_MAX_CHESTS
 }
 

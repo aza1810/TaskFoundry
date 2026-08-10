@@ -165,6 +165,16 @@ export function loadState(accountSaveKey?: string): GameState {
           parsed.tutorialStep >= TUTORIAL_STEP_COUNT),
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
+    // Existing saves with a furnace already placed keep the 2nd chest unlock.
+    const hasFurnace = Object.values(next.entities).some(
+      (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
+    )
+    if (hasFurnace && !next.completedGoals.includes('place-furnace')) {
+      next = {
+        ...next,
+        completedGoals: [...next.completedGoals, 'place-furnace'],
+      }
+    }
     next = ensureContracts(next)
     localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(next))
     return next
@@ -243,7 +253,10 @@ export function claimGoals(state: GameState): GameState {
     next = {
       ...next,
       completedGoals: [...next.completedGoals, goal.id],
-      unlockedToast: `Objective complete: ${goal.title} - ${goal.rewardLabel}`,
+      unlockedToast:
+        goal.id === 'place-furnace'
+          ? `Achievement: ${goal.title} - 2nd chest unlocked!`
+          : `Objective complete: ${goal.title} - ${goal.rewardLabel}`,
       tipIndex: (next.tipIndex + 1) % TIPS.length,
     }
     next = depositStock(next, goal.reward)
@@ -485,14 +498,16 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
 
   if (tool === 'chest') {
     const placed = countPlacedChests(state.entities)
-    const max = maxChestsFor(state.researched)
+    const max = maxChestsFor(state.researched, state.completedGoals)
     if (placed >= max) {
       return {
         ...state,
         unlockedToast:
-          max < 6
-            ? `Chest limit ${placed}/${max} - research Factory storage to raise it`
-            : `Chest limit reached (${max} on the floor)`,
+          max < 2
+            ? `Chest limit ${placed}/${max} - place a furnace to unlock a 2nd chest`
+            : max < 6
+              ? `Chest limit ${placed}/${max} - research Factory storage to raise it`
+              : `Chest limit reached (${max} on the floor)`,
       }
     }
   }
@@ -683,7 +698,7 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
   const pasteChests = bp.filter((p) => p.kind === 'chest').length
   if (pasteChests > 0) {
     const placed = countPlacedChests(state.entities)
-    const max = maxChestsFor(state.researched)
+    const max = maxChestsFor(state.researched, state.completedGoals)
     if (placed + pasteChests > max) {
       return {
         ...state,
@@ -1183,7 +1198,7 @@ export function skipTutorial(state: GameState): GameState {
   }
 }
 
-/** One-tap: plant starter smelting line and jump to the "log steps" coach. */
+/** One-tap: plant starter line and jump to the walk/mine coach. */
 export function quickStartTutorial(state: GameState): GameState {
   const planted = buildStarterLine(state)
   const logIdx = tutorialStepIndex('logSteps')
@@ -1197,7 +1212,8 @@ export function quickStartTutorial(state: GameState): GameState {
   return {
     ...planted,
     tutorialStep: logIdx >= 0 ? logIdx : planted.tutorialStep,
-    unlockedToast: 'Starter line planted - log steps (or walk) to mine ore',
+    unlockedToast:
+      'Starter line planted - sync steps so chests stockpile ore and plates',
   }
 }
 
@@ -1279,25 +1295,15 @@ export function researchTech(state: GameState, techId: TechId): GameState {
   )
 }
 
-/** Drop a small starter smelting line near the first clear iron patch */
+/** Drop a starter line: drill → chest (ore) → furnace → chest (plates). */
 export function buildStarterLine(state: GameState): GameState {
-  // Layout facing east:
-  // [drill>][belt>][belt>][inserter>][furnace]
-  //                              [inserter v]
-  //                              [chest]
+  // Layout facing east (9 tiles):
+  // [drill>][belt>][inserter>][chest][inserter>][belt>][inserter>][furnace][inserter>][chest]
   let origin: { x: number; y: number } | null = null
-  for (let y = 0; y < state.height - 2 && !origin; y++) {
-    for (let x = 0; x < state.width - 4; x++) {
+  for (let y = 0; y < state.height && !origin; y++) {
+    for (let x = 0; x < state.width - 9; x++) {
       if (state.tiles[idx(x, y)].ore !== 'ironOre') continue
-      const cells = [
-        [x, y],
-        [x + 1, y],
-        [x + 2, y],
-        [x + 3, y],
-        [x + 4, y],
-        [x + 4, y + 1],
-        [x + 4, y + 2],
-      ]
+      const cells = Array.from({ length: 10 }, (_, i) => [x + i, y] as const)
       if (cells.every(([cx, cy]) => !state.tiles[idx(cx, cy)].entityId)) {
         origin = { x, y }
         break
@@ -1308,11 +1314,19 @@ export function buildStarterLine(state: GameState): GameState {
     return { ...state, unlockedToast: 'No clear iron patch for a starter line' }
   }
 
-  const need = { drill: 1, belt: 2, inserter: 2, furnace: 1, chest: 1, coal: 5 }
+  const need = {
+    drill: 1,
+    belt: 2,
+    inserter: 4,
+    furnace: 1,
+    chest: 2,
+    coal: 5,
+  }
   if (!canAffordStock(state, need)) {
     return {
       ...state,
-      unlockedToast: 'Need 1 drill, 2 belts, 2 inserters, 1 furnace, 1 chest, 5 coal',
+      unlockedToast:
+        'Need 1 drill, 2 belts, 4 inserters, 1 furnace, 2 chests, 5 coal',
     }
   }
 
@@ -1320,30 +1334,36 @@ export function buildStarterLine(state: GameState): GameState {
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
   let drillId: string | null = null
+  let furnaceId: string | null = null
 
-  const put = (kind: Placeable, x: number, y: number, dir: Dir) => {
+  const put = (kind: Placeable, px: number, py: number, dir: Dir) => {
     inventory = spend(inventory, { [kind]: 1 })
-    const ent = createEntity(kind, x, y, dir)
-    tiles[idx(x, y)].entityId = ent.id
+    const ent = createEntity(kind, px, py, dir)
+    tiles[idx(px, py)].entityId = ent.id
     entities[ent.id] = ent
     if (kind === 'drill') drillId = ent.id
+    if (kind === 'furnace' || kind === 'steelFurnace') furnaceId = ent.id
   }
 
   const { x, y } = origin
+  // Ore buffer
   put('drill', x, y, 'E')
   put('belt', x + 1, y, 'E')
-  put('belt', x + 2, y, 'E')
-  put('inserter', x + 3, y, 'E') // behind belt, front furnace
-  put('furnace', x + 4, y, 'E')
-  put('inserter', x + 4, y + 1, 'S') // behind furnace, front chest
-  put('chest', x + 4, y + 2, 'S')
+  put('inserter', x + 2, y, 'E') // belt → ore chest
+  put('chest', x + 3, y, 'E')
+  // Into furnace
+  put('inserter', x + 4, y, 'E') // ore chest → belt
+  put('belt', x + 5, y, 'E')
+  put('inserter', x + 6, y, 'E') // belt → furnace
+  put('furnace', x + 7, y, 'E')
 
   let next: GameState = {
     ...state,
     inventory,
     tiles,
     entities,
-    unlockedToast: 'Starter line planted - walk to mine!',
+    placeDir: 'E',
+    selected: null,
   }
   if (drillId) {
     const fuel = Math.min(5, stockOf(next, 'coal'))
@@ -1359,7 +1379,44 @@ export function buildStarterLine(state: GameState): GameState {
       }
     }
   }
+  if (furnaceId) {
+    const fuel = Math.min(5, stockOf(next, 'coal'))
+    if (fuel > 0) {
+      next = spendStock(next, { coal: fuel })
+      const e = next.entities[furnaceId]
+      next = {
+        ...next,
+        entities: {
+          ...next.entities,
+          [furnaceId]: { ...e, store: { ...e.store, coal: fuel } },
+        },
+      }
+    }
+  }
 
+  // Unlock 2nd chest via place-furnace goal, then finish the plate buffer.
+  next = claimGoals(next)
+  inventory = { ...next.inventory }
+  const tiles2 = next.tiles.map((t) => ({ ...t }))
+  const entities2 = { ...next.entities }
+
+  const put2 = (kind: Placeable, px: number, py: number, dir: Dir) => {
+    inventory = spend(inventory, { [kind]: 1 })
+    const ent = createEntity(kind, px, py, dir)
+    tiles2[idx(px, py)].entityId = ent.id
+    entities2[ent.id] = ent
+  }
+
+  put2('inserter', x + 8, y, 'E') // furnace → plate chest
+  put2('chest', x + 9, y, 'E')
+
+  next = {
+    ...next,
+    inventory,
+    tiles: tiles2,
+    entities: entities2,
+    unlockedToast: 'Starter line planted - walk to stockpile ore and plates',
+  }
   return claimGoals(next)
 }
 

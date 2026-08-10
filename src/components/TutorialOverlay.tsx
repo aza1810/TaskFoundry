@@ -24,7 +24,6 @@ export function TutorialOverlay({
   const stepIndex = state.tutorialStep
   const active = !state.tutorialComplete && stepIndex !== null
   const step = active ? getTutorialStep(stepIndex) : null
-  const habitsDoneToday = state.habits.filter((h) => h.completedToday).length
 
   const drills = useMemo(
     () =>
@@ -38,6 +37,27 @@ export function TutorialOverlay({
     () =>
       Object.values(state.entities).filter(
         (e) => e.kind === 'belt' || e.kind === 'fastBelt',
+      ).length,
+    [state.entities],
+  )
+
+  const inserters = useMemo(
+    () =>
+      Object.values(state.entities).filter(
+        (e) => e.kind === 'inserter' || e.kind === 'longInserter',
+      ).length,
+    [state.entities],
+  )
+
+  const chests = useMemo(
+    () => Object.values(state.entities).filter((e) => e.kind === 'chest').length,
+    [state.entities],
+  )
+
+  const furnaces = useMemo(
+    () =>
+      Object.values(state.entities).filter(
+        (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
       ).length,
     [state.entities],
   )
@@ -58,19 +78,37 @@ export function TutorialOverlay({
   useEffect(() => {
     if (!active || !step || step.mode !== 'coach') return
     if (step.id === 'placeDrill' && drills >= 1) advanceTutorial()
-    if (step.id === 'logSteps' && (state.stepsLifetime >= 10 || state.mineCycles >= 10)) {
+    if (
+      step.id === 'oreToChest' &&
+      drills >= 1 &&
+      belts >= 1 &&
+      inserters >= 1 &&
+      chests >= 1
+    ) {
       advanceTutorial()
     }
-    if (step.id === 'belts' && belts >= 3) advanceTutorial()
-    if (step.id === 'tasks' && habitsDoneToday >= 1) advanceTutorial()
+    if (
+      step.id === 'logSteps' &&
+      (state.stepsLifetime >= 10 || state.mineCycles >= 10)
+    ) {
+      advanceTutorial()
+    }
+    if (step.id === 'chestToFurnace' && furnaces >= 1 && inserters >= 2) {
+      advanceTutorial()
+    }
+    if (step.id === 'plateChest' && chests >= 2 && furnaces >= 1) {
+      advanceTutorial()
+    }
   }, [
     active,
     step,
     drills,
     belts,
+    inserters,
+    chests,
+    furnaces,
     state.stepsLifetime,
     state.mineCycles,
-    habitsDoneToday,
     advanceTutorial,
   ])
 

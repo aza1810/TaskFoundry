@@ -23,6 +23,16 @@ function countBelts(s: GameState): number {
   ).length
 }
 
+function countFurnaces(s: GameState): number {
+  return Object.values(s.entities).filter(
+    (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
+  ).length
+}
+
+function countChests(s: GameState): number {
+  return Object.values(s.entities).filter((e) => e.kind === 'chest').length
+}
+
 function chestItems(s: GameState): number {
   return Object.values(s.entities)
     .filter((e) => e.kind === 'chest')
@@ -41,6 +51,15 @@ export const GOALS: GoalDef[] = [
     rewardLabel: '6 belts + 8 coal',
     check: (s) => countDrills(s) >= 1,
     progress: (s) => ({ cur: Math.min(1, countDrills(s)), max: 1 }),
+  },
+  {
+    id: 'place-furnace',
+    title: 'Light a furnace',
+    detail: 'Place a stone furnace on the floor. Unlocks a second chest slot.',
+    reward: { inserter: 2, belt: 4 },
+    rewardLabel: '2nd chest unlocked + 2 inserters + 4 belts',
+    check: (s) => countFurnaces(s) >= 1,
+    progress: (s) => ({ cur: Math.min(1, countFurnaces(s)), max: 1 }),
   },
   {
     id: 'mine-cycles',
@@ -89,6 +108,15 @@ export const GOALS: GoalDef[] = [
     rewardLabel: '1 chest + 8 belts',
     check: (s) => chestItems(s) >= 15,
     progress: (s) => ({ cur: Math.min(15, chestItems(s)), max: 15 }),
+  },
+  {
+    id: 'two-chests',
+    title: 'Twin buffers',
+    detail: 'Have two chests on the floor - ore in, plates out.',
+    reward: { coal: 10, belt: 6 },
+    rewardLabel: '10 coal + 6 belts',
+    check: (s) => countChests(s) >= 2,
+    progress: (s) => ({ cur: Math.min(2, countChests(s)), max: 2 }),
   },
   {
     id: 'habit-duo',
@@ -168,12 +196,14 @@ export const TIPS = [
   'Drills auto-drop ore onto the belt or chest they face - aim the arrow at your line.',
   'Hold on a tile, then drag to paint belts. Edit → Demolish clears buildings.',
   'Inserters pull from behind and push forward - green arrow shows drop direction.',
-  'Furnaces need ore + coal. Use a second inserter to pull plates out.',
+  'Route drill → chest for ore, then chest → furnace → chest for plates.',
+  'Placing your first furnace unlocks a second chest slot.',
   'Chests hold 4 stacks of 100. Offline haul only counts what lands in a chest.',
-  'Research Factory storage to place more chests on the floor.',
+  'When you leave, steps keep drills running - come back to stockpiled chests.',
+  'Research Factory storage to place more than two chests.',
   'Assemblers turn iron plates into gears while you walk.',
   'Research fast belts, electric drills, and splitters when you have plates to spare.',
-  'Starter line auto-builds a basic drill → furnace → chest setup.',
+  'Starter line auto-builds a basic drill → chest → furnace → plate chest setup.',
   'Daily tasks restock belts and fuel so the factory keeps growing.',
   'Skills level from steps: drills train Mining, furnaces Smelting, belts Logistics.',
   'Assemblers and the craft bench train Assembly while you walk.',
