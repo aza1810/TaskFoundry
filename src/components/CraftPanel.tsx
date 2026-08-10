@@ -4,9 +4,9 @@ import {
   ITEM_META,
   MAX_CRAFT_QUEUE,
   RECIPE_MAP,
-  canAfford,
   formatNum,
 } from '../game/data'
+import { canAffordStock, stockOf } from '../game/chestInventory'
 import { TECH_MAP } from '../game/research'
 import { useGame } from '../game/GameContext'
 import type { Inventory, ItemId } from '../game/types'
@@ -22,11 +22,14 @@ function primaryOutput(outputs: Partial<Inventory>): [ItemId, number] {
   return [id, n]
 }
 
-function craftableCount(have: Inventory, cost: Partial<Inventory>): number {
+function craftableCount(
+  stockFn: (id: ItemId) => number,
+  cost: Partial<Inventory>,
+): number {
   let min = Infinity
   for (const [k, n] of Object.entries(cost) as [ItemId, number][]) {
     if (!n) continue
-    min = Math.min(min, Math.floor((have[k] ?? 0) / n))
+    min = Math.min(min, Math.floor(stockFn(k) / n))
   }
   return Number.isFinite(min) ? min : 0
 }
@@ -55,7 +58,7 @@ export function CraftPanel() {
   const selectedOk =
     Boolean(selected) &&
     !selectedLocked &&
-    canAfford(state.inventory, selected!.inputs) &&
+    canAffordStock(state, selected!.inputs) &&
     !queueFull
 
   return (
@@ -64,7 +67,7 @@ export function CraftPanel() {
         <h2>Hand Crafting Bench</h2>
         <p>
           Hand crafts take real time - slower than furnaces and assemblers. Queue up to{' '}
-          {MAX_CRAFT_QUEUE} jobs; materials are reserved when you start.
+          {MAX_CRAFT_QUEUE} jobs; materials come from floor chests (buildings from your pack).
         </p>
       </div>
 
@@ -160,7 +163,7 @@ export function CraftPanel() {
                   <div className="craft-ingredient-row" aria-label="Ingredients">
                     {(Object.entries(selected.inputs) as [ItemId, number][]).map(
                       ([id, n]) => {
-                        const have = state.inventory[id] ?? 0
+                        const have = stockOf(state, id)
                         const short = have < n
                         return (
                           <span
@@ -240,7 +243,7 @@ export function CraftPanel() {
                 const [outId, outN] = primaryOutput(recipe.outputs)
                 const canMake = locked
                   ? 0
-                  : craftableCount(state.inventory, recipe.inputs)
+                  : craftableCount((id) => stockOf(state, id), recipe.inputs)
                 const ok = !locked && canMake > 0 && !queueFull
                 const isSelected = selectedId === recipe.id
                 return (

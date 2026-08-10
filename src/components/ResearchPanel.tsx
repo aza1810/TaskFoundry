@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ITEM_META, canAfford } from '../game/data'
+import { ITEM_META } from '../game/data'
 import {
   TECHS,
   TECH_MAP,
@@ -7,6 +7,7 @@ import {
   TECH_TREE_ROWS,
   prereqsMet,
 } from '../game/research'
+import { canAffordStock, stockOf } from '../game/chestInventory'
 import { useGame } from '../game/GameContext'
 import type { ItemId, TechId } from '../game/types'
 import { ItemSprite } from '../sprites/Sprites'
@@ -63,7 +64,7 @@ export function ResearchPanel() {
 
   const done = state.researched.includes(selected.id)
   const unlocked = prereqsMet(selected, state.researched)
-  const affordable = canAfford(state.inventory, selected.cost)
+  const affordable = canAffordStock(state, selected.cost)
   const canResearch = !done && unlocked && affordable
   const researchedCount = state.researched.length
 
@@ -74,14 +75,14 @@ export function ResearchPanel() {
         (t) =>
           !state.researched.includes(t.id) &&
           prereqsMet(t, state.researched) &&
-          canAfford(state.inventory, t.cost),
+          canAffordStock(state, t.cost),
       ) ??
       TECHS.find(
         (t) =>
           !state.researched.includes(t.id) && prereqsMet(t, state.researched),
       )
     if (nextReady) setSelectedId(nextReady.id)
-  }, [state.researched, state.inventory, selectedId])
+  }, [state.researched, state.entities, state.inventory, selectedId])
 
   return (
     <section className="panel research-panel">
@@ -123,7 +124,7 @@ export function ResearchPanel() {
             const isOpen = prereqsMet(tech, state.researched)
             const isSelected = selectedId === tech.id
             const isReady =
-              !isDone && isOpen && canAfford(state.inventory, tech.cost)
+              !isDone && isOpen && canAffordStock(state, tech.cost)
             const left = PAD_X + tech.col * CELL_W + (CELL_W - NODE_W) / 2
             const top = PAD_Y + tech.row * CELL_H + (CELL_H - NODE_H) / 2
             return (
@@ -186,7 +187,7 @@ export function ResearchPanel() {
                 <div className="research-cost-row" aria-label="Research cost">
                   {(Object.entries(selected.cost) as [ItemId, number][]).map(
                     ([id, n]) => {
-                      const have = state.inventory[id] ?? 0
+                      const have = stockOf(state, id)
                       const short = !done && have < n
                       return (
                         <span
