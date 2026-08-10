@@ -106,13 +106,10 @@ function demoOfflineReport(): OfflineReport {
     craftsFinished: 4,
     stepsSynced: 2840,
     itemGains: {
-      ironPlate: 920,
-      copperPlate: 640,
-      steel: 180,
-      gear: 120,
-      ironOre: 44,
-      coal: 18,
-      belt: 2,
+      ironPlate: 92,
+      copperPlate: 40,
+      gear: 12,
+      coal: 8,
     },
   }
 }
@@ -120,7 +117,7 @@ function demoOfflineReport(): OfflineReport {
 export function AwaySummary({
   holdForHealthSync = false,
 }: {
-  /** Native boot: wait for Health auto-sync so drill ore appears on the recap. */
+  /** Native boot: wait for Health auto-sync so chest haul includes step mining. */
   holdForHealthSync?: boolean
 }) {
   const { state, clearOfflineReport } = useGame()
@@ -193,22 +190,23 @@ export function AwaySummary({
                 Your factory kept running
                 {report.capped ? ' up to the offline cap' : ''}
                 {stepsSynced > 0
-                  ? ', and Health steps ran your drills'
-                  : ''}. Here&apos;s what piled up while you were gone.
+                  ? ', and Health steps fed your drills'
+                  : ''}
+                . Only items that landed in chests count as haul.
               </>
             ) : (
               <>
-                The floor was quiet. Offline progress needs loaded
-                furnaces/assemblers, a craft queue, or Health steps for drills.
+                Nothing reached a chest. Offline haul needs a line that outputs
+                into a chest (and Health steps if drills must mine).
               </>
             )}
           </p>
         </header>
 
         {gains.length > 0 && (
-          <section className="away-gains" aria-label="Items obtained while away">
+          <section className="away-gains" aria-label="Chest haul while away">
             <div className="away-gains-head">
-              <h3>Obtained while away</h3>
+              <h3>Chests gathered</h3>
               <p className="away-gains-total">
                 +{formatNum(totalGained)} item{totalGained === 1 ? '' : 's'}
               </p>
@@ -248,21 +246,20 @@ export function AwaySummary({
 
         {!busy && (
           <p className="away-empty">
-            Load furnaces with ore + coal, queue crafts, or walk to feed drills
-            before you leave next time.
+            Route drills and furnaces into a chest before you leave next time.
           </p>
         )}
 
         {busy && gains.length === 0 && (
           <p className="away-empty">
-            Machines ran, but stock stayed on belts and in buffers. Check the
-            floor for cargo still in transit.
+            Machines ran, but nothing new landed in a chest. Check belts,
+            inserters, and chest slot space (4 slots, 100 per stack).
           </p>
         )}
 
         <div className="away-actions">
           <button type="button" className="primary-btn" onClick={dismiss}>
-            {busy ? 'Collect & continue' : 'Back to the factory'}
+            {busy ? 'Continue' : 'Back to the factory'}
           </button>
         </div>
       </div>

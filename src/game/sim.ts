@@ -2,6 +2,8 @@ import {
   ASSEMBLER_PLATES_PER_GEAR,
   ASSEMBLER_SECONDS,
   ASSEMBLER_SLOT_CAP,
+  CHEST_SLOT_COUNT,
+  CHEST_STACK_SIZE,
   DIR_DELTA,
   ELECTRIC_DRILL_YIELD,
   FURNACE_COAL_PER_SMELT,
@@ -38,8 +40,24 @@ const MACHINE_CAP: Record<string, number> = {
   electricDrill: 8,
   furnace: FURNACE_SLOT_CAP,
   steelFurnace: FURNACE_SLOT_CAP,
-  chest: 50,
   assembler: ASSEMBLER_SLOT_CAP,
+}
+
+/** Chests: up to CHEST_SLOT_COUNT item types, CHEST_STACK_SIZE each. */
+function tryAcceptChest(
+  store: Partial<Record<ItemId, number>>,
+  item: ItemId,
+): boolean {
+  const have = store[item] ?? 0
+  if (have > 0) {
+    if (have >= CHEST_STACK_SIZE) return false
+    store[item] = have + 1
+    return true
+  }
+  const usedSlots = Object.values(store).filter((n) => (n ?? 0) > 0).length
+  if (usedSlots >= CHEST_SLOT_COUNT) return false
+  store[item] = 1
+  return true
 }
 
 const FURNACE_OUTPUT_ITEMS: ItemId[] = ['ironPlate', 'copperPlate', 'steel']
@@ -179,7 +197,7 @@ function tryAcceptItem(entity: Entity, item: ItemId): boolean {
     return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind], ['coal']) > 0
   }
   if (entity.kind === 'chest') {
-    return addToStore(entity.store, item, 1, MACHINE_CAP.chest) > 0
+    return tryAcceptChest(entity.store, item)
   }
   if (isFurnaceKind(entity.kind)) {
     if (item === 'coal') {

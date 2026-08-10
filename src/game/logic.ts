@@ -32,7 +32,7 @@ import {
 } from './data'
 import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
-import { TECH_MAP, TECHS, prereqsMet, withImpliedResearched } from './research'
+import { TECH_MAP, TECHS, countPlacedChests, maxChestsFor, prereqsMet, withImpliedResearched } from './research'
 import {
   emptySkills,
   formatSkillGains,
@@ -319,15 +319,12 @@ function addItemCounts(
   }
 }
 
-/** Inventory + machine stores + belt cargo - what the factory is holding. */
-function snapshotItems(state: GameState): Partial<Record<ItemId, number>> {
+/** Only chest contents - offline haul credits what output buffers gathered. */
+function snapshotChestItems(state: GameState): Partial<Record<ItemId, number>> {
   const out: Partial<Record<ItemId, number>> = {}
-  addItemCounts(out, state.inventory)
   for (const e of Object.values(state.entities)) {
+    if (e.kind !== 'chest') continue
     addItemCounts(out, e.store)
-    if (e.cargo) {
-      out[e.cargo.item] = (out[e.cargo.item] ?? 0) + 1
-    }
   }
   return out
 }
@@ -372,7 +369,7 @@ export function tickState(state: GameState, now = Date.now()): GameState {
   const reportAway = rawDt > OFFLINE_REPORT_SECONDS
   const beforeStats = reportAway ? { ...next.stats } : null
   const beforeCrafts = reportAway ? next.craftQueue.length : 0
-  const beforeItems = reportAway ? snapshotItems(next) : null
+  const beforeChests = reportAway ? snapshotChestItems(next) : null
   // Keep Health step gains if auto-sync already created/updated a report.
   const priorReport = reportAway ? next.offlineReport : null
 
@@ -389,7 +386,7 @@ export function tickState(state: GameState, now = Date.now()): GameState {
     left -= step
   }
 
-  if (reportAway && beforeStats && beforeItems) {
+  if (reportAway && beforeStats && beforeChests) {
     const simulatedSeconds = dt
     const report: OfflineReport = {
       awaySeconds: Math.max(rawDt, priorReport?.awaySeconds ?? 0),
@@ -408,9 +405,10 @@ export function tickState(state: GameState, now = Date.now()): GameState {
         Math.max(0, beforeCrafts - next.craftQueue.length) +
         (priorReport?.craftsFinished ?? 0),
       stepsSynced: priorReport?.stepsSynced ?? 0,
+      // Only credit what landed in chests - not drill buffers or inventory.
       itemGains: mergeItemGains(
         priorReport?.itemGains ?? {},
-        itemGains(beforeItems, snapshotItems(next)),
+        itemGains(beforeChests, snapshotChestItems(next)),
       ),
     }
     next = { ...next, offlineReport: report, unlockedToast: null }
@@ -480,6 +478,20 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
 
   if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) {
     return { ...state, unlockedToast: 'Drills must be placed on an ore patch' }
+  }
+
+  if (tool === 'chest') {
+    const placed = countPlacedChests(state.entities)
+    const max = maxChestsFor(state.researched)
+    if (placed >= max) {
+      return {
+        ...state,
+        unlockedToast:
+          max < 6
+            ? `Chest limit ${placed}/${max} - research Factory storage to raise it`
+            : `Chest limit reached (${max} on the floor)`,
+      }
+    }
   }
 
   let placeDir = state.placeDir
@@ -655,6 +667,18 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     }
   }
 
+  const pasteChests = bp.filter((p) => p.kind === 'chest').length
+  if (pasteChests > 0) {
+    const placed = countPlacedChests(state.entities)
+    const max = maxChestsFor(state.researched)
+    if (placed + pasteChests > max) {
+      return {
+        ...state,
+        unlockedToast: `Chest limit ${placed}/${max} - paste needs ${pasteChests} more`,
+      }
+    }
+  }
+
   let inventory = { ...state.inventory }
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
@@ -780,8 +804,8 @@ export function logSteps(state: GameState, amount: number): GameState {
  * Only the delta since the last import is applied, so manual logs stay separate
  * and re-syncing does not double-count.
  *
- * When returning from a long absence, mining from these steps is folded into the
- * away summary so drills show up on the welcome-back recap.
+ * When returning from a long absence, mining is delivered briefly into chests;
+ * the away recap only credits chest haul (not drill buffers).
  */
 export function importHealthSteps(
   state: GameState,
@@ -808,9 +832,18 @@ export function importHealthSteps(
     }
   }
 
-  const beforeItems = snapshotItems(next)
+  const beforeChests = snapshotChestItems(next)
+  const beforeStats = { ...next.stats }
   next = logSteps(next, delta)
-  const minedGains = itemGains(beforeItems, snapshotItems(next))
+
+  // Push freshly mined ore along belts/inserters into chests before the recap.
+  let deliver = Math.min(60, 8 + delta * 0.015)
+  while (deliver > 0) {
+    const step = Math.min(0.5, deliver)
+    next = simTick(next, step)
+    deliver -= step
+  }
+  const chestGains = itemGains(beforeChests, snapshotChestItems(next))
 
   next = {
     ...next,
@@ -835,12 +868,18 @@ export function importHealthSteps(
     awaySeconds: Math.max(awaySeconds, prior?.awaySeconds ?? 0),
     simulatedSeconds: prior?.simulatedSeconds ?? 0,
     capped: Boolean(prior?.capped),
-    platesSmelted: prior?.platesSmelted ?? 0,
-    gearsMade: prior?.gearsMade ?? 0,
-    itemsMoved: prior?.itemsMoved ?? 0,
+    platesSmelted:
+      (prior?.platesSmelted ?? 0) +
+      Math.max(0, next.stats.platesSmelted - beforeStats.platesSmelted),
+    gearsMade:
+      (prior?.gearsMade ?? 0) +
+      Math.max(0, next.stats.gearsMade - beforeStats.gearsMade),
+    itemsMoved:
+      (prior?.itemsMoved ?? 0) +
+      Math.max(0, next.stats.itemsMoved - beforeStats.itemsMoved),
     craftsFinished: prior?.craftsFinished ?? 0,
     stepsSynced: (prior?.stepsSynced ?? 0) + delta,
-    itemGains: mergeItemGains(prior?.itemGains ?? {}, minedGains),
+    itemGains: mergeItemGains(prior?.itemGains ?? {}, chestGains),
   }
   return { ...next, offlineReport: report }
 }

@@ -84,7 +84,7 @@ export const GOALS: GoalDef[] = [
   {
     id: 'chest-stock',
     title: 'Stock the chest',
-    detail: 'Have 15+ items sitting in chests.',
+    detail: 'Have 15+ items sitting in chests (4 slots × 100 each).',
     reward: { chest: 1, belt: 8 },
     rewardLabel: '1 chest + 8 belts',
     check: (s) => chestItems(s) >= 15,
@@ -169,6 +169,8 @@ export const TIPS = [
   'Hold on a tile, then drag to paint belts. Edit → Demolish clears buildings.',
   'Inserters pull from behind and push forward - green arrow shows drop direction.',
   'Furnaces need ore + coal. Use a second inserter to pull plates out.',
+  'Chests hold 4 stacks of 100. Offline haul only counts what lands in a chest.',
+  'Research Factory storage to place more chests on the floor.',
   'Assemblers turn iron plates into gears while you walk.',
   'Research fast belts, electric drills, and splitters when you have plates to spare.',
   'Starter line auto-builds a basic drill → furnace → chest setup.',

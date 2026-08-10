@@ -34,6 +34,7 @@ import {
   placeEntity,
 } from '../game/logic'
 import { machineStatus } from '../game/machineStatus'
+import { countPlacedChests, maxChestsFor } from '../game/research'
 import {
   EntitySprite,
   GroundTexture,
@@ -250,6 +251,9 @@ function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState)
   const tile = state.tiles[idx(x, y)]
   if (tile.entityId) return false
   if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) return false
+  if (tool === 'chest') {
+    if (countPlacedChests(state.entities) >= maxChestsFor(state.researched)) return false
+  }
   const meta = PLACEABLE_META[tool]
   return Math.floor((state.inventory[meta.inventoryKey] ?? 0) + 1e-9) >= 1
 }

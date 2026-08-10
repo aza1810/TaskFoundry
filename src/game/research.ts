@@ -1,4 +1,5 @@
 import type { Inventory, ItemId, TechId } from './types'
+import { BASE_MAX_CHESTS } from './data'
 
 export interface TechDef {
   id: TechId
@@ -104,6 +105,28 @@ export const TECHS: TechDef[] = [
     col: 3,
     row: 1,
   },
+  {
+    id: 'storage',
+    name: 'Factory storage',
+    detail: 'Expand floor logistics. Raise the chest placement cap to 4.',
+    cost: { ironPlate: 20, gear: 10, chest: 1 },
+    unlocks: 'Max 4 chests on the floor',
+    prerequisites: ['logistics'],
+    icon: 'chest',
+    col: 2,
+    row: 2,
+  },
+  {
+    id: 'storage2',
+    name: 'Warehouse logistics',
+    detail: 'More output buffers. Raise the chest placement cap to 6.',
+    cost: { ironPlate: 40, gear: 20, steel: 10 },
+    unlocks: 'Max 6 chests on the floor',
+    prerequisites: ['storage', 'steelProcessing'],
+    icon: 'chest',
+    col: 3,
+    row: 2,
+  },
 ]
 
 export const TECH_MAP: Record<TechId, TechDef> = Object.fromEntries(
@@ -112,6 +135,21 @@ export const TECH_MAP: Record<TechId, TechDef> = Object.fromEntries(
 
 export const TECH_TREE_COLS = 4
 export const TECH_TREE_ROWS = 3
+
+/** How many chests may be placed on the floor given researched storage techs. */
+export function maxChestsFor(researched: readonly string[]): number {
+  if (researched.includes('storage2')) return 6
+  if (researched.includes('storage')) return 4
+  return BASE_MAX_CHESTS
+}
+
+export function countPlacedChests(entities: Record<string, { kind: string }>): number {
+  let n = 0
+  for (const e of Object.values(entities)) {
+    if (e.kind === 'chest') n += 1
+  }
+  return n
+}
 
 export function prereqsMet(tech: TechDef, researched: readonly string[]): boolean {
   return tech.prerequisites.every((id) => researched.includes(id))

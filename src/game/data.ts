@@ -123,7 +123,7 @@ export const PLACEABLE_META: Record<
   chest: {
     label: 'Iron Chest',
     inventoryKey: 'chest',
-    hint: 'Stores items. Inserters load/unload it.',
+    hint: '4 slots, 100 per stack. Offline haul only counts what lands here.',
   },
   assembler: {
     label: 'Assembling Machine',
@@ -332,6 +332,12 @@ export const ASSEMBLER_SECONDS = 1.6
 export const ASSEMBLER_PLATES_PER_GEAR = 2
 /** Assembler iron-plate input / gear output capacity. */
 export const ASSEMBLER_SLOT_CAP = 12
+/** Distinct item types a chest can hold at once. */
+export const CHEST_SLOT_COUNT = 4
+/** Max count per item type in a chest slot. */
+export const CHEST_STACK_SIZE = 100
+/** Floor chests allowed before any storage research. */
+export const BASE_MAX_CHESTS = 2
 export const BELT_SPEED = 1.8 // tiles per second
 export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT
 export const INSERTER_COOLDOWN = 0.45
