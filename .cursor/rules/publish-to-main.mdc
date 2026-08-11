@@ -1,0 +1,10 @@
+# Always publish to main
+
+When game/app work is finished and ready for players:
+
+1. Merge the feature branch into `main` (resolve conflicts if needed).
+2. Push `main` so GitHub Actions `Deploy azztech.online/apps/tf` runs (web + OTA).
+3. Do not leave finished player-facing fixes only on draft PR branches.
+4. Confirm deploy succeeded and OTA `latest.php` moved past the previous version when the change should reach mobile.
+
+Draft PRs are fine while iterating. Shipping means `main` + deploy, not "PR open forever."
