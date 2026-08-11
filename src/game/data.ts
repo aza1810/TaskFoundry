@@ -123,7 +123,7 @@ export const PLACEABLE_META: Record<
   chest: {
     label: 'Iron Chest',
     inventoryKey: 'chest',
-    hint: 'Stores items. Inserters load/unload it.',
+    hint: '4 slots, 100 per stack. Drills can dump in; belts need an inserter.',
   },
   assembler: {
     label: 'Assembling Machine',
@@ -332,6 +332,14 @@ export const ASSEMBLER_SECONDS = 1.6
 export const ASSEMBLER_PLATES_PER_GEAR = 2
 /** Assembler iron-plate input / gear output capacity. */
 export const ASSEMBLER_SLOT_CAP = 12
+/** Distinct item types a chest can hold at once. */
+export const CHEST_SLOT_COUNT = 4
+/** Max count per item type in a chest slot. */
+export const CHEST_STACK_SIZE = 100
+/** Floor chests allowed before furnace unlock / storage research. */
+export const BASE_MAX_CHESTS = 1
+/** After placing a furnace (goal), you may place this many chests. */
+export const FURNACE_UNLOCK_MAX_CHESTS = 2
 export const BELT_SPEED = 1.8 // tiles per second
 export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT
 export const INSERTER_COOLDOWN = 0.45
@@ -347,7 +355,7 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   belt: 20,
   fastBelt: 0,
   undergroundBelt: 0,
-  inserter: 6,
+  inserter: 8,
   longInserter: 0,
   drill: 2,
   electricDrill: 0,

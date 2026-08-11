@@ -32,7 +32,15 @@ import {
 } from './data'
 import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
-import { TECH_MAP, TECHS, prereqsMet, withImpliedResearched } from './research'
+import {
+  canAffordStock,
+  depositStock,
+  isWarehouseItem,
+  scrubChestsToWarehouse,
+  spendStock,
+  stockOf,
+} from './chestInventory'
+import { TECH_MAP, TECHS, countPlacedChests, maxChestsFor, prereqsMet, withImpliedResearched } from './research'
 import {
   emptySkills,
   formatSkillGains,
@@ -159,6 +167,17 @@ export function loadState(accountSaveKey?: string): GameState {
           parsed.tutorialStep >= TUTORIAL_STEP_COUNT),
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
+    next = scrubChestsToWarehouse(next)
+    // Existing saves with a furnace already placed keep the 2nd chest unlock.
+    const hasFurnace = Object.values(next.entities).some(
+      (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
+    )
+    if (hasFurnace && !next.completedGoals.includes('place-furnace')) {
+      next = {
+        ...next,
+        completedGoals: [...next.completedGoals, 'place-furnace'],
+      }
+    }
     next = ensureContracts(next)
     localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(next))
     return next
@@ -237,10 +256,13 @@ export function claimGoals(state: GameState): GameState {
     next = {
       ...next,
       completedGoals: [...next.completedGoals, goal.id],
-      inventory: gain(next.inventory, goal.reward),
-      unlockedToast: `Objective complete: ${goal.title} - ${goal.rewardLabel}`,
+      unlockedToast:
+        goal.id === 'place-furnace'
+          ? `Achievement: ${goal.title} - 2nd chest unlocked!`
+          : `Objective complete: ${goal.title} - ${goal.rewardLabel}`,
       tipIndex: (next.tipIndex + 1) % TIPS.length,
     }
+    next = depositStock(next, goal.reward)
     next = addXp(next, 25)
   }
   return next
@@ -249,10 +271,7 @@ export function claimGoals(state: GameState): GameState {
 function applyCraftOutputs(state: GameState, recipeId: string): GameState {
   const recipe = RECIPE_MAP[recipeId]
   if (!recipe) return state
-  let next = {
-    ...state,
-    inventory: gain(state.inventory, recipe.outputs),
-  }
+  let next = depositStock(state, recipe.outputs)
   if (recipe.outputs.gear) {
     next = {
       ...next,
@@ -307,27 +326,32 @@ export function tickHandCraft(state: GameState, dt: number): GameState {
   return next
 }
 
-function addItemCounts(
-  into: Partial<Record<ItemId, number>>,
-  from: Partial<Record<ItemId, number>>,
-): void {
-  for (const [key, value] of Object.entries(from)) {
-    const n = value ?? 0
-    if (n === 0) continue
-    const id = key as ItemId
-    into[id] = (into[id] ?? 0) + n
+/** Only chest contents - offline haul credits what output buffers gathered. */
+function snapshotChestItems(state: GameState): Partial<Record<ItemId, number>> {
+  const out: Partial<Record<ItemId, number>> = {}
+  for (const e of Object.values(state.entities)) {
+    if (e.kind !== 'chest') continue
+    for (const [key, value] of Object.entries(e.store)) {
+      const n = value ?? 0
+      if (n <= 0) continue
+      const id = key as ItemId
+      if (!isWarehouseItem(id)) continue
+      out[id] = (out[id] ?? 0) + n
+    }
   }
+  return out
 }
 
-/** Inventory + machine stores + belt cargo - what the factory is holding. */
-function snapshotItems(state: GameState): Partial<Record<ItemId, number>> {
+/** Away haul never includes buildings / placeables. */
+function warehouseGainsOnly(
+  gains: Partial<Record<ItemId, number>>,
+): Partial<Record<ItemId, number>> {
   const out: Partial<Record<ItemId, number>> = {}
-  addItemCounts(out, state.inventory)
-  for (const e of Object.values(state.entities)) {
-    addItemCounts(out, e.store)
-    if (e.cargo) {
-      out[e.cargo.item] = (out[e.cargo.item] ?? 0) + 1
-    }
+  for (const [key, value] of Object.entries(gains)) {
+    const id = key as ItemId
+    const n = value ?? 0
+    if (n <= 0 || !isWarehouseItem(id)) continue
+    out[id] = n
   }
   return out
 }
@@ -372,7 +396,7 @@ export function tickState(state: GameState, now = Date.now()): GameState {
   const reportAway = rawDt > OFFLINE_REPORT_SECONDS
   const beforeStats = reportAway ? { ...next.stats } : null
   const beforeCrafts = reportAway ? next.craftQueue.length : 0
-  const beforeItems = reportAway ? snapshotItems(next) : null
+  const beforeChests = reportAway ? snapshotChestItems(next) : null
   // Keep Health step gains if auto-sync already created/updated a report.
   const priorReport = reportAway ? next.offlineReport : null
 
@@ -389,7 +413,7 @@ export function tickState(state: GameState, now = Date.now()): GameState {
     left -= step
   }
 
-  if (reportAway && beforeStats && beforeItems) {
+  if (reportAway && beforeStats && beforeChests) {
     const simulatedSeconds = dt
     const report: OfflineReport = {
       awaySeconds: Math.max(rawDt, priorReport?.awaySeconds ?? 0),
@@ -408,9 +432,12 @@ export function tickState(state: GameState, now = Date.now()): GameState {
         Math.max(0, beforeCrafts - next.craftQueue.length) +
         (priorReport?.craftsFinished ?? 0),
       stepsSynced: priorReport?.stepsSynced ?? 0,
-      itemGains: mergeItemGains(
-        priorReport?.itemGains ?? {},
-        itemGains(beforeItems, snapshotItems(next)),
+      // Only credit warehouse materials that landed in chests.
+      itemGains: warehouseGainsOnly(
+        mergeItemGains(
+          priorReport?.itemGains ?? {},
+          itemGains(beforeChests, snapshotChestItems(next)),
+        ),
       ),
     }
     next = { ...next, offlineReport: report, unlockedToast: null }
@@ -482,6 +509,22 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     return { ...state, unlockedToast: 'Drills must be placed on an ore patch' }
   }
 
+  if (tool === 'chest') {
+    const placed = countPlacedChests(state.entities)
+    const max = maxChestsFor(state.researched, state.completedGoals)
+    if (placed >= max) {
+      return {
+        ...state,
+        unlockedToast:
+          max < 2
+            ? `Chest limit ${placed}/${max} - place a furnace to unlock a 2nd chest`
+            : max < 6
+              ? `Chest limit ${placed}/${max} - research Factory storage to raise it`
+              : `Chest limit reached (${max} on the floor)`,
+      }
+    }
+  }
+
   let placeDir = state.placeDir
   // Belts inherit direction from a neighbor pointing into this cell
   if (isBeltKind(tool)) {
@@ -502,13 +545,6 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   let inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
   const ent = createEntity(tool, x, y, placeDir)
 
-  if (tool === 'drill') {
-    const fuel = Math.min(5, asItemCount(inventory.coal))
-    if (fuel > 0) {
-      inventory = spend(inventory, { coal: fuel })
-      ent.store.coal = fuel
-    }
-  }
   if (tool === 'splitter') {
     ent.toggle = 0
   }
@@ -517,13 +553,30 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   }
 
   tile.entityId = ent.id
-  return claimGoals({
+  let next: GameState = {
     ...state,
     tiles,
     entities: { ...state.entities, [ent.id]: ent },
     inventory,
     placeDir,
-  })
+  }
+
+  if (tool === 'drill') {
+    const fuel = Math.min(5, stockOf(next, 'coal'))
+    if (fuel > 0) {
+      next = spendStock(next, { coal: fuel })
+      const e = next.entities[ent.id]
+      next = {
+        ...next,
+        entities: {
+          ...next.entities,
+          [ent.id]: { ...e, store: { ...e.store, coal: fuel } },
+        },
+      }
+    }
+  }
+
+  return claimGoals(next)
 }
 
 function resolveUgToggle(
@@ -655,9 +708,22 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     }
   }
 
+  const pasteChests = bp.filter((p) => p.kind === 'chest').length
+  if (pasteChests > 0) {
+    const placed = countPlacedChests(state.entities)
+    const max = maxChestsFor(state.researched, state.completedGoals)
+    if (placed + pasteChests > max) {
+      return {
+        ...state,
+        unlockedToast: `Chest limit ${placed}/${max} - paste needs ${pasteChests} more`,
+      }
+    }
+  }
+
   let inventory = { ...state.inventory }
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
+  const drillFuels: { id: string; fuel: number }[] = []
 
   for (const piece of bp) {
     const x = ox + piece.dx
@@ -666,24 +732,33 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     const ent = createEntity(piece.kind, x, y, piece.dir)
     if (piece.toggle !== undefined) ent.toggle = piece.toggle
     if (piece.kind === 'splitter' && ent.toggle === undefined) ent.toggle = 0
-    if (piece.kind === 'drill') {
-      const fuel = Math.min(5, asItemCount(inventory.coal))
-      if (fuel > 0) {
-        inventory = spend(inventory, { coal: fuel })
-        ent.store.coal = fuel
-      }
-    }
     tiles[idx(x, y)].entityId = ent.id
     entities[ent.id] = ent
+    if (piece.kind === 'drill') drillFuels.push({ id: ent.id, fuel: 5 })
   }
 
-  return claimGoals({
+  let next: GameState = {
     ...state,
     inventory,
     tiles,
     entities,
     unlockedToast: `Pasted ${bp.length} buildings`,
-  })
+  }
+  for (const { id, fuel: maxFuel } of drillFuels) {
+    const fuel = Math.min(maxFuel, stockOf(next, 'coal'))
+    if (fuel <= 0) continue
+    next = spendStock(next, { coal: fuel })
+    const e = next.entities[id]
+    next = {
+      ...next,
+      entities: {
+        ...next.entities,
+        [id]: { ...e, store: { ...e.store, coal: fuel } },
+      },
+    }
+  }
+
+  return claimGoals(next)
 }
 
 export function rotateEntityAt(state: GameState, x: number, y: number): GameState {
@@ -701,38 +776,52 @@ export function rotateEntityAt(state: GameState, x: number, y: number): GameStat
 }
 
 export function topUpDrillFuel(state: GameState): GameState {
-  let inventory = sanitizeInventory({ ...state.inventory })
-  const entities = { ...state.entities }
-  for (const ent of Object.values(state.entities)) {
-    if (ent.kind !== 'drill') continue
+  let next = state
+  for (const id of Object.keys(state.entities)) {
+    const ent = next.entities[id]
+    if (!ent || ent.kind !== 'drill') continue
     const have = ent.store.coal ?? 0
     if (have >= 2) continue
-    const need = Math.min(5 - Math.floor(have), asItemCount(inventory.coal))
+    const need = Math.min(5 - Math.floor(have), stockOf(next, 'coal'))
     if (need <= 0) continue
-    inventory = spend(inventory, { coal: need })
-    entities[ent.id] = {
-      ...ent,
-      store: { ...ent.store, coal: have + need },
+    next = spendStock(next, { coal: need })
+    const e = next.entities[id]
+    next = {
+      ...next,
+      entities: {
+        ...next.entities,
+        [id]: {
+          ...e,
+          store: { ...e.store, coal: have + need },
+        },
+      },
     }
   }
-  return { ...state, inventory, entities }
+  return next
 }
 
 function ensureDrillFuel(state: GameState): GameState {
-  let inventory = sanitizeInventory({ ...state.inventory })
-  const entities: typeof state.entities = { ...state.entities }
+  let next = state
   const coalNeed = 0.25 * (1 - skillBonuses(state.skills).drillCoalSave)
-  for (const ent of Object.values(state.entities)) {
-    if (ent.kind !== 'drill') continue
+  for (const id of Object.keys(state.entities)) {
+    const ent = next.entities[id]
+    if (!ent || ent.kind !== 'drill') continue
     if ((ent.store.coal ?? 0) >= coalNeed) continue
-    if (asItemCount(inventory.coal) < 1) continue
-    inventory = spend(inventory, { coal: 1 })
-    entities[ent.id] = {
-      ...ent,
-      store: { ...ent.store, coal: (ent.store.coal ?? 0) + 1 },
+    if (stockOf(next, 'coal') < 1) continue
+    next = spendStock(next, { coal: 1 })
+    const e = next.entities[id]
+    next = {
+      ...next,
+      entities: {
+        ...next.entities,
+        [id]: {
+          ...e,
+          store: { ...e.store, coal: (e.store.coal ?? 0) + 1 },
+        },
+      },
     }
   }
-  return { ...state, inventory, entities }
+  return next
 }
 
 export function logSteps(state: GameState, amount: number): GameState {
@@ -780,8 +869,8 @@ export function logSteps(state: GameState, amount: number): GameState {
  * Only the delta since the last import is applied, so manual logs stay separate
  * and re-syncing does not double-count.
  *
- * When returning from a long absence, mining from these steps is folded into the
- * away summary so drills show up on the welcome-back recap.
+ * When returning from a long absence, mining is delivered briefly into chests;
+ * the away recap only credits chest haul (not drill buffers).
  */
 export function importHealthSteps(
   state: GameState,
@@ -808,9 +897,18 @@ export function importHealthSteps(
     }
   }
 
-  const beforeItems = snapshotItems(next)
+  const beforeChests = snapshotChestItems(next)
+  const beforeStats = { ...next.stats }
   next = logSteps(next, delta)
-  const minedGains = itemGains(beforeItems, snapshotItems(next))
+
+  // Push freshly mined ore along belts/inserters into chests before the recap.
+  let deliver = Math.min(60, 8 + delta * 0.015)
+  while (deliver > 0) {
+    const step = Math.min(0.5, deliver)
+    next = simTick(next, step)
+    deliver -= step
+  }
+  const chestGains = itemGains(beforeChests, snapshotChestItems(next))
 
   next = {
     ...next,
@@ -835,12 +933,20 @@ export function importHealthSteps(
     awaySeconds: Math.max(awaySeconds, prior?.awaySeconds ?? 0),
     simulatedSeconds: prior?.simulatedSeconds ?? 0,
     capped: Boolean(prior?.capped),
-    platesSmelted: prior?.platesSmelted ?? 0,
-    gearsMade: prior?.gearsMade ?? 0,
-    itemsMoved: prior?.itemsMoved ?? 0,
+    platesSmelted:
+      (prior?.platesSmelted ?? 0) +
+      Math.max(0, next.stats.platesSmelted - beforeStats.platesSmelted),
+    gearsMade:
+      (prior?.gearsMade ?? 0) +
+      Math.max(0, next.stats.gearsMade - beforeStats.gearsMade),
+    itemsMoved:
+      (prior?.itemsMoved ?? 0) +
+      Math.max(0, next.stats.itemsMoved - beforeStats.itemsMoved),
     craftsFinished: prior?.craftsFinished ?? 0,
     stepsSynced: (prior?.stepsSynced ?? 0) + delta,
-    itemGains: mergeItemGains(prior?.itemGains ?? {}, minedGains),
+    itemGains: warehouseGainsOnly(
+      mergeItemGains(prior?.itemGains ?? {}, chestGains),
+    ),
   }
   return { ...next, offlineReport: report }
 }
@@ -865,9 +971,9 @@ export function completeHabit(state: GameState, habitId: string): GameState {
   next = {
     ...next,
     habits,
-    inventory: gain(next.inventory, reward.items, rewardMult),
     totalHabitsCompleted: next.totalHabitsCompleted + 1,
   }
+  next = depositStock(next, reward.items, rewardMult)
   // Track hand-crafted gears from habit rewards
   if (reward.items.gear) {
     next = {
@@ -942,11 +1048,11 @@ export function craftRecipe(state: GameState, recipeId: string): GameState {
       unlockedToast: `Craft queue full (${MAX_CRAFT_QUEUE}) - wait for the bench`,
     }
   }
-  if (!canAfford(state.inventory, recipe.inputs)) {
-    const missing = (Object.entries(recipe.inputs) as [keyof typeof state.inventory, number][])
-      .filter(([id, n]) => (state.inventory[id] ?? 0) < n)
+  if (!canAffordStock(state, recipe.inputs)) {
+    const missing = (Object.entries(recipe.inputs) as [ItemId, number][])
+      .filter(([id, n]) => stockOf(state, id) < n)
       .map(([id, n]) => {
-        const have = Math.floor(state.inventory[id] ?? 0)
+        const have = stockOf(state, id)
         return `${n - have} more ${ITEM_META[id].label}`
       })
       .slice(0, 2)
@@ -968,14 +1074,14 @@ export function craftRecipe(state: GameState, recipeId: string): GameState {
     duration,
   }
 
+  const spent = spendStock(state, recipe.inputs)
   return {
-    ...state,
-    inventory: spend(state.inventory, recipe.inputs),
-    craftQueue: [...state.craftQueue, job],
+    ...spent,
+    craftQueue: [...spent.craftQueue, job],
     unlockedToast:
-      state.craftQueue.length === 0
+      spent.craftQueue.length === 0
         ? `Hand-crafting ${recipe.name} (${duration.toFixed(1)}s)`
-        : `Queued ${recipe.name} (#${state.craftQueue.length + 1})`,
+        : `Queued ${recipe.name} (#${spent.craftQueue.length + 1})`,
   }
 }
 
@@ -986,12 +1092,10 @@ export function cancelCraft(state: GameState, jobId: string): GameState {
   const recipe = RECIPE_MAP[job.recipeId]
   const queue = state.craftQueue.filter((j) => j.id !== jobId)
   // Refund inputs fully (simple Factorio hand-craft cancel)
-  let inventory = state.inventory
-  if (recipe) inventory = gain(inventory, recipe.inputs)
+  let next: GameState = { ...state, craftQueue: queue }
+  if (recipe) next = depositStock(next, recipe.inputs)
   return {
-    ...state,
-    craftQueue: queue,
-    inventory,
+    ...next,
     unlockedToast: `Cancelled ${recipe?.name ?? 'craft'} - materials returned`,
   }
 }
@@ -1005,6 +1109,7 @@ export function collectChest(state: GameState, x: number, y: number): GameState 
   if (held <= 0) {
     return { ...state, unlockedToast: 'Chest empty' }
   }
+  // Withdraw frees chest slots; materials move to hand stock (still spendable).
   return claimGoals({
     ...state,
     inventory: gain(state.inventory, ent.store as Partial<typeof state.inventory>),
@@ -1012,24 +1117,24 @@ export function collectChest(state: GameState, x: number, y: number): GameState 
       ...state.entities,
       [ent.id]: { ...ent, store: {} },
     },
-    unlockedToast: 'Collected chest contents',
+    unlockedToast: 'Withdrew chest to hand stock (HUD shows floor chests)',
   })
 }
 
 export function fuelAllDrills(state: GameState): GameState {
-  const beforeCoal = asItemCount(state.inventory.coal)
+  const beforeCoal = stockOf(state, 'coal')
   const drills = Object.values(state.entities).filter((e) => e.kind === 'drill')
   if (drills.length === 0) {
     return { ...state, unlockedToast: 'No burner drills on the floor' }
   }
   const next = topUpDrillFuel(state)
-  const used = beforeCoal - asItemCount(next.inventory.coal)
+  const used = beforeCoal - stockOf(next, 'coal')
   if (used <= 0) {
     const anyHungry = drills.some((e) => (e.store.coal ?? 0) < 2)
     return {
       ...state,
       unlockedToast: anyHungry
-        ? 'Need coal in inventory to fuel drills'
+        ? 'Need coal in a chest to fuel drills'
         : 'All burner drills already fueled',
     }
   }
@@ -1039,7 +1144,7 @@ export function fuelAllDrills(state: GameState): GameState {
   }
 }
 
-/** Top up a single burner drill from inventory coal. */
+/** Top up a single burner drill from warehouse coal. */
 export function fuelDrillAt(state: GameState, x: number, y: number): GameState {
   const tile = state.tiles[idx(x, y)]
   if (!tile?.entityId) return state
@@ -1049,18 +1154,18 @@ export function fuelDrillAt(state: GameState, x: number, y: number): GameState {
   if (have >= 5) {
     return { ...state, unlockedToast: 'Drill already fueled' }
   }
-  const need = Math.min(5 - Math.floor(have), asItemCount(state.inventory.coal))
+  const need = Math.min(5 - Math.floor(have), stockOf(state, 'coal'))
   if (need <= 0) {
-    return { ...state, unlockedToast: 'Need coal in inventory' }
+    return { ...state, unlockedToast: 'Need coal in a chest' }
   }
+  const spent = spendStock(state, { coal: need })
   return {
-    ...state,
-    inventory: spend(state.inventory, { coal: need }),
+    ...spent,
     entities: {
-      ...state.entities,
+      ...spent.entities,
       [ent.id]: {
-        ...ent,
-        store: { ...ent.store, coal: have + need },
+        ...spent.entities[ent.id],
+        store: { ...spent.entities[ent.id].store, coal: have + need },
       },
     },
     unlockedToast: `Fueled drill (+${need} coal)`,
@@ -1108,7 +1213,7 @@ export function skipTutorial(state: GameState): GameState {
   }
 }
 
-/** One-tap: plant starter smelting line and jump to the "log steps" coach. */
+/** One-tap: plant starter line and jump to the walk/mine coach. */
 export function quickStartTutorial(state: GameState): GameState {
   const planted = buildStarterLine(state)
   const logIdx = tutorialStepIndex('logSteps')
@@ -1122,7 +1227,8 @@ export function quickStartTutorial(state: GameState): GameState {
   return {
     ...planted,
     tutorialStep: logIdx >= 0 ? logIdx : planted.tutorialStep,
-    unlockedToast: 'Starter line planted - log steps (or walk) to mine ore',
+    unlockedToast:
+      'Starter line planted - sync steps so chests stockpile ore and plates',
   }
 }
 
@@ -1165,12 +1271,12 @@ export function claimContract(state: GameState, contractId: string): GameState {
   }
   next = {
     ...next,
-    inventory: gain(next.inventory, c.reward),
     contracts: next.contracts.map((x) =>
       x.id === contractId ? { ...x, claimed: true } : x,
     ),
     unlockedToast: `Contract complete: ${c.title} - ${c.rewardLabel}`,
   }
+  next = depositStock(next, c.reward)
   return addXp(claimGoals(next), 20)
 }
 
@@ -1190,39 +1296,29 @@ export function researchTech(state: GameState, techId: TechId): GameState {
       unlockedToast: `Research ${missing} first`,
     }
   }
-  if (!canAfford(state.inventory, tech.cost)) {
+  if (!canAffordStock(state, tech.cost)) {
     return { ...state, unlockedToast: `Need more materials for ${tech.name}` }
   }
+  const spent = spendStock(state, tech.cost)
   return addXp(
     {
-      ...state,
-      inventory: spend(state.inventory, tech.cost),
-      researched: [...state.researched, techId],
+      ...spent,
+      researched: [...spent.researched, techId],
       unlockedToast: `Researched ${tech.name} - ${tech.unlocks}`,
     },
     35,
   )
 }
 
-/** Drop a small starter smelting line near the first clear iron patch */
+/** Drop a starter line: drill → chest (ore) → furnace → chest (plates). */
 export function buildStarterLine(state: GameState): GameState {
-  // Layout facing east:
-  // [drill>][belt>][belt>][inserter>][furnace]
-  //                              [inserter v]
-  //                              [chest]
+  // Layout facing east (9 tiles):
+  // [drill>][belt>][inserter>][chest][inserter>][belt>][inserter>][furnace][inserter>][chest]
   let origin: { x: number; y: number } | null = null
-  for (let y = 0; y < state.height - 2 && !origin; y++) {
-    for (let x = 0; x < state.width - 4; x++) {
+  for (let y = 0; y < state.height && !origin; y++) {
+    for (let x = 0; x < state.width - 9; x++) {
       if (state.tiles[idx(x, y)].ore !== 'ironOre') continue
-      const cells = [
-        [x, y],
-        [x + 1, y],
-        [x + 2, y],
-        [x + 3, y],
-        [x + 4, y],
-        [x + 4, y + 1],
-        [x + 4, y + 2],
-      ]
+      const cells = Array.from({ length: 10 }, (_, i) => [x + i, y] as const)
       if (cells.every(([cx, cy]) => !state.tiles[idx(cx, cy)].entityId)) {
         origin = { x, y }
         break
@@ -1233,50 +1329,110 @@ export function buildStarterLine(state: GameState): GameState {
     return { ...state, unlockedToast: 'No clear iron patch for a starter line' }
   }
 
-  const need = { drill: 1, belt: 2, inserter: 2, furnace: 1, chest: 1, coal: 5 }
-  if (!canAfford(state.inventory, need)) {
+  const need = {
+    drill: 1,
+    belt: 2,
+    inserter: 4,
+    furnace: 1,
+    chest: 2,
+    coal: 5,
+  }
+  if (!canAffordStock(state, need)) {
     return {
       ...state,
-      unlockedToast: 'Need 1 drill, 2 belts, 2 inserters, 1 furnace, 1 chest, 5 coal',
+      unlockedToast:
+        'Need 1 drill, 2 belts, 4 inserters, 1 furnace, 2 chests, 5 coal',
     }
   }
 
   let inventory = { ...state.inventory }
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
+  let drillId: string | null = null
+  let furnaceId: string | null = null
 
-  const put = (kind: Placeable, x: number, y: number, dir: Dir) => {
+  const put = (kind: Placeable, px: number, py: number, dir: Dir) => {
     inventory = spend(inventory, { [kind]: 1 })
-    const ent = createEntity(kind, x, y, dir)
-    if (kind === 'drill') {
-      const fuel = Math.min(5, asItemCount(inventory.coal))
-      if (fuel > 0) {
-        inventory = spend(inventory, { coal: fuel })
-        ent.store.coal = fuel
-      }
-    }
-    tiles[idx(x, y)].entityId = ent.id
+    const ent = createEntity(kind, px, py, dir)
+    tiles[idx(px, py)].entityId = ent.id
     entities[ent.id] = ent
+    if (kind === 'drill') drillId = ent.id
+    if (kind === 'furnace' || kind === 'steelFurnace') furnaceId = ent.id
   }
 
   const { x, y } = origin
+  // Ore buffer
   put('drill', x, y, 'E')
   put('belt', x + 1, y, 'E')
-  put('belt', x + 2, y, 'E')
-  put('inserter', x + 3, y, 'E') // behind belt, front furnace
-  put('furnace', x + 4, y, 'E')
-  put('inserter', x + 4, y + 1, 'S') // behind furnace, front chest
-  put('chest', x + 4, y + 2, 'S')
+  put('inserter', x + 2, y, 'E') // belt → ore chest
+  put('chest', x + 3, y, 'E')
+  // Into furnace
+  put('inserter', x + 4, y, 'E') // ore chest → belt
+  put('belt', x + 5, y, 'E')
+  put('inserter', x + 6, y, 'E') // belt → furnace
+  put('furnace', x + 7, y, 'E')
 
-  return claimGoals({
+  let next: GameState = {
     ...state,
     inventory,
     tiles,
     entities,
     placeDir: 'E',
-    selected: 'belt',
-    unlockedToast: 'Starter smelting line planted - log steps to feed it',
-  })
+    selected: null,
+  }
+  if (drillId) {
+    const fuel = Math.min(5, stockOf(next, 'coal'))
+    if (fuel > 0) {
+      next = spendStock(next, { coal: fuel })
+      const e = next.entities[drillId]
+      next = {
+        ...next,
+        entities: {
+          ...next.entities,
+          [drillId]: { ...e, store: { ...e.store, coal: fuel } },
+        },
+      }
+    }
+  }
+  if (furnaceId) {
+    const fuel = Math.min(5, stockOf(next, 'coal'))
+    if (fuel > 0) {
+      next = spendStock(next, { coal: fuel })
+      const e = next.entities[furnaceId]
+      next = {
+        ...next,
+        entities: {
+          ...next.entities,
+          [furnaceId]: { ...e, store: { ...e.store, coal: fuel } },
+        },
+      }
+    }
+  }
+
+  // Unlock 2nd chest via place-furnace goal, then finish the plate buffer.
+  next = claimGoals(next)
+  inventory = { ...next.inventory }
+  const tiles2 = next.tiles.map((t) => ({ ...t }))
+  const entities2 = { ...next.entities }
+
+  const put2 = (kind: Placeable, px: number, py: number, dir: Dir) => {
+    inventory = spend(inventory, { [kind]: 1 })
+    const ent = createEntity(kind, px, py, dir)
+    tiles2[idx(px, py)].entityId = ent.id
+    entities2[ent.id] = ent
+  }
+
+  put2('inserter', x + 8, y, 'E') // furnace → plate chest
+  put2('chest', x + 9, y, 'E')
+
+  next = {
+    ...next,
+    inventory,
+    tiles: tiles2,
+    entities: entities2,
+    unlockedToast: 'Starter line planted - walk to stockpile ore and plates',
+  }
+  return claimGoals(next)
 }
 
 export { HAND_RECIPES }

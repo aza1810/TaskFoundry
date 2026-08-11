@@ -46,6 +46,8 @@ export type TechId =
   | 'undergroundBelts'
   | 'steelProcessing'
   | 'longInserters'
+  | 'storage'
+  | 'storage2'
 
 export type HabitCategory = 'mining' | 'smelting' | 'assembly' | 'logistics'
 

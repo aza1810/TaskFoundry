@@ -1,4 +1,5 @@
 import { ITEM_META, formatNum } from '../game/data'
+import { warehouseHudAmount } from '../game/chestInventory'
 import { useGame } from '../game/GameContext'
 import { ItemSprite } from '../sprites/Sprites'
 import type { ItemId } from '../game/types'
@@ -31,11 +32,11 @@ const BUILDINGS: ItemId[] = [
 function InvSection({
   title,
   ids,
-  inventory,
+  amounts,
 }: {
   title: string
   ids: ItemId[]
-  inventory: Record<ItemId, number>
+  amounts: Partial<Record<ItemId, number>>
 }) {
   return (
     <div className="inv-section">
@@ -43,7 +44,7 @@ function InvSection({
       <div className="resources inv-grid" aria-label={title}>
         {ids.map((id) => {
           const meta = ITEM_META[id]
-          const n = inventory[id] ?? 0
+          const n = amounts[id] ?? 0
           return (
             <div
               key={id}
@@ -67,27 +68,37 @@ function InvSection({
 
 export function InventoryPanel() {
   const { state } = useGame()
-  const total = [...MATERIALS, ...BUILDINGS].reduce(
-    (sum, id) => sum + (state.inventory[id] ?? 0),
-    0,
-  )
+  const materials = Object.fromEntries(
+    MATERIALS.map((id) => [id, warehouseHudAmount(state, id)]),
+  ) as Record<ItemId, number>
+  const buildings = Object.fromEntries(
+    BUILDINGS.map((id) => [id, state.inventory[id] ?? 0]),
+  ) as Record<ItemId, number>
+  const matTotal = MATERIALS.reduce((sum, id) => sum + (materials[id] ?? 0), 0)
+  const buildTotal = BUILDINGS.reduce((sum, id) => sum + (buildings[id] ?? 0), 0)
+  const chestCount = Object.values(state.entities).filter((e) => e.kind === 'chest').length
 
   return (
     <section className="panel inventory-panel">
       <div className="panel-head">
-        <h2>Inventory</h2>
-        <p>Materials and buildings ready to place. Zeros stay visible so you know what's missing.</p>
-        <p className="panel-stat">{formatNum(total)} items on hand</p>
+        <h2>Warehouse</h2>
+        <p>
+          Materials live in floor chests ({chestCount} placed). Buildings stay in your pack
+          ready to place.
+        </p>
+        <p className="panel-stat">
+          {formatNum(matTotal)} in chests · {formatNum(buildTotal)} buildings
+        </p>
       </div>
 
-      {total <= 0 && (
+      {matTotal <= 0 && buildTotal <= 0 && (
         <p className="inv-empty">
-          Empty - mine ore, complete Tasks for free parts, or Craft buildings.
+          Empty - route production into a chest, complete Tasks, or Craft buildings.
         </p>
       )}
 
-      <InvSection title="Materials" ids={MATERIALS} inventory={state.inventory} />
-      <InvSection title="Buildings" ids={BUILDINGS} inventory={state.inventory} />
+      <InvSection title="Chest materials" ids={MATERIALS} amounts={materials} />
+      <InvSection title="Buildings (pack)" ids={BUILDINGS} amounts={buildings} />
     </section>
   )
 }

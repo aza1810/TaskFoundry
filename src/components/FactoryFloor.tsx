@@ -34,6 +34,12 @@ import {
   placeEntity,
 } from '../game/logic'
 import { machineStatus } from '../game/machineStatus'
+import { countPlacedChests, maxChestsFor } from '../game/research'
+import {
+  stockOf,
+  sumChestStores,
+  warehouseHudAmount,
+} from '../game/chestInventory'
 import {
   EntitySprite,
   GroundTexture,
@@ -98,7 +104,16 @@ const HUD_RESOURCES: ItemId[] = [
   'steel',
 ]
 
-type Highlight = 'ore' | 'drillTool' | 'beltTool' | 'walkSteps' | 'habit' | null
+type Highlight =
+  | 'ore'
+  | 'drillTool'
+  | 'beltTool'
+  | 'inserterTool'
+  | 'chestTool'
+  | 'furnaceTool'
+  | 'walkSteps'
+  | 'habit'
+  | null
 type ToolTab = 'build' | 'belts' | 'edit'
 
 type Floater = {
@@ -250,6 +265,9 @@ function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState)
   const tile = state.tiles[idx(x, y)]
   if (tile.entityId) return false
   if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) return false
+  if (tool === 'chest') {
+    if (countPlacedChests(state.entities) >= maxChestsFor(state.researched, state.completedGoals)) return false
+  }
   const meta = PLACEABLE_META[tool]
   return Math.floor((state.inventory[meta.inventoryKey] ?? 0) + 1e-9) >= 1
 }
@@ -335,7 +353,7 @@ export function FactoryFloor({
   const [railOpen, setRailOpen] = useState(false)
   const [paintActive, setPaintActive] = useState(false)
   const [resPulse, setResPulse] = useState<Partial<Record<ItemId, boolean>>>({})
-  const prevInv = useRef(state.inventory)
+  const prevChestStock = useRef(sumChestStores(state))
 
   const openInspect = useCallback((cell: { x: number; y: number }) => {
     setInspect(cell)
@@ -433,12 +451,13 @@ export function FactoryFloor({
   }, [state.stepsToday])
 
   useEffect(() => {
-    const prev = prevInv.current
+    const prev = prevChestStock.current
+    const now = sumChestStores(state)
     const gained: ItemId[] = []
     for (const id of HUD_RESOURCES) {
-      if ((state.inventory[id] ?? 0) > (prev[id] ?? 0)) gained.push(id)
+      if ((now[id] ?? 0) > (prev[id] ?? 0)) gained.push(id)
     }
-    prevInv.current = state.inventory
+    prevChestStock.current = now
     if (!gained.length) return
     setResPulse((p) => {
       const next = { ...p }
@@ -453,7 +472,7 @@ export function FactoryFloor({
       })
     }, 420)
     return () => window.clearTimeout(t)
-  }, [state.inventory])
+  }, [state.entities])
 
   useEffect(() => {
     const oreDelta = state.stats.oreMined - prevOre.current
@@ -479,8 +498,17 @@ export function FactoryFloor({
       setToolTab('belts')
       setRailOpen(true)
     }
-    if (highlight === 'ore' || highlight === 'drillTool') {
+    if (
+      highlight === 'ore' ||
+      highlight === 'drillTool' ||
+      highlight === 'chestTool' ||
+      highlight === 'furnaceTool'
+    ) {
       setToolTab('build')
+      setRailOpen(true)
+    }
+    if (highlight === 'inserterTool') {
+      setToolTab('belts')
       setRailOpen(true)
     }
   }, [highlight])
@@ -1033,15 +1061,16 @@ export function FactoryFloor({
           </button>
         </div>
 
-        <div className="game-hud-resources" aria-label="Inventory">
+        <div className="game-hud-resources" aria-label="Chest warehouse">
           {HUD_RESOURCES.map((id) => {
-            const n = state.inventory[id] ?? 0
+            const n = warehouseHudAmount(state, id)
             if (n <= 0 && id !== 'ironOre' && id !== 'coal' && id !== 'ironPlate') return null
             return (
               <span
                 key={id}
                 className={`game-res${resPulse[id] ? ' is-pulse' : ''}`}
                 style={{ '--res': ITEM_META[id].color } as CSSProperties}
+                title={`${ITEM_META[id].label} in floor chests`}
               >
                 <ItemSprite item={id} />
                 <em>{formatNum(n)}</em>
@@ -1433,7 +1462,12 @@ export function FactoryFloor({
                   const pulse =
                     (highlight === 'drillTool' && tool === 'drill') ||
                     (highlight === 'ore' && tool === 'drill') ||
-                    (highlight === 'beltTool' && tool === 'belt')
+                    (highlight === 'beltTool' && tool === 'belt') ||
+                    (highlight === 'inserterTool' &&
+                      (tool === 'inserter' || tool === 'longInserter')) ||
+                    (highlight === 'chestTool' && tool === 'chest') ||
+                    (highlight === 'furnaceTool' &&
+                      (tool === 'furnace' || tool === 'steelFurnace'))
                   const affordable =
                     isEditMetaTool(tool) || (count !== null && count > 0)
                   return (
@@ -1666,12 +1700,12 @@ export function FactoryFloor({
                     <button
                       type="button"
                       className="primary-btn"
-                      disabled={state.inventory.coal < 1}
+                      disabled={stockOf(state, 'coal') < 1}
                       onClick={() => {
-                        const beforeCoal = state.inventory.coal
+                        const beforeCoal = stockOf(state, 'coal')
                         const preview = fuelDrillAt(state, inspect.x, inspect.y)
                         fuelAt(inspect.x, inspect.y)
-                        const spent = beforeCoal - preview.inventory.coal
+                        const spent = beforeCoal - stockOf(preview, 'coal')
                         if (spent <= 0) {
                           spawnFloater(inspect.x, inspect.y, 'no fuel', 'warn')
                           buzz(4)
@@ -1703,7 +1737,7 @@ export function FactoryFloor({
                         }
                       }}
                     >
-                      Collect
+                      Collect / withdraw
                     </button>
                   )}
                   <button

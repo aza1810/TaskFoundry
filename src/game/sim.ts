@@ -2,6 +2,8 @@ import {
   ASSEMBLER_PLATES_PER_GEAR,
   ASSEMBLER_SECONDS,
   ASSEMBLER_SLOT_CAP,
+  CHEST_SLOT_COUNT,
+  CHEST_STACK_SIZE,
   DIR_DELTA,
   ELECTRIC_DRILL_YIELD,
   FURNACE_COAL_PER_SMELT,
@@ -22,6 +24,7 @@ import {
   isInserterKind,
   rotateDir,
 } from './data'
+import { isWarehouseItem } from './chestInventory'
 import { getTile } from './grid'
 import { skillBonuses } from './skills'
 import type {
@@ -38,8 +41,26 @@ const MACHINE_CAP: Record<string, number> = {
   electricDrill: 8,
   furnace: FURNACE_SLOT_CAP,
   steelFurnace: FURNACE_SLOT_CAP,
-  chest: 50,
   assembler: ASSEMBLER_SLOT_CAP,
+}
+
+/** Chests: materials only, up to CHEST_SLOT_COUNT types, CHEST_STACK_SIZE each. */
+function tryAcceptChest(
+  store: Partial<Record<ItemId, number>>,
+  item: ItemId,
+): boolean {
+  // Buildings / placeables never belong in the warehouse.
+  if (!isWarehouseItem(item)) return false
+  const have = store[item] ?? 0
+  if (have > 0) {
+    if (have >= CHEST_STACK_SIZE) return false
+    store[item] = have + 1
+    return true
+  }
+  const usedSlots = Object.values(store).filter((n) => (n ?? 0) > 0).length
+  if (usedSlots >= CHEST_SLOT_COUNT) return false
+  store[item] = 1
+  return true
 }
 
 const FURNACE_OUTPUT_ITEMS: ItemId[] = ['ironPlate', 'copperPlate', 'steel']
@@ -179,7 +200,7 @@ function tryAcceptItem(entity: Entity, item: ItemId): boolean {
     return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind], ['coal']) > 0
   }
   if (entity.kind === 'chest') {
-    return addToStore(entity.store, item, 1, MACHINE_CAP.chest) > 0
+    return tryAcceptChest(entity.store, item)
   }
   if (isFurnaceKind(entity.kind)) {
     if (item === 'coal') {
@@ -247,7 +268,13 @@ function peekExtractable(entity: Entity): boolean {
   return Object.values(entity.store).some((n) => (n ?? 0) > 0)
 }
 
-/** Factorio-style: drill drops mined ore onto facing belt/chest/furnace */
+/** Belts / splitters / UG exits cannot dump into chests - need an inserter. */
+function tryBeltHandoff(dest: Entity, item: ItemId): boolean {
+  if (dest.kind === 'chest') return false
+  return tryAcceptItem(dest, item)
+}
+
+/** Factorio-style: drill drops mined ore onto facing belt/chest/furnace. */
 function tryDrillEject(
   state: GameState,
   entities: Record<string, Entity>,
@@ -468,7 +495,7 @@ export function simTick(state: GameState, dt: number): GameState {
     if (!next.entity) continue
     const dest = entities[next.entity.id]
 
-    if (tryAcceptItem(dest, e.cargo.item)) {
+    if (tryBeltHandoff(dest, e.cargo.item)) {
       e.cargo = null
       moved += 1
     }
@@ -492,7 +519,7 @@ export function simTick(state: GameState, dt: number): GameState {
     } else {
       const next = neighbor(state, e.x, e.y, e.dir)
       if (!next.entity) continue
-      if (tryAcceptItem(entities[next.entity.id], e.cargo.item)) {
+      if (tryBeltHandoff(entities[next.entity.id], e.cargo.item)) {
         e.cargo = null
         moved += 1
       }
@@ -514,14 +541,14 @@ export function simTick(state: GameState, dt: number): GameState {
     if (!next.entity) {
       const alt: Dir = toggle === 0 ? rotateDir(e.dir, true) : e.dir
       const altN = neighbor(state, e.x, e.y, alt)
-      if (altN.entity && tryAcceptItem(entities[altN.entity.id], e.cargo.item)) {
+      if (altN.entity && tryBeltHandoff(entities[altN.entity.id], e.cargo.item)) {
         e.cargo = null
         e.toggle = 1 - toggle
         moved += 1
       }
       continue
     }
-    if (tryAcceptItem(entities[next.entity.id], e.cargo.item)) {
+    if (tryBeltHandoff(entities[next.entity.id], e.cargo.item)) {
       e.cargo = null
       e.toggle = 1 - toggle
       moved += 1

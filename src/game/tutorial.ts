@@ -3,12 +3,22 @@ import type { TabId, ToolId } from './types'
 export type TutorialStepId =
   | 'welcome'
   | 'placeDrill'
+  | 'oreToChest'
   | 'logSteps'
-  | 'belts'
-  | 'tasks'
+  | 'chestToFurnace'
+  | 'plateChest'
   | 'done'
 
-export type TutorialHighlight = 'ore' | 'drillTool' | 'beltTool' | 'walkSteps' | 'habit' | null
+export type TutorialHighlight =
+  | 'ore'
+  | 'drillTool'
+  | 'beltTool'
+  | 'inserterTool'
+  | 'chestTool'
+  | 'furnaceTool'
+  | 'walkSteps'
+  | 'habit'
+  | null
 
 export interface TutorialStepDef {
   id: TutorialStepId
@@ -28,14 +38,14 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'Real-world steps power your factory. Walk with Health Connect or the pedometer, drills mine, belts move ore, furnaces smelt. Start with a drill - or plant a whole starter line in one tap.',
+    body: 'Real steps power your drills. Route ore into floor chests - those chests are your warehouse. When you leave, the line keeps running on your steps, and you come back to stockpiled ore and plates.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },
   {
     id: 'placeDrill',
-    title: 'Sink a drill on iron',
-    body: 'Build is selected. Tap a glowing brown iron-ore tile. Pinch to zoom; Hand mode pans the map.',
+    title: 'Plant a mining drill',
+    body: 'Open Build, pick Drill, and tap a glowing brown iron-ore tile. Aim the yellow arrow toward where your belts will go.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place a burner drill on iron ore',
@@ -44,9 +54,20 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
     unlockTabs: ['factory', 'inventory'],
   },
   {
+    id: 'oreToChest',
+    title: 'Belt ore into a chest',
+    body: 'Lay belts from the drill, then an inserter that pulls off the belt into your first chest. You only get one chest slot for now - that chest is your warehouse.',
+    mode: 'coach',
+    tab: 'factory',
+    action: 'Place belts, an inserter, and 1 chest (drill → belt → inserter → chest)',
+    autoSelect: 'belt',
+    highlight: 'beltTool',
+    unlockTabs: ['factory', 'inventory'],
+  },
+  {
     id: 'logSteps',
-    title: 'Feed the drills',
-    body: 'Every step runs one mining cycle on every drill. Sync Health Connect / Apple Health, or start the live pedometer and take a short walk.',
+    title: 'Walk to mine',
+    body: 'Steps run mining cycles on every drill. Sync Health / Health Connect, or start the pedometer and take a short walk so ore reaches the chest.',
     mode: 'coach',
     tab: 'steps',
     action: 'Sync health or walk at least 10 steps',
@@ -54,32 +75,41 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
     unlockTabs: ['factory', 'inventory', 'steps'],
   },
   {
-    id: 'belts',
-    title: 'Lay a short belt line',
-    body: 'Open Belts, pick Belt, then hold on a tile and drag to paint a line from your drill (a short drag only pans). Use Edit → Rotate (or the yellow arrow) so the drill faces the belt.',
+    id: 'chestToFurnace',
+    title: 'Feed a furnace from the chest',
+    body: 'Pull out of the ore chest with an inserter onto a belt, then another inserter into a furnace. Place the furnace - that unlocks your second chest.',
     mode: 'coach',
     tab: 'factory',
-    action: 'Place 3 or more belts',
-    autoSelect: 'belt',
-    highlight: 'beltTool',
+    action: 'Place a furnace fed from the chest (inserter → belt → inserter → furnace)',
+    autoSelect: 'furnace',
+    highlight: 'furnaceTool',
     unlockTabs: ['factory', 'inventory', 'steps'],
   },
   {
-    id: 'tasks',
-    title: 'Claim free parts',
-    body: 'Daily tasks restock coal, belts, and machines. Check one off to keep the foundry supplied.',
+    id: 'plateChest',
+    title: 'Catch the plates',
+    body: 'You unlocked a second chest. Pull iron plates out of the furnace with an inserter into chest #2. That is your plate stockpile.',
     mode: 'coach',
-    tab: 'habits',
-    action: 'Complete 1 daily task',
-    highlight: 'habit',
-    unlockTabs: ['factory', 'inventory', 'steps', 'habits'],
+    tab: 'factory',
+    action: 'Place a 2nd chest and an inserter from furnace → chest',
+    autoSelect: 'chest',
+    highlight: 'chestTool',
+    unlockTabs: ['factory', 'inventory', 'steps'],
   },
   {
     id: 'done',
-    title: "You're on the clock",
-    body: 'Craft, Lab, and Skills are unlocked. Keep the loop going: walk → mine → move → smelt → task rewards. Use ··· in the top bar for Settings, updates, and sign out.',
+    title: 'Leave the line running',
+    body: 'When you go offline, your steps keep powering drills. Ore fills the first chest, plates fill the second. Come back to the away report to see what your chests gathered. Craft, Lab, and Skills are unlocked - keep the loop going.',
     mode: 'modal',
-    unlockTabs: ['factory', 'inventory', 'steps', 'craft', 'research', 'skills', 'habits'],
+    unlockTabs: [
+      'factory',
+      'inventory',
+      'steps',
+      'craft',
+      'research',
+      'skills',
+      'habits',
+    ],
   },
 ]
 

@@ -1,4 +1,11 @@
-import { ASSEMBLER_PLATES_PER_GEAR, FURNACE_COAL_PER_SMELT, isDrillKind, isFurnaceKind } from './data'
+import {
+  ASSEMBLER_PLATES_PER_GEAR,
+  CHEST_SLOT_COUNT,
+  CHEST_STACK_SIZE,
+  FURNACE_COAL_PER_SMELT,
+  isDrillKind,
+  isFurnaceKind,
+} from './data'
 import { MACHINE_CAP } from './sim'
 import type { Entity, GameState, Tile } from './types'
 
@@ -74,9 +81,21 @@ export function machineStatus(
   }
 
   if (ent.kind === 'chest') {
+    const slots = Object.values(ent.store).filter((v) => (v ?? 0) > 0).length
     const n = Object.values(ent.store).reduce((s, v) => s + (v ?? 0), 0)
-    if (n <= 0) return { label: 'Empty', tone: 'idle' }
-    return { label: `${Math.floor(n)} items stored`, tone: 'ok' }
+    if (n <= 0) {
+      return { label: `Empty · ${CHEST_SLOT_COUNT} slots`, tone: 'idle' }
+    }
+    const stackFull = Object.values(ent.store).every(
+      (v) => (v ?? 0) <= 0 || (v ?? 0) >= CHEST_STACK_SIZE,
+    )
+    if (slots >= CHEST_SLOT_COUNT && stackFull) {
+      return { label: 'Full', tone: 'warn', floorClass: 'is-blocked' }
+    }
+    return {
+      label: `${Math.floor(n)} items · ${slots}/${CHEST_SLOT_COUNT} slots`,
+      tone: 'ok',
+    }
   }
 
   if (

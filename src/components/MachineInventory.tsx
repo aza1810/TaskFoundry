@@ -1,6 +1,8 @@
 import {
   ASSEMBLER_PLATES_PER_GEAR,
   ASSEMBLER_SLOT_CAP,
+  CHEST_SLOT_COUNT,
+  CHEST_STACK_SIZE,
   FURNACE_COAL_PER_SMELT,
   FURNACE_FUEL_CAP,
   FURNACE_SLOT_CAP,
@@ -193,13 +195,45 @@ function assemblerSlots(ent: Entity) {
   )
 }
 
-/** Recipe-style inventory + progress for furnaces and assemblers. */
+function chestSlots(ent: Entity) {
+  const filled = (Object.entries(ent.store) as [ItemId, number][])
+    .filter(([, n]) => (n ?? 0) > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const slots: { item: ItemId | null; amount: number }[] = []
+  for (let i = 0; i < CHEST_SLOT_COUNT; i++) {
+    const entry = filled[i]
+    slots.push(
+      entry
+        ? { item: entry[0], amount: entry[1] }
+        : { item: null, amount: 0 },
+    )
+  }
+  return (
+    <div className="machine-inventory">
+      <div className="machine-flow is-chest" aria-label="Chest inventory">
+        {slots.map((slot, i) => (
+          <Slot
+            key={slot.item ?? `empty-${i}`}
+            item={slot.item}
+            amount={slot.amount}
+            cap={CHEST_STACK_SIZE}
+            label={`Slot ${i + 1}`}
+            empty={!slot.item || slot.amount <= 0}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Recipe-style inventory + progress for furnaces, assemblers, and chests. */
 export function MachineInventory({ entity }: { entity: Entity }) {
   if (isFurnaceKind(entity.kind)) return furnaceSlots(entity)
   if (entity.kind === 'assembler') return assemblerSlots(entity)
+  if (entity.kind === 'chest') return chestSlots(entity)
   return null
 }
 
 export function hasMachineInventory(kind: Entity['kind']): boolean {
-  return isFurnaceKind(kind) || kind === 'assembler'
+  return isFurnaceKind(kind) || kind === 'assembler' || kind === 'chest'
 }

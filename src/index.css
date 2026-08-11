@@ -3905,6 +3905,11 @@ html[data-theme='light'] .ghost-btn.is-danger {
   flex-wrap: wrap;
 }
 
+.machine-flow.is-chest .machine-slot {
+  flex: 1 1 3.2rem;
+  min-width: 3rem;
+}
+
 .machine-flow-arrow {
   align-self: center;
   font-size: 1.15rem;
