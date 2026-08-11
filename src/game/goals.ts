@@ -193,10 +193,10 @@ export const GOALS: GoalDef[] = [
 ]
 
 export const TIPS = [
-  'Drills auto-drop onto the belt they face - use an inserter to load a chest.',
+  'Drills can dump straight into a chest they face - belts still need an inserter.',
   'Hold on a tile, then drag to paint belts. Edit → Demolish clears buildings.',
   'Inserters pull from behind and push forward - green arrow shows drop direction.',
-  'Route drill → belt → inserter → chest for ore, then chest → furnace → chest for plates.',
+  'Route drill → chest for ore, or drill → belt → inserter → chest for longer lines.',
   'Belts never dump into chests - always bridge with an inserter.',
   'Placing your first furnace unlocks a second chest slot.',
   'Chests hold 4 stacks of 100. Offline haul only counts what lands in a chest.',

@@ -271,7 +271,7 @@ function tryBeltHandoff(dest: Entity, item: ItemId): boolean {
   return tryAcceptItem(dest, item)
 }
 
-/** Factorio-style: drill drops mined ore onto facing belt (not straight into chests). */
+/** Factorio-style: drill drops mined ore onto facing belt/chest/furnace. */
 function tryDrillEject(
   state: GameState,
   entities: Record<string, Entity>,
@@ -283,6 +283,7 @@ function tryDrillEject(
   if (!dest) return false
   if (
     !isBeltKind(dest.kind) &&
+    dest.kind !== 'chest' &&
     !isFurnaceKind(dest.kind) &&
     dest.kind !== 'splitter' &&
     dest.kind !== 'undergroundBelt'

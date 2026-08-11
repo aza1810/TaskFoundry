@@ -123,7 +123,7 @@ export const PLACEABLE_META: Record<
   chest: {
     label: 'Iron Chest',
     inventoryKey: 'chest',
-    hint: '4 slots, 100 per stack. Load/unload with inserters only - belts cannot dump in.',
+    hint: '4 slots, 100 per stack. Drills can dump in; belts need an inserter.',
   },
   assembler: {
     label: 'Assembling Machine',
