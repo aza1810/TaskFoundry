@@ -35,6 +35,8 @@ import { createEntity, createTiles, getTile } from './grid'
 import {
   canAffordStock,
   depositStock,
+  isWarehouseItem,
+  scrubChestsToWarehouse,
   spendStock,
   stockOf,
 } from './chestInventory'
@@ -165,6 +167,7 @@ export function loadState(accountSaveKey?: string): GameState {
           parsed.tutorialStep >= TUTORIAL_STEP_COUNT),
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
+    next = scrubChestsToWarehouse(next)
     // Existing saves with a furnace already placed keep the 2nd chest unlock.
     const hasFurnace = Object.values(next.entities).some(
       (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
@@ -323,24 +326,32 @@ export function tickHandCraft(state: GameState, dt: number): GameState {
   return next
 }
 
-function addItemCounts(
-  into: Partial<Record<ItemId, number>>,
-  from: Partial<Record<ItemId, number>>,
-): void {
-  for (const [key, value] of Object.entries(from)) {
-    const n = value ?? 0
-    if (n === 0) continue
-    const id = key as ItemId
-    into[id] = (into[id] ?? 0) + n
-  }
-}
-
 /** Only chest contents - offline haul credits what output buffers gathered. */
 function snapshotChestItems(state: GameState): Partial<Record<ItemId, number>> {
   const out: Partial<Record<ItemId, number>> = {}
   for (const e of Object.values(state.entities)) {
     if (e.kind !== 'chest') continue
-    addItemCounts(out, e.store)
+    for (const [key, value] of Object.entries(e.store)) {
+      const n = value ?? 0
+      if (n <= 0) continue
+      const id = key as ItemId
+      if (!isWarehouseItem(id)) continue
+      out[id] = (out[id] ?? 0) + n
+    }
+  }
+  return out
+}
+
+/** Away haul never includes buildings / placeables. */
+function warehouseGainsOnly(
+  gains: Partial<Record<ItemId, number>>,
+): Partial<Record<ItemId, number>> {
+  const out: Partial<Record<ItemId, number>> = {}
+  for (const [key, value] of Object.entries(gains)) {
+    const id = key as ItemId
+    const n = value ?? 0
+    if (n <= 0 || !isWarehouseItem(id)) continue
+    out[id] = n
   }
   return out
 }
@@ -421,10 +432,12 @@ export function tickState(state: GameState, now = Date.now()): GameState {
         Math.max(0, beforeCrafts - next.craftQueue.length) +
         (priorReport?.craftsFinished ?? 0),
       stepsSynced: priorReport?.stepsSynced ?? 0,
-      // Only credit what landed in chests - not drill buffers or inventory.
-      itemGains: mergeItemGains(
-        priorReport?.itemGains ?? {},
-        itemGains(beforeChests, snapshotChestItems(next)),
+      // Only credit warehouse materials that landed in chests.
+      itemGains: warehouseGainsOnly(
+        mergeItemGains(
+          priorReport?.itemGains ?? {},
+          itemGains(beforeChests, snapshotChestItems(next)),
+        ),
       ),
     }
     next = { ...next, offlineReport: report, unlockedToast: null }
@@ -931,7 +944,9 @@ export function importHealthSteps(
       Math.max(0, next.stats.itemsMoved - beforeStats.itemsMoved),
     craftsFinished: prior?.craftsFinished ?? 0,
     stepsSynced: (prior?.stepsSynced ?? 0) + delta,
-    itemGains: mergeItemGains(prior?.itemGains ?? {}, chestGains),
+    itemGains: warehouseGainsOnly(
+      mergeItemGains(prior?.itemGains ?? {}, chestGains),
+    ),
   }
   return { ...next, offlineReport: report }
 }

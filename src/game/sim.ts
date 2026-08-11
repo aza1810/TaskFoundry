@@ -24,6 +24,7 @@ import {
   isInserterKind,
   rotateDir,
 } from './data'
+import { isWarehouseItem } from './chestInventory'
 import { getTile } from './grid'
 import { skillBonuses } from './skills'
 import type {
@@ -43,11 +44,13 @@ const MACHINE_CAP: Record<string, number> = {
   assembler: ASSEMBLER_SLOT_CAP,
 }
 
-/** Chests: up to CHEST_SLOT_COUNT item types, CHEST_STACK_SIZE each. */
+/** Chests: materials only, up to CHEST_SLOT_COUNT types, CHEST_STACK_SIZE each. */
 function tryAcceptChest(
   store: Partial<Record<ItemId, number>>,
   item: ItemId,
 ): boolean {
+  // Buildings / placeables never belong in the warehouse.
+  if (!isWarehouseItem(item)) return false
   const have = store[item] ?? 0
   if (have > 0) {
     if (have >= CHEST_STACK_SIZE) return false

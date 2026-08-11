@@ -186,3 +186,36 @@ export function depositStock(
 
   return { ...state, entities, inventory }
 }
+
+/**
+ * Move any non-warehouse items out of chest stores into the backpack.
+ * Older saves could hold buildings in chests; those belong in inventory.
+ */
+export function scrubChestsToWarehouse(state: GameState): GameState {
+  let inventory = state.inventory
+  let changed = false
+  const entities: Record<string, Entity> = { ...state.entities }
+
+  for (const [id, e] of Object.entries(state.entities)) {
+    if (e.kind !== 'chest') continue
+    const store: Partial<Record<ItemId, number>> = {}
+    const move: Partial<Inventory> = {}
+    for (const [key, value] of Object.entries(e.store)) {
+      const n = value ?? 0
+      if (n <= 0) continue
+      const item = key as ItemId
+      if (isWarehouseItem(item)) {
+        store[item] = n
+      } else {
+        move[item] = (move[item] ?? 0) + n
+        changed = true
+      }
+    }
+    if (Object.keys(move).length) {
+      entities[id] = { ...e, store }
+      inventory = gain(inventory, move)
+    }
+  }
+
+  return changed ? { ...state, entities, inventory } : state
+}

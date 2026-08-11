@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ITEM_META, formatNum } from '../game/data'
 import { useGame } from '../game/GameContext'
+import { isWarehouseItem } from '../game/chestInventory'
 import type { ItemId, OfflineReport } from '../game/types'
 import { ItemSprite } from '../sprites/Sprites'
 
@@ -55,7 +56,9 @@ function hasAnyProgress(report: OfflineReport): boolean {
   ) {
     return true
   }
-  return Object.values(report.itemGains).some((n) => (n ?? 0) > 0)
+  return Object.entries(report.itemGains).some(
+    ([id, n]) => (n ?? 0) > 0 && isWarehouseItem(id as ItemId),
+  )
 }
 
 function activityStats(report: OfflineReport) {
@@ -132,7 +135,12 @@ export function AwaySummary({
   const gains = useMemo(() => {
     if (!report) return []
     return (Object.keys(report.itemGains) as ItemId[])
-      .filter((id) => (report.itemGains[id] ?? 0) > 0 && id in ITEM_META)
+      .filter(
+        (id) =>
+          (report.itemGains[id] ?? 0) > 0 &&
+          id in ITEM_META &&
+          isWarehouseItem(id),
+      )
       .map((id) => ({ id, amount: report.itemGains[id] ?? 0 }))
       .sort((a, b) => {
         if (b.amount !== a.amount) return b.amount - a.amount
