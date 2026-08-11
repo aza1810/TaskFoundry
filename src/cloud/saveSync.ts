@@ -248,13 +248,21 @@ export async function pullCloudSave(
   }
 }
 
+export type CloudPushResult = 'ok' | 'skipped' | 'no-session'
+
+/**
+ * Upload local foundry state. Returns:
+ * - `ok` - server accepted this payload (or wrote it)
+ * - `skipped` - server already has a newer savedAt (caller should pull)
+ * - `no-session` - not signed in for cloud
+ */
 export async function pushCloudSave(
   saveKey: string,
   state: GameState,
   savedAt: number,
   session: CloudSession | null = loadCloudSession(),
-): Promise<boolean> {
-  if (!session?.token) return false
+): Promise<CloudPushResult> {
+  if (!session?.token) return 'no-session'
   const { offlineReport: _omit, ...persisted } = state
   const res = await apiFetch('/save.php', {
     method: 'PUT',
@@ -265,6 +273,7 @@ export async function pushCloudSave(
     ok?: boolean
     error?: string
     skipped?: boolean
+    savedAt?: number
   }
   if (!res.ok) {
     if (res.status === 401) clearCloudSession()
@@ -276,6 +285,15 @@ export async function pushCloudSave(
     })
     throw new Error(data.error || `Cloud push failed (${res.status})`)
   }
+  if (data.skipped) {
+    // Server kept a newer save - do not claim this device payload is synced.
+    const prev = readSaveMeta(saveKey)
+    writeSaveMeta(saveKey, {
+      ...prev,
+      lastError: undefined,
+    })
+    return 'skipped'
+  }
   const prev = readSaveMeta(saveKey)
   writeSaveMeta(saveKey, {
     ...prev,
@@ -283,7 +301,7 @@ export async function pushCloudSave(
     cloudSyncedAt: Date.now(),
     lastError: undefined,
   })
-  return true
+  return 'ok'
 }
 
 export type CloudHydrationResult =

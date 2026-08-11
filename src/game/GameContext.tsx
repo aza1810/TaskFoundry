@@ -214,8 +214,6 @@ export function GameProvider({
   // True only after a successful cloud pull/push decision (or local-only mode).
   // Prevents empty web tabs from bumping savedAt and overwriting phone saves.
   const [cloudBootDone, setCloudBootDone] = useState(!enableCloudSync)
-  const saveTimer = useRef<number | null>(null)
-  const cloudTimer = useRef<number | null>(null)
   const cloudReady = useRef(!enableCloudSync)
   const stateRef = useRef(state)
   stateRef.current = state
@@ -237,6 +235,7 @@ export function GameProvider({
     }
 
     let cancelled = false
+    let resumeSyncAt = 0
 
     async function hydrateFromCloud() {
       cloudReady.current = false
@@ -271,8 +270,12 @@ export function GameProvider({
 
     function onVisible() {
       if (document.visibilityState !== 'visible') return
-      if (cancelled || cloudReady.current) return
+      if (cancelled) return
       if (!loadCloudSession()) return
+      // Re-check cloud on resume so this device adopts a newer phone/web save.
+      const now = Date.now()
+      if (now - resumeSyncAt < 2000) return
+      resumeSyncAt = now
       void hydrateFromCloud()
     }
     document.addEventListener('visibilitychange', onVisible)
@@ -308,27 +311,66 @@ export function GameProvider({
     }
   }, [enableCloudSync])
 
+  // Local + cloud persistence on a steady cadence.
+  // The 200ms sim tick always creates a new state object, so a debounce keyed on
+  // `state` never fired during play and cloud only uploaded on tab hide.
   useEffect(() => {
-    if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => {
-      // Always persist locally; only bump sync timestamps after cloud boot.
-      saveState(state)
-      if (enableCloudSync && !cloudReady.current) return
-      const savedAt = bumpLocalSavedAt(saveKey)
-      if (!enableCloudSync || !loadCloudSession()) return
-      if (cloudTimer.current) window.clearTimeout(cloudTimer.current)
-      cloudTimer.current = window.setTimeout(() => {
-        setCloudSync('syncing')
-        void pushCloudSave(saveKey, stateRef.current, savedAt)
-          .then(() => setCloudSync('synced'))
-          .catch(() => setCloudSync(loadCloudSession() ? 'offline' : 'error'))
-      }, 2500)
-    }, 400)
-    return () => {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current)
-      if (cloudTimer.current) window.clearTimeout(cloudTimer.current)
+    if (enableCloudSync && !cloudBootDone) return
+
+    const persistLocal = () => {
+      saveState(stateRef.current)
     }
-  }, [state, saveKey, enableCloudSync, cloudBootDone])
+    persistLocal()
+    const localId = window.setInterval(persistLocal, 1000)
+
+    if (!enableCloudSync) {
+      return () => window.clearInterval(localId)
+    }
+
+    let pushInFlight = false
+    const pushLatest = () => {
+      if (pushInFlight) return
+      if (!cloudReady.current || !loadCloudSession()) return
+      pushInFlight = true
+      const savedAt = bumpLocalSavedAt(saveKey)
+      saveState(stateRef.current)
+      setCloudSync('syncing')
+      void pushCloudSave(saveKey, stateRef.current, savedAt)
+        .then(async (result) => {
+          if (result === 'skipped') {
+            // Server is ahead - pull it instead of pretending we uploaded.
+            const hydrated = await resolveCloudHydration(saveKey, stateRef.current)
+            if (hydrated.ok && hydrated.fromCloud) {
+              const { offlineReport: _o, ...persisted } = hydrated.state
+              localStorage.setItem(saveKey, JSON.stringify(persisted))
+              const next = loadState(saveKey)
+              dispatch({
+                type: 'HYDRATE',
+                state:
+                  displayName && next.playerName === 'Operator'
+                    ? { ...next, playerName: displayName }
+                    : next,
+              })
+            }
+          }
+          setCloudSync(loadCloudSession() ? 'synced' : 'error')
+        })
+        .catch(() => setCloudSync(loadCloudSession() ? 'offline' : 'error'))
+        .finally(() => {
+          pushInFlight = false
+        })
+    }
+
+    // First upload soon after boot, then keep the server current while playing.
+    const firstPush = window.setTimeout(pushLatest, 1200)
+    const cloudId = window.setInterval(pushLatest, 8000)
+
+    return () => {
+      window.clearInterval(localId)
+      window.clearTimeout(firstPush)
+      window.clearInterval(cloudId)
+    }
+  }, [enableCloudSync, cloudBootDone, saveKey, displayName])
 
   useEffect(() => {
     if (!enableCloudSync) return

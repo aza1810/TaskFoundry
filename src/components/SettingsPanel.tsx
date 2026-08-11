@@ -62,9 +62,9 @@ export function SettingsPanel() {
 
   const cloudHint = googleCloud
     ? cloudSync === 'synced'
-      ? `Signed in as ${session.displayName}. Cloud save synced - use Google on another device to restore this foundry.`
+      ? `Signed in as ${session.displayName}. Cloud save synced - the server keeps the latest foundry while you play.`
       : cloudSync === 'syncing'
-        ? `Signed in as ${session.displayName}. Syncing foundry to the cloud…`
+        ? `Signed in as ${session.displayName}. Uploading your foundry so the server stays current…`
         : cloudSync === 'offline'
           ? `Signed in as ${session.displayName}. Cloud unreachable right now. Tap Reconnect cloud or Sync cloud now. Your factory is still on this device - Export save as a backup.`
           : `Signed in as ${session.displayName}. Cloud session is missing. Tap Reconnect cloud (or sign out and Continue with Google).`
