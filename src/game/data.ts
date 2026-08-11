@@ -123,7 +123,7 @@ export const PLACEABLE_META: Record<
   chest: {
     label: 'Iron Chest',
     inventoryKey: 'chest',
-    hint: '4 slots, 100 per stack. Offline haul only counts what lands here.',
+    hint: '4 slots, 100 per stack. Load/unload with inserters only - belts cannot dump in.',
   },
   assembler: {
     label: 'Assembling Machine',

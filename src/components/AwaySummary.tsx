@@ -246,7 +246,7 @@ export function AwaySummary({
 
         {!busy && (
           <p className="away-empty">
-            Route drills and furnaces into a chest before you leave next time.
+            Route drills through belts and inserters into a chest before you leave next time.
           </p>
         )}
 

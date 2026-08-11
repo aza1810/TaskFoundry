@@ -265,7 +265,13 @@ function peekExtractable(entity: Entity): boolean {
   return Object.values(entity.store).some((n) => (n ?? 0) > 0)
 }
 
-/** Factorio-style: drill drops mined ore onto facing belt/chest/furnace */
+/** Belts / splitters / UG exits cannot dump into chests - need an inserter. */
+function tryBeltHandoff(dest: Entity, item: ItemId): boolean {
+  if (dest.kind === 'chest') return false
+  return tryAcceptItem(dest, item)
+}
+
+/** Factorio-style: drill drops mined ore onto facing belt (not straight into chests). */
 function tryDrillEject(
   state: GameState,
   entities: Record<string, Entity>,
@@ -277,7 +283,6 @@ function tryDrillEject(
   if (!dest) return false
   if (
     !isBeltKind(dest.kind) &&
-    dest.kind !== 'chest' &&
     !isFurnaceKind(dest.kind) &&
     dest.kind !== 'splitter' &&
     dest.kind !== 'undergroundBelt'
@@ -486,7 +491,7 @@ export function simTick(state: GameState, dt: number): GameState {
     if (!next.entity) continue
     const dest = entities[next.entity.id]
 
-    if (tryAcceptItem(dest, e.cargo.item)) {
+    if (tryBeltHandoff(dest, e.cargo.item)) {
       e.cargo = null
       moved += 1
     }
@@ -510,7 +515,7 @@ export function simTick(state: GameState, dt: number): GameState {
     } else {
       const next = neighbor(state, e.x, e.y, e.dir)
       if (!next.entity) continue
-      if (tryAcceptItem(entities[next.entity.id], e.cargo.item)) {
+      if (tryBeltHandoff(entities[next.entity.id], e.cargo.item)) {
         e.cargo = null
         moved += 1
       }
@@ -532,14 +537,14 @@ export function simTick(state: GameState, dt: number): GameState {
     if (!next.entity) {
       const alt: Dir = toggle === 0 ? rotateDir(e.dir, true) : e.dir
       const altN = neighbor(state, e.x, e.y, alt)
-      if (altN.entity && tryAcceptItem(entities[altN.entity.id], e.cargo.item)) {
+      if (altN.entity && tryBeltHandoff(entities[altN.entity.id], e.cargo.item)) {
         e.cargo = null
         e.toggle = 1 - toggle
         moved += 1
       }
       continue
     }
-    if (tryAcceptItem(entities[next.entity.id], e.cargo.item)) {
+    if (tryBeltHandoff(entities[next.entity.id], e.cargo.item)) {
       e.cargo = null
       e.toggle = 1 - toggle
       moved += 1
