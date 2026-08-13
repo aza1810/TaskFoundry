@@ -10,7 +10,6 @@ import {
 } from 'react'
 import {
   APP_NAME,
-  DIR_DELTA,
   ITEM_META,
   OPPOSITE,
   PLACEABLE_META,
@@ -26,6 +25,7 @@ import {
 } from '../game/data'
 import { getBeltBend } from '../game/beltShape'
 import { useGame } from '../game/GameContext'
+import { inserterIoAt } from '../game/grid'
 import { activeGoal } from '../game/goals'
 import { contractComplete } from '../game/contracts'
 import {
@@ -40,6 +40,15 @@ import {
   sumChestStores,
   warehouseHudAmount,
 } from '../game/chestInventory'
+import {
+  getActiveTutorialStep,
+  placeFailReason,
+  suggestPlaceDir,
+  tutorialChecklist,
+  tutorialGhosts,
+  tutorialRecommendedTool,
+  tutorialToolsFor,
+} from '../game/tutorialGuide'
 import {
   EntitySprite,
   GroundTexture,
@@ -280,27 +289,6 @@ function buzz(ms = 12) {
   }
 }
 
-/** Tile an inserter pulls from / drops into (matches sim reach). */
-function inserterIoAt(
-  x: number,
-  y: number,
-  dir: Dir,
-  reach: number,
-  width: number,
-  height: number,
-): { pickup: { x: number; y: number } | null; drop: { x: number; y: number } | null } {
-  const behind = DIR_DELTA[OPPOSITE[dir]]
-  const front = DIR_DELTA[dir]
-  const pickup = { x: x + behind.dx * reach, y: y + behind.dy * reach }
-  const drop = { x: x + front.dx * reach, y: y + front.dy * reach }
-  const inBounds = (c: { x: number; y: number }) =>
-    c.x >= 0 && c.y >= 0 && c.x < width && c.y < height
-  return {
-    pickup: inBounds(pickup) ? pickup : null,
-    drop: inBounds(drop) ? drop : null,
-  }
-}
-
 let floaterSeq = 0
 
 export function FactoryFloor({
@@ -341,6 +329,21 @@ export function FactoryFloor({
     : 0
   const xpNeeded = xpForLevel(state.level)
   const xpPct = Math.min(100, (state.xp / xpNeeded) * 100)
+  const tourStep = getActiveTutorialStep(state)
+  const tourChecks = useMemo(
+    () => tutorialChecklist(state, tourStep),
+    [state, tourStep],
+  )
+  const tourTool = tutorialRecommendedTool(tourChecks, tourStep?.autoSelect)
+  const planGhosts = useMemo(
+    () => tutorialGhosts(state, tourStep, tourTool),
+    [state, tourStep, tourTool],
+  )
+  const ghostAt = useMemo(() => {
+    const map = new Map<string, (typeof planGhosts)[number]>()
+    for (const g of planGhosts) map.set(`${g.x},${g.y}`, g)
+    return map
+  }, [planGhosts])
 
   const [toolTab, setToolTab] = useState<ToolTab>('build')
   const [zoom, setZoom] = useState(0.85)
@@ -362,6 +365,11 @@ export function FactoryFloor({
   const closeInspect = useCallback(() => {
     setInspect(null)
   }, [])
+
+  const hoverDir =
+    hover && selected && !isEditMetaTool(selected)
+      ? suggestPlaceDir(state, selected, hover.x, hover.y)
+      : placeDir
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -540,8 +548,11 @@ export function FactoryFloor({
     }
   }, [])
 
-  const toolsForTab: ToolId[] =
-    toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS
+  const toolsForTab: ToolId[] = tutorialToolsFor(
+    tourStep,
+    toolTab,
+    toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS,
+  )
 
   const selectionRect = useMemo(() => {
     if (!copyCorner || !hover || selected !== 'copy') return null
@@ -627,7 +638,7 @@ export function FactoryFloor({
           spawnFloater(x, y, PLACEABLE_META[selected].label.split(' ')[0], 'place')
         } else {
           buzz(4)
-          spawnFloater(x, y, 'blocked', 'warn')
+          spawnFloater(x, y, placeFailReason(state, selected, x, y) ?? 'blocked', 'warn')
         }
         return
       }
@@ -658,6 +669,15 @@ export function FactoryFloor({
     },
     [clampCamera],
   )
+
+  const nextGhost = planGhosts.find((g) => g.next) ?? planGhosts[0] ?? null
+  const focusX = nextGhost?.x
+  const focusY = nextGhost?.y
+  useEffect(() => {
+    if (tourStep?.mode !== 'coach' || tourStep.tab !== 'factory') return
+    if (focusX == null || focusY == null) return
+    centerOn(focusX, focusY)
+  }, [tourStep?.id, tourStep?.mode, tourStep?.tab, focusX, focusY, centerOn])
 
   const recenter = useCallback(() => {
     const drills = Object.values(entities).filter(
@@ -930,19 +950,22 @@ export function FactoryFloor({
         ? state.blueprint.length
         : null
 
-  const toolLabel = !selected
-    ? 'Drag to pan · tap a tile to inspect · tap again to close'
-    : selected === 'remove'
-      ? 'Tap or hold-drag to demolish · drag pans'
-      : selected === 'rotate'
-        ? 'Tap or hold-drag to rotate · drag pans'
-        : selected === 'copy'
-          ? 'Tap two corners · drag to pan'
-          : selected === 'paste'
-            ? 'Tap origin · drag to pan'
-            : isDragPaintTool(selected)
-              ? 'Tap to place · hold-drag to paint · drag pans'
-              : 'Tap to place · drag pans'
+  const toolLabel =
+    tourStep && selected && !isEditMetaTool(selected)
+      ? `Tap the glowing tile to place ${selectedToolName}`
+      : !selected
+      ? 'Drag to pan · tap a tile to inspect · tap again to close'
+      : selected === 'remove'
+        ? 'Tap or hold-drag to demolish · drag pans'
+        : selected === 'rotate'
+          ? 'Tap or hold-drag to rotate · drag pans'
+          : selected === 'copy'
+            ? 'Tap two corners · drag to pan'
+            : selected === 'paste'
+              ? 'Tap origin · drag to pan'
+              : isDragPaintTool(selected)
+                ? 'Tap to place · hold-drag to paint · drag pans'
+                : 'Tap to place · drag pans'
 
   const modeHint = paintActive
     ? selected === 'remove'
@@ -950,7 +973,9 @@ export function FactoryFloor({
       : selected === 'rotate'
         ? 'Release to stop rotating'
         : 'Release to stop painting'
-    : selected === 'remove'
+    : tourStep && selected && !isEditMetaTool(selected)
+      ? PLACEABLE_META[selected].hint
+      : selected === 'remove'
       ? 'Hold-drag clears a path'
       : selected === 'rotate'
         ? 'Or use the yellow arrow FAB'
@@ -1007,13 +1032,13 @@ export function FactoryFloor({
       (selected === 'inserter' || selected === 'longInserter')
     ) {
       const reach = selected === 'longInserter' ? 2 : 1
-      const io = inserterIoAt(hover.x, hover.y, placeDir, reach, width, height)
+      const io = inserterIoAt(hover.x, hover.y, hoverDir, reach, width, height)
       mark(pickup, io.pickup)
       mark(drop, io.drop)
     }
 
     return { pickup, drop }
-  }, [entities, width, height, hover, selected, placeDir])
+  }, [entities, width, height, hover, selected, hoverDir])
 
   const beltBends = useMemo(() => {
     const map = new Map<string, ReturnType<typeof getBeltBend>>()
@@ -1062,6 +1087,9 @@ export function FactoryFloor({
         </div>
 
         <div className="game-hud-resources" aria-label="Chest warehouse">
+          <span className="game-hud-wh-label" title="Materials stored in floor chests">
+            Chests
+          </span>
           {HUD_RESOURCES.map((id) => {
             const n = warehouseHudAmount(state, id)
             if (n <= 0 && id !== 'ironOre' && id !== 'coal' && id !== 'ironPlate') return null
@@ -1220,6 +1248,7 @@ export function FactoryFloor({
                 const key = `${x},${y}`
                 const isIoPickup = inserterIo.pickup.has(key)
                 const isIoDrop = inserterIo.drop.has(key)
+                const planGhost = ghostAt.get(key)
 
                 return (
                   <div
@@ -1233,6 +1262,8 @@ export function FactoryFloor({
                       isCopyCorner ? 'is-copy-corner' : '',
                       bpGhost ? 'is-bp-ghost' : '',
                       highlight === 'ore' && tile.ore === 'ironOre' && !ent ? 'is-ore-hint' : '',
+                      planGhost ? 'is-plan-ghost' : '',
+                      planGhost?.next ? 'is-plan-next' : '',
                       showGhost ? (valid ? 'is-valid-ghost' : 'is-invalid-ghost') : '',
                       isInspect ? 'is-inspect' : '',
                       isFlash ? 'is-flash' : '',
@@ -1273,15 +1304,24 @@ export function FactoryFloor({
                       <InserterDirOverlay dir={ent.dir} />
                     )}
 
+                    {planGhost && !ent && !showGhost && (
+                      <span className={`cell-ghost cell-plan${planGhost.next ? ' is-next' : ''}`}>
+                        <EntitySprite kind={planGhost.kind} dir={planGhost.dir} />
+                        {planGhost.next && (
+                          <em className="cell-tap-hint">Tap</em>
+                        )}
+                      </span>
+                    )}
+
                     {showGhost && (
                       <span className="cell-ghost">
-                        <EntitySprite kind={selected as Placeable} dir={placeDir} />
+                        <EntitySprite kind={selected as Placeable} dir={hoverDir} />
                       </span>
                     )}
 
                     {showGhost &&
                       (selected === 'inserter' || selected === 'longInserter') && (
-                        <InserterDirOverlay dir={placeDir} />
+                        <InserterDirOverlay dir={hoverDir} />
                       )}
 
                     {bpGhost && !ent && (
@@ -1479,6 +1519,7 @@ export function FactoryFloor({
                         selected === tool ? 'is-active' : '',
                         !affordable ? 'is-empty' : '',
                         pulse ? 'is-tutorial-pulse' : '',
+                        tourStep ? 'is-named' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}
@@ -1496,6 +1537,11 @@ export function FactoryFloor({
                       {count !== null && (
                         <span className="rail-tool-count">{formatNum(count)}</span>
                       )}
+                      {tourStep ? (
+                        <span className="rail-tool-name">
+                          {label.split(' ')[0]}
+                        </span>
+                      ) : null}
                     </button>
                   )
                 })}

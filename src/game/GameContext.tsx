@@ -37,6 +37,7 @@ import {
   claimContract as claimContractLogic,
   advanceTutorial as advanceTutorialLogic,
   skipTutorial as skipTutorialLogic,
+  replayTutorial as replayTutorialLogic,
   quickStartTutorial as quickStartTutorialLogic,
   tickState,
 } from './logic'
@@ -81,6 +82,7 @@ type Action =
   | { type: 'CLAIM_CONTRACT'; id: string }
   | { type: 'ADVANCE_TUTORIAL' }
   | { type: 'SKIP_TUTORIAL' }
+  | { type: 'REPLAY_TUTORIAL' }
   | { type: 'QUICK_START_TUTORIAL' }
   | { type: 'HYDRATE'; state: GameState }
 
@@ -140,6 +142,8 @@ function reducer(state: GameState, action: Action): GameState {
       return advanceTutorialLogic(state)
     case 'SKIP_TUTORIAL':
       return skipTutorialLogic(state)
+    case 'REPLAY_TUTORIAL':
+      return replayTutorialLogic(state)
     case 'QUICK_START_TUTORIAL':
       return quickStartTutorialLogic(state)
     case 'HYDRATE':
@@ -176,6 +180,7 @@ interface GameContextValue {
   claimContract: (id: string) => void
   advanceTutorial: () => void
   skipTutorial: () => void
+  replayTutorial: () => void
   quickStartTutorial: () => void
   pullCloudSaveNow: () => Promise<string | null>
   exportSaveFile: () => void
@@ -513,6 +518,7 @@ export function GameProvider({
   )
   const advanceTutorial = useCallback(() => dispatch({ type: 'ADVANCE_TUTORIAL' }), [])
   const skipTutorial = useCallback(() => dispatch({ type: 'SKIP_TUTORIAL' }), [])
+  const replayTutorial = useCallback(() => dispatch({ type: 'REPLAY_TUTORIAL' }), [])
   const quickStartTutorial = useCallback(
     () => dispatch({ type: 'QUICK_START_TUTORIAL' }),
     [],
@@ -638,6 +644,7 @@ export function GameProvider({
       claimContract,
       advanceTutorial,
       skipTutorial,
+      replayTutorial,
       quickStartTutorial,
       pullCloudSaveNow,
       exportSaveFile,
@@ -672,6 +679,7 @@ export function GameProvider({
       claimContract,
       advanceTutorial,
       skipTutorial,
+      replayTutorial,
       quickStartTutorial,
       pullCloudSaveNow,
       exportSaveFile,

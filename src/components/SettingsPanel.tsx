@@ -38,6 +38,7 @@ export function SettingsPanel() {
     state,
     reset,
     rename,
+    replayTutorial,
     cloudSync,
     pullCloudSaveNow,
     exportSaveFile,
@@ -332,6 +333,13 @@ export function SettingsPanel() {
           />
           <button type="button" className="ghost-btn" onClick={() => signOut()}>
             Sign out
+          </button>
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => replayTutorial()}
+          >
+            Replay tour
           </button>
           <button
             type="button"

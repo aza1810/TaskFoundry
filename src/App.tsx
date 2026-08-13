@@ -19,6 +19,11 @@ import { useHealthSteps } from './hooks/useHealthSteps'
 import { usePedometer } from './hooks/usePedometer'
 import { useSectionSwipe } from './hooks/useSectionSwipe'
 import { getTutorialStep, unlockedTabsFor } from './game/tutorial'
+import {
+  tutorialChecklist,
+  tutorialHighlightFor,
+  tutorialRecommendedTool,
+} from './game/tutorialGuide'
 import { contractComplete } from './game/contracts'
 import type { TabId } from './game/types'
 import './index.css'
@@ -112,7 +117,7 @@ function toastTone(message: string): 'ok' | 'warn' | 'info' {
     return 'warn'
   }
   if (
-    /complete|researched|fueled|finished|queued|pasted|copied|hand-crafting|synced|planted|tour complete|claimed|stamped|focus:|name saved/i.test(
+    /complete|researched|fueled|finished|queued|pasted|copied|hand-crafting|synced|planted|tour complete|tour restarted|claimed|stamped|focus:|name saved/i.test(
       message,
     )
   ) {
@@ -230,7 +235,14 @@ function Shell() {
     () => unlockedTabsFor(state.tutorialStep, state.tutorialComplete),
     [state.tutorialStep, state.tutorialComplete],
   )
-  const highlight = tutorialStep?.highlight ?? null
+  const tourChecks = useMemo(
+    () => tutorialChecklist(state, tutorialStep),
+    [state, tutorialStep],
+  )
+  const highlight = tutorialHighlightFor(
+    tutorialStep,
+    tutorialRecommendedTool(tourChecks, tutorialStep?.autoSelect),
+  )
   const coaching = Boolean(tutorialStep && tutorialStep.mode === 'coach')
 
   const setTabSafe = useCallback(

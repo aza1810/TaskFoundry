@@ -22,7 +22,6 @@ import {
   gain,
   idx,
   inBounds,
-  isBeltKind,
   isDrillKind,
   rotateDir,
   sanitizeInventory,
@@ -51,6 +50,7 @@ import {
   SKILL_DEFS,
 } from './skills'
 import { TUTORIAL_STEP_COUNT, tutorialStepIndex } from './tutorial'
+import { suggestPlaceDir } from './tutorialGuide'
 import {
   generateDailyContracts,
   toggleFocusSkill,
@@ -525,22 +525,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     }
   }
 
-  let placeDir = state.placeDir
-  // Belts inherit direction from a neighbor pointing into this cell
-  if (isBeltKind(tool)) {
-    for (const dir of ['N', 'E', 'S', 'W'] as Dir[]) {
-      const { dx, dy } = DIR_DELTA[dir]
-      const nx = x - dx
-      const ny = y - dy
-      if (!inBounds(nx, ny)) continue
-      const nTile = state.tiles[idx(nx, ny)]
-      const nEnt = nTile.entityId ? state.entities[nTile.entityId] : null
-      if (nEnt && isBeltKind(nEnt.kind) && nEnt.dir === dir) {
-        placeDir = dir
-        break
-      }
-    }
-  }
+  const placeDir = suggestPlaceDir(state, tool, x, y)
 
   let inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
   const ent = createEntity(tool, x, y, placeDir)
@@ -1210,6 +1195,16 @@ export function skipTutorial(state: GameState): GameState {
     tutorialStep: null,
     tutorialComplete: true,
     unlockedToast: 'Tour skipped - explore Factory, Steps, and Tasks at your pace',
+  }
+}
+
+export function replayTutorial(state: GameState): GameState {
+  return {
+    ...state,
+    tutorialStep: 0,
+    tutorialComplete: false,
+    selected: null,
+    unlockedToast: 'Tour restarted - follow the glowing tiles',
   }
 }
 

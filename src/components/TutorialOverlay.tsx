@@ -1,10 +1,15 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { useGame } from '../game/GameContext'
 import {
   getTutorialStep,
   TUTORIAL_STEP_COUNT,
   type TutorialStepId,
 } from '../game/tutorial'
+import {
+  tutorialChecklist,
+  tutorialCoachHint,
+  tutorialRecommendedTool,
+} from '../game/tutorialGuide'
 import type { TabId } from '../game/types'
 
 export type { TutorialStepId }
@@ -24,93 +29,38 @@ export function TutorialOverlay({
   const stepIndex = state.tutorialStep
   const active = !state.tutorialComplete && stepIndex !== null
   const step = active ? getTutorialStep(stepIndex) : null
-
-  const drills = useMemo(
-    () =>
-      Object.values(state.entities).filter(
-        (e) => e.kind === 'drill' || e.kind === 'electricDrill',
-      ).length,
-    [state.entities],
+  const checks = useMemo(
+    () => tutorialChecklist(state, step),
+    [state, step],
+  )
+  const recommended = tutorialRecommendedTool(checks, step?.autoSelect)
+  const hint = tutorialCoachHint(state, step, checks)
+  const allDone = checks.length > 0 && checks.every((c) => c.done)
+  const advancedFor = useRef<string | null>(null)
+  const progressPct = Math.round(
+    ((Math.min(stepIndex ?? 0, TUTORIAL_STEP_COUNT - 1) + (allDone ? 1 : 0)) /
+      TUTORIAL_STEP_COUNT) *
+      100,
   )
 
-  const belts = useMemo(
-    () =>
-      Object.values(state.entities).filter(
-        (e) => e.kind === 'belt' || e.kind === 'fastBelt',
-      ).length,
-    [state.entities],
-  )
-
-  const inserters = useMemo(
-    () =>
-      Object.values(state.entities).filter(
-        (e) => e.kind === 'inserter' || e.kind === 'longInserter',
-      ).length,
-    [state.entities],
-  )
-
-  const chests = useMemo(
-    () => Object.values(state.entities).filter((e) => e.kind === 'chest').length,
-    [state.entities],
-  )
-
-  const furnaces = useMemo(
-    () =>
-      Object.values(state.entities).filter(
-        (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
-      ).length,
-    [state.entities],
-  )
-
-  // Auto-select recommended tool for the step
   useEffect(() => {
-    if (!active || !step?.autoSelect) return
-    if (state.selected !== step.autoSelect) selectTool(step.autoSelect)
-  }, [active, step?.id, step?.autoSelect, selectTool, state.selected])
+    if (!active || !recommended) return
+    selectTool(recommended)
+  }, [active, step?.id, recommended, selectTool])
 
-  // Switch to the step's tab
   useEffect(() => {
     if (!active || !step?.tab) return
     onRequestTab(step.tab)
   }, [active, step?.id, step?.tab, onRequestTab])
 
-  // Auto-advance when the player does the thing
   useEffect(() => {
     if (!active || !step || step.mode !== 'coach') return
-    if (step.id === 'placeDrill' && drills >= 1) advanceTutorial()
-    if (
-      step.id === 'oreToChest' &&
-      drills >= 1 &&
-      belts >= 1 &&
-      inserters >= 1 &&
-      chests >= 1
-    ) {
+    if (checks.length > 0 && checks.every((c) => c.done)) {
+      if (advancedFor.current === step.id) return
+      advancedFor.current = step.id
       advanceTutorial()
     }
-    if (
-      step.id === 'logSteps' &&
-      (state.stepsLifetime >= 10 || state.mineCycles >= 10)
-    ) {
-      advanceTutorial()
-    }
-    if (step.id === 'chestToFurnace' && furnaces >= 1 && inserters >= 2) {
-      advanceTutorial()
-    }
-    if (step.id === 'plateChest' && chests >= 2 && furnaces >= 1) {
-      advanceTutorial()
-    }
-  }, [
-    active,
-    step,
-    drills,
-    belts,
-    inserters,
-    chests,
-    furnaces,
-    state.stepsLifetime,
-    state.mineCycles,
-    advanceTutorial,
-  ])
+  }, [active, step, checks, advanceTutorial])
 
   if (!active || !step) return null
 
@@ -124,17 +74,31 @@ export function TutorialOverlay({
         <div className="tutorial-card">
           <div className="tutorial-progress">{progressLabel}</div>
           <h2 id="tut-title">{step.title}</h2>
+          {step.id === 'welcome' && (
+            <div className="tutorial-loop" aria-hidden>
+              <span>Walk</span>
+              <i>→</i>
+              <span>Mine</span>
+              <i>→</i>
+              <span>Store</span>
+              <i>→</i>
+              <span>Smelt</span>
+            </div>
+          )}
           <p>{step.body}</p>
           {step.id === 'welcome' ? (
             <div className="tutorial-actions tutorial-actions-stack">
               <button type="button" className="primary-btn" onClick={advanceTutorial}>
-                Start guided tour
+                I will build the line
               </button>
               <button type="button" className="primary-btn tutorial-quick" onClick={quickStartTutorial}>
                 Plant starter line
               </button>
+              <p className="tutorial-quick-hint">
+                Starter plants drill → chest → furnace → plate chest, then asks you to walk.
+              </p>
               <button type="button" className="ghost-btn" onClick={skipTutorial}>
-                Skip - I'll explore
+                Skip - I will explore
               </button>
             </div>
           ) : (
@@ -156,12 +120,29 @@ export function TutorialOverlay({
         <div className="tutorial-coach-top">
           <span className="tutorial-progress">{progressLabel}</span>
           <button type="button" className="ghost-btn tutorial-skip" onClick={skipTutorial}>
-            Skip
+            Skip tour
           </button>
         </div>
+        <div
+          className="tutorial-bar"
+          aria-hidden
+          style={{ '--tut-pct': `${progressPct}%` } as CSSProperties}
+        />
         <h2 id="tut-title">{step.title}</h2>
-        <p>{step.body}</p>
-        {step.action && <p className="tutorial-action">{step.action}</p>}
+        {checks.length > 0 && (
+          <ul className="tutorial-checks">
+            {checks.map((item) => (
+              <li
+                key={item.id}
+                className={item.done ? 'is-done' : 'is-todo'}
+              >
+                <span aria-hidden>{item.done ? '✓' : '○'}</span>
+                {item.label}
+              </li>
+            ))}
+          </ul>
+        )}
+        {hint && <p className="tutorial-action">{hint}</p>}
         <div className="tutorial-coach-foot">
           <button type="button" className="ghost-btn" onClick={advanceTutorial}>
             Skip this step

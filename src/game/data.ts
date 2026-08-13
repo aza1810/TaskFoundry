@@ -103,7 +103,7 @@ export const PLACEABLE_META: Record<
   inserter: {
     label: 'Inserter',
     inventoryKey: 'inserter',
-    hint: 'Pulls from behind, drops in front.',
+    hint: 'Pulls from the dashed tile behind, drops on the solid tile in front.',
   },
   longInserter: {
     label: 'Long Inserter',

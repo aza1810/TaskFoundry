@@ -1,10 +1,12 @@
 import {
+  DIR_DELTA,
   GRID_H,
   GRID_W,
   idx,
   inBounds,
+  OPPOSITE,
 } from './data'
-import type { Entity, OreId, Tile } from './types'
+import type { Dir, Entity, OreId, Tile } from './types'
 
 function paintPatch(
   tiles: Tile[],
@@ -67,4 +69,25 @@ export function createEntity(
 export function getTile(tiles: Tile[], x: number, y: number): Tile | null {
   if (!inBounds(x, y)) return null
   return tiles[idx(x, y)]
+}
+
+/** Tile an inserter pulls from / drops into (matches sim reach). */
+export function inserterIoAt(
+  x: number,
+  y: number,
+  dir: Dir,
+  reach: number,
+  width: number,
+  height: number,
+): { pickup: { x: number; y: number } | null; drop: { x: number; y: number } | null } {
+  const behind = DIR_DELTA[OPPOSITE[dir]]
+  const front = DIR_DELTA[dir]
+  const pickup = { x: x + behind.dx * reach, y: y + behind.dy * reach }
+  const drop = { x: x + front.dx * reach, y: y + front.dy * reach }
+  const ok = (c: { x: number; y: number }) =>
+    c.x >= 0 && c.y >= 0 && c.x < width && c.y < height
+  return {
+    pickup: ok(pickup) ? pickup : null,
+    drop: ok(drop) ? drop : null,
+  }
 }
