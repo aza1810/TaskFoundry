@@ -2287,11 +2287,7 @@ html[data-theme='light'] .ghost-btn.is-danger {
 
 /* Lift toasts above the floating build rail */
 .app-game:has(.build-rail.is-expanded) .toast {
-  bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px));
-}
-
-.app-game:has(.build-rail.is-expanded) .tutorial-root.is-coach {
-  padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 .app-game.is-playing:not(:has(.build-rail.is-expanded)) .toast {
@@ -3450,7 +3446,12 @@ html[data-theme='light'] .ghost-btn.is-danger {
 }
 
 .factory-viewport.is-tools-open {
-  --rail-clearance: 6.4rem;
+  --rail-clearance: 9.1rem;
+}
+
+.app-game.is-coaching .factory-viewport.is-tools-open {
+  /* Named tutorial tool chips + tray make the rail taller */
+  --rail-clearance: 12rem;
 }
 
 .factory-viewport.is-build {
@@ -3656,8 +3657,9 @@ html[data-theme='light'] .ghost-btn.is-danger {
 .viewport-fabs {
   position: absolute;
   right: 0.4rem;
+  top: auto;
   bottom: calc(var(--rail-clearance) + 0.35rem);
-  z-index: 4;
+  z-index: 5;
   display: grid;
   gap: 0.28rem;
   transition: bottom 0.2s ease;
@@ -3721,7 +3723,8 @@ html[data-theme='light'] .ghost-btn.is-danger {
   display: grid;
   gap: 0.05rem;
   justify-items: center;
-  max-width: min(92%, 22rem);
+  max-width: min(70%, 16.5rem);
+  margin-right: 2.6rem;
   padding: 0.3rem 0.7rem;
   background: color-mix(in srgb, var(--bg-sheet) 82%, transparent);
   border: 1px solid rgba(201, 162, 39, 0.45);
@@ -4985,6 +4988,27 @@ html[data-theme='light'] .machine-progress-track {
   padding-bottom: 1rem;
 }
 
+/* Keep coach off the build rail / dock: sit under the status strip at the top */
+.tutorial-root.is-coach {
+  place-items: start center;
+  align-content: start;
+  padding: calc(0.35rem + env(safe-area-inset-top, 0px)) 0.55rem 0;
+  /* Leave bottom free for nav + tools; coach no longer uses it */
+  padding-bottom: 0;
+}
+
+.app-game.is-playing .tutorial-root.is-coach {
+  /* Clear the in-game HUD (brand / steps / objective) */
+  padding-top: calc(7.1rem + env(safe-area-inset-top, 0px));
+  padding-right: 0.55rem;
+  padding-left: 0.55rem;
+}
+
+.app-game.is-playing.has-sheet .tutorial-root.is-coach {
+  /* Steps / sheet tabs: sit below the sheet title bar */
+  padding-top: calc(4.2rem + env(safe-area-inset-top, 0px));
+}
+
 .tutorial-scrim {
   position: absolute;
   inset: 0;
@@ -5009,7 +5033,9 @@ html[data-theme='light'] .machine-progress-track {
   position: relative;
   z-index: 1;
   width: min(520px, 100%);
-  padding: 0.75rem 0.9rem 0.7rem;
+  max-height: min(34vh, 12.5rem);
+  overflow: auto;
+  padding: 0.5rem 0.7rem 0.45rem;
   border: 2px solid #c9a227;
   background: rgba(26, 22, 18, 0.96);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
@@ -5039,17 +5065,25 @@ html[data-theme='light'] .machine-progress-track {
 
 .tutorial-card h2,
 .tutorial-coach h2 {
-  margin: 0.35rem 0 0;
-  font-size: 1.15rem;
+  margin: 0.25rem 0 0;
+  font-size: 1.02rem;
   color: #f0e6d2;
+}
+
+.tutorial-coach.is-compact h2 {
+  font-size: 0.95rem;
 }
 
 .tutorial-card p,
 .tutorial-coach p {
-  margin: 0.45rem 0 0;
+  margin: 0.35rem 0 0;
   color: #c4b8a0;
-  font-size: 0.9rem;
-  line-height: 1.4;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.tutorial-coach.is-compact .tutorial-body {
+  display: none;
 }
 
 .tutorial-action {
