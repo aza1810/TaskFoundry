@@ -10,7 +10,7 @@ import {
   FURNACE_FUEL_CAP,
   FURNACE_INPUT_ORES,
   FURNACE_SLOT_CAP,
-  INSERTER_COOLDOWN,
+  inserterCooldownFor,
   MAX_UNDERGROUND,
   OPPOSITE,
   SMELT_MAP,
@@ -396,7 +396,7 @@ export function simTick(state: GameState, dt: number): GameState {
   let moved = 0
   const bonuses = skillBonuses(state.skills)
   const ugRange = MAX_UNDERGROUND + bonuses.ugBonus
-  const inserterCd = INSERTER_COOLDOWN / bonuses.inserterSpeedMult
+  const inserterCd = inserterCooldownFor(bonuses.inserterSpeedMult)
 
   // --- Drill auto-eject ---
   for (const e of Object.values(entities)) {

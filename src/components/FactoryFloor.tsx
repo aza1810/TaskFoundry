@@ -16,6 +16,7 @@ import {
   RECIPE_MAP,
   formatNum,
   idx,
+  inserterCooldownFor,
   isBeltKind,
   isDrillKind,
   isFurnaceKind,
@@ -35,6 +36,7 @@ import {
 } from '../game/logic'
 import { machineStatus } from '../game/machineStatus'
 import { countPlacedChests, maxChestsFor } from '../game/research'
+import { skillBonuses } from '../game/skills'
 import {
   stockOf,
   sumChestStores,
@@ -316,6 +318,9 @@ export function FactoryFloor({
     placeDir,
   } = useGame()
   const { width, height, tiles, entities, copyCorner, blueprint } = state
+  const inserterCd = inserterCooldownFor(
+    skillBonuses(state.skills).inserterSpeedMult,
+  )
   const rates = useProductionRates(state.stats)
   const goal = activeGoal(state)
   const goalProg = goal?.progress?.(state) ?? null
@@ -1295,6 +1300,7 @@ export function FactoryFloor({
                           filled={filled}
                           toggle={ent.toggle}
                           progress={ent.progress}
+                          cooldown={inserterCd}
                           turn={beltBend?.turn}
                         />
                       </span>

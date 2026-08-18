@@ -342,7 +342,12 @@ export const BASE_MAX_CHESTS = 1
 export const FURNACE_UNLOCK_MAX_CHESTS = 2
 export const BELT_SPEED = 1.8 // tiles per second
 export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT
-export const INSERTER_COOLDOWN = 0.45
+/** Seconds between inserter transfers at logistics 0. Slow enough to read the swing. */
+export const INSERTER_COOLDOWN = 1.2
+
+export function inserterCooldownFor(speedMult = 1): number {
+  return INSERTER_COOLDOWN / Math.max(0.01, speedMult)
+}
 
 export const EMPTY_INVENTORY = (): Inventory => ({
   ironOre: 8,
