@@ -6,9 +6,10 @@ import type { Dir, EntityKind, ItemId, OreId } from '../game/types'
 const ROT: Record<Dir, number> = { N: -90, E: 0, S: 90, W: 180 }
 
 /** Local arm angle: 0 = drop (forward), 180 = pickup (behind). Art points up. */
-function inserterArmAngle(progress: number): number {
+function inserterArmAngle(progress: number, cooldown: number): number {
   if (progress <= 0) return 180
-  const u = 1 - Math.min(1, progress / INSERTER_COOLDOWN)
+  const span = Math.max(0.01, cooldown)
+  const u = 1 - Math.min(1, progress / span)
   if (u < 0.5) return 180 * (1 - u / 0.5)
   return 180 * ((u - 0.5) / 0.5)
 }
@@ -323,20 +324,24 @@ export function InserterSprite({
   dir,
   long,
   progress = 0,
+  cooldown = INSERTER_COOLDOWN,
 }: {
   dir: Dir
   long?: boolean
   /** Remaining transfer cooldown; >0 means currently moving an item. */
   progress?: number
+  /** Full swing duration in seconds (skill-adjusted). */
+  cooldown?: number
 }) {
   const arm = long ? '#e07040' : '#c4a035'
   const tip = long ? '#f0a070' : '#e8c84a'
   // Art points north (arm up); +90° so local up = drop direction.
   const facing = ROT[dir] + 90
-  const armDeg = inserterArmAngle(progress)
+  const swingCd = cooldown > 0 ? cooldown : INSERTER_COOLDOWN
+  const armDeg = inserterArmAngle(progress, swingCd)
   const swinging = progress > 0
   const carrying =
-    swinging && 1 - Math.min(1, progress / INSERTER_COOLDOWN) < 0.55
+    swinging && 1 - Math.min(1, progress / swingCd) < 0.55
   const tipY = long ? 4 : 10
 
   return (
@@ -695,6 +700,7 @@ export function EntitySprite({
   filled,
   toggle,
   progress = 0,
+  cooldown,
   turn,
 }: {
   kind: EntityKind
@@ -705,6 +711,7 @@ export function EntitySprite({
   filled?: boolean
   toggle?: number
   progress?: number
+  cooldown?: number
   turn?: BeltTurn | null
 }) {
   switch (kind) {
@@ -725,9 +732,18 @@ export function EntitySprite({
     case 'electricDrill':
       return <DrillSprite dir={dir} active={active} electric />
     case 'inserter':
-      return <InserterSprite dir={dir} progress={progress} />
+      return (
+        <InserterSprite dir={dir} progress={progress} cooldown={cooldown} />
+      )
     case 'longInserter':
-      return <InserterSprite dir={dir} long progress={progress} />
+      return (
+        <InserterSprite
+          dir={dir}
+          long
+          progress={progress}
+          cooldown={cooldown}
+        />
+      )
     case 'furnace':
       return <FurnaceSprite lit={lit} />
     case 'steelFurnace':

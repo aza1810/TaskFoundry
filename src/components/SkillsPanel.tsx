@@ -155,6 +155,7 @@ export function SkillsPanel() {
           <li>Ore yield ×{bonuses.mineYieldMult.toFixed(2)}</li>
           <li>Furnace speed ×{bonuses.furnaceSpeedMult.toFixed(2)}</li>
           <li>Belt speed ×{bonuses.beltSpeedMult.toFixed(2)}</li>
+          <li>Inserter speed ×{bonuses.inserterSpeedMult.toFixed(2)}</li>
           <li>Assembler speed ×{bonuses.assemblerSpeedMult.toFixed(2)}</li>
           <li>Hand craft ×{bonuses.handCraftSpeedMult.toFixed(2)}</li>
           <li>Task rewards ×{bonuses.habitRewardMult.toFixed(2)}</li>
