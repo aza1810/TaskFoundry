@@ -42,6 +42,8 @@ npm run cap:ios           # open Xcode (macOS)
 
 App id: `online.azztech.taskfoundry`
 
+**Tablets / landscape:** the native apps are universal (iPhone + iPad, phone + tablet). Rotate to landscape and the section dock moves to the left so the factory keeps its height. On wider tablets the inventory / craft / tasks sheets sit beside the floor instead of covering it.
+
 Privacy policy asset for Health Connect: `public/privacypolicy.html` (copied into the web build).
 
 ### Auto-update (no reinstall)

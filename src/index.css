@@ -1263,7 +1263,7 @@ html[data-theme='light'] .primary-btn:disabled {
   position: fixed;
   z-index: 40;
   left: 50%;
-  bottom: calc(5.4rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--dock-bottom, 4.6rem) + 0.8rem);
   transform: translateX(-50%);
   display: flex;
   align-items: stretch;
@@ -2268,7 +2268,7 @@ html[data-theme='light'] .ghost-btn.is-danger {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--dock-bottom, 4.6rem) + 0.9rem);
   z-index: 50;
   transform: translateX(-50%);
   display: flex;
@@ -2287,15 +2287,15 @@ html[data-theme='light'] .ghost-btn.is-danger {
 
 /* Lift toasts above the floating build rail */
 .app-game:has(.build-rail.is-expanded) .toast {
-  bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--dock-bottom, 4.6rem) + 4.9rem);
 }
 
 .app-game.is-playing:not(:has(.build-rail.is-expanded)) .toast {
-  bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--dock-bottom, 4.6rem) + 0.6rem);
 }
 
 .app-game:has(.inspect-modal) .toast {
-  bottom: calc(11rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--dock-bottom, 4.6rem) + 6.4rem);
 }
 
 .toast.is-ok {
@@ -2890,6 +2890,9 @@ html[data-theme='light'] .ghost-btn.is-danger {
 
 /* -- Full-screen mobile factory game -- */
 .app-game {
+  --dock-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  --dock-side: 0px;
+  --sheet-right: 0px;
   height: 100%;
   height: 100dvh;
   max-height: 100dvh;
@@ -2915,7 +2918,7 @@ html[data-theme='light'] .ghost-btn.is-danger {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 0 0 calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  padding: 0 var(--sheet-right) var(--dock-bottom) var(--dock-side);
 }
 
 .game-stage.is-back {
@@ -2929,7 +2932,10 @@ html[data-theme='light'] .ghost-btn.is-danger {
 
 .game-sheet {
   position: fixed;
-  inset: 0 0 calc(4.6rem + env(safe-area-inset-bottom, 0px)) 0;
+  top: 0;
+  right: 0;
+  bottom: var(--dock-bottom);
+  left: var(--dock-side);
   z-index: 20;
   overscroll-behavior: contain;
   display: grid;
@@ -4979,7 +4985,7 @@ html[data-theme='light'] .machine-progress-track {
   display: grid;
   place-items: end center;
   padding: 1rem;
-  padding-bottom: calc(5.6rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--dock-bottom, 4.6rem) + 1rem);
   pointer-events: none;
 }
 
@@ -5000,8 +5006,8 @@ html[data-theme='light'] .machine-progress-track {
 .app-game.is-playing .tutorial-root.is-coach {
   /* Clear the in-game HUD (brand / steps / objective) */
   padding-top: calc(7.1rem + env(safe-area-inset-top, 0px));
-  padding-right: 0.55rem;
-  padding-left: 0.55rem;
+  padding-right: calc(0.55rem + var(--sheet-right, 0px));
+  padding-left: calc(0.55rem + var(--dock-side, 0px));
 }
 
 .app-game.is-playing.has-sheet .tutorial-root.is-coach {
@@ -5942,4 +5948,163 @@ html[data-theme='light'] .away-stats li {
 
 html[data-theme='light'] .away-stat-value {
   color: #8a6a12;
+}
+
+/* -- Landscape: side dock so the factory keeps its height -- */
+@media (orientation: landscape) {
+  .app-game {
+    --dock-bottom: 0px;
+    --dock-side: calc(5.15rem + env(safe-area-inset-left, 0px));
+  }
+
+  .bottom-nav,
+  .bottom-nav.game-dock {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    width: var(--dock-side);
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(7, minmax(0, 1fr));
+    gap: 0.1rem;
+    padding: 0.35rem 0.28rem calc(0.4rem + env(safe-area-inset-bottom, 0px))
+      calc(0.22rem + env(safe-area-inset-left, 0px));
+    border-top: none;
+    border-right: 2px solid #c9a227;
+    box-shadow: 10px 0 32px var(--shadow);
+  }
+
+  .bottom-nav-btn,
+  .bottom-nav-btn.is-floor-btn {
+    min-height: 0;
+    padding: 0.2rem 0.08rem;
+    gap: 0.12rem;
+  }
+
+  .bottom-nav-label,
+  .bottom-nav-btn.is-floor-btn .bottom-nav-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.01em;
+  }
+
+  .toast,
+  .pedo-chip {
+    left: calc(50% + (var(--dock-side) - var(--sheet-right)) / 2);
+  }
+
+  .research-tree-scroll {
+    max-height: min(70vh, 28rem);
+  }
+
+  .factory-viewport {
+    min-height: 0;
+  }
+}
+
+/* Short landscape (phones): keep the HUD from eating the floor. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .game-hud {
+    gap: 0.08rem;
+    padding: 0.08rem 0.35rem 0.12rem;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .game-hud-resources {
+    display: none;
+  }
+
+  .game-objective {
+    padding: 0.12rem 0.4rem 0.16rem;
+    row-gap: 0.08rem;
+  }
+
+  .game-craft-chip {
+    display: none;
+  }
+
+  .app-game.is-playing .tutorial-root.is-coach {
+    padding-top: calc(4.4rem + env(safe-area-inset-top, 0px));
+  }
+
+  .tutorial-coach {
+    max-height: min(28vh, 8.5rem);
+  }
+
+  .auth-screen {
+    min-height: 0;
+    height: 100%;
+    align-content: start;
+    overflow: auto;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .auth-card {
+    padding: 0.95rem 1.05rem 0.9rem;
+  }
+
+  .away-card {
+    max-height: min(94vh, 720px);
+    padding: 0.85rem 1rem 0.95rem;
+  }
+}
+
+/* Tablet landscape: factory stays on the left, sheets dock on the right. */
+@media (orientation: landscape) and (min-width: 900px) {
+  .app-game.has-sheet {
+    --sheet-right: min(28rem, 42vw);
+  }
+
+  .game-stage.is-back {
+    position: relative;
+    inset: auto;
+    z-index: 1;
+    pointer-events: auto;
+    filter: none;
+    transform: none;
+  }
+
+  .game-sheet {
+    left: auto;
+    width: var(--sheet-right);
+    bottom: 0;
+    border-left: 1px solid var(--border-chrome);
+    box-shadow: -16px 0 40px var(--shadow);
+    animation: sheet-slide-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .app-game.has-sheet .atmosphere {
+    opacity: 0.22;
+  }
+
+  .skill-board {
+    grid-template-columns: 1fr;
+  }
+
+  .hero,
+  .steps-hero,
+  .goals-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .minimap {
+    width: 96px;
+    height: 64px;
+  }
+}
+
+@keyframes sheet-slide-in {
+  from {
+    transform: translateX(10%);
+    opacity: 0.45;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-sheet {
+    animation: none;
+  }
 }
