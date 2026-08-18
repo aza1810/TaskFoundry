@@ -139,7 +139,9 @@ function neighborAt(
   const nx = x + dx * dist
   const ny = y + dy * dist
   const tile = getTile(state.tiles, nx, ny)
-  const entity = tile?.entityId ? state.entities[tile.entityId] ?? null : null
+  const found = tile?.entityId ? state.entities[tile.entityId] ?? null : null
+  // Unbuilt construction sites are inert - never a valid source/sink.
+  const entity = found && found.ghost ? null : found
   return { x: nx, y: ny, entity, tile }
 }
 
@@ -173,6 +175,7 @@ export function findUgPartner(
     const e = entities[tile.entityId]
     if (
       e &&
+      !e.ghost &&
       e.kind === 'undergroundBelt' &&
       e.dir === ug.dir &&
       (e.toggle ?? 0) === lookingFor
@@ -325,6 +328,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
   for (let c = 0; c < cycles; c++) {
     for (const id of Object.keys(entities)) {
       const e = entities[id]
+      if (e.ghost) continue
       if (!isDrillKind(e.kind)) continue
 
       const tile = tiles[idx(e.x, e.y)]
@@ -400,12 +404,14 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Drill auto-eject ---
   for (const e of Object.values(entities)) {
+    if (e.ghost) continue
     if (!isDrillKind(e.kind)) continue
     if (tryDrillEject(state, entities, e)) moved += 1
   }
 
   // --- Furnaces (stone + steel) ---
   for (const e of Object.values(entities)) {
+    if (e.ghost) continue
     if (!isFurnaceKind(e.kind)) continue
     const cap = MACHINE_CAP[e.kind] ?? 12
     const seconds = furnaceSecondsFor(e.kind) / bonuses.furnaceSpeedMult
@@ -450,6 +456,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Assemblers: 2 iron plate → 1 gear ---
   for (const e of Object.values(entities)) {
+    if (e.ghost) continue
     if (e.kind !== 'assembler') continue
     const seconds = ASSEMBLER_SECONDS / bonuses.assemblerSpeedMult
     let timeLeft = dt
@@ -476,7 +483,9 @@ export function simTick(state: GameState, dt: number): GameState {
   }
 
   // --- Belts ---
-  const beltOrder = Object.values(entities).filter((e) => isBeltKind(e.kind))
+  const beltOrder = Object.values(entities).filter(
+    (e) => !e.ghost && isBeltKind(e.kind),
+  )
   beltOrder.sort((a, b) => {
     const da = DIR_DELTA[a.dir]
     const db = DIR_DELTA[b.dir]
@@ -503,6 +512,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Underground belts: entrance teleports to exit, exit ejects forward ---
   for (const e of Object.values(entities)) {
+    if (e.ghost) continue
     if (e.kind !== 'undergroundBelt' || !e.cargo) continue
     e.cargo.progress = Math.min(
       1,
@@ -528,6 +538,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // Splitters: alternate forward vs right output
   for (const e of Object.values(entities)) {
+    if (e.ghost) continue
     if (e.kind !== 'splitter' || !e.cargo) continue
     e.cargo.progress = Math.min(
       1,
@@ -557,6 +568,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Inserters ---
   for (const e of Object.values(entities)) {
+    if (e.ghost) continue
     if (!isInserterKind(e.kind)) continue
     e.progress = Math.max(0, e.progress - dt)
     if (e.progress > 0) continue

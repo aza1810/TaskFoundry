@@ -69,6 +69,7 @@ export const ITEM_META: Record<
   chest: { label: 'Iron Chest', short: '▣', color: '#5C6B7A' },
   assembler: { label: 'Assembling Machine', short: '⧉', color: '#4a6a8a' },
   splitter: { label: 'Splitter', short: '⇔', color: '#c4a035' },
+  roboport: { label: 'Roboport', short: '❖', color: '#3fa7c9' },
 }
 
 export const PLACEABLE_META: Record<
@@ -135,6 +136,11 @@ export const PLACEABLE_META: Record<
     inventoryKey: 'splitter',
     hint: 'Alternates items forward and to the right.',
   },
+  roboport: {
+    label: 'Roboport',
+    inventoryKey: 'roboport',
+    hint: 'Drone hub. Each roboport deploys one construction drone that builds everything you place.',
+  },
 }
 
 export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
@@ -150,6 +156,7 @@ export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
   chest: { ironPlate: 4 },
   assembler: { ironPlate: 6, gear: 4, copperPlate: 2 },
   splitter: { ironPlate: 4, gear: 4, copperPlate: 2 },
+  roboport: { ironPlate: 8, gear: 6, copperPlate: 4 },
 }
 
 export type HandRecipe = {
@@ -308,6 +315,14 @@ export const HAND_RECIPES: HandRecipe[] = [
     category: 'building',
     requiresTech: 'steelProcessing',
   },
+  {
+    id: 'craftRoboport',
+    name: 'Craft Roboport',
+    inputs: { ironPlate: 8, gear: 6, copperPlate: 4 },
+    outputs: { roboport: 1 },
+    handSeconds: 12,
+    category: 'building',
+  },
 ]
 
 export const RECIPE_MAP = Object.fromEntries(
@@ -343,6 +358,12 @@ export const FURNACE_UNLOCK_MAX_CHESTS = 2
 export const BELT_SPEED = 1.8 // tiles per second
 export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT
 export const INSERTER_COOLDOWN = 0.45
+/** Construction drone flight speed (tiles per second). */
+export const DRONE_SPEED = 4
+/** Seconds a drone spends assembling a construction ghost. */
+export const DRONE_BUILD_SECONDS = 1.2
+/** How many construction drones each roboport deploys. */
+export const DRONES_PER_ROBOPORT = 1
 
 export const EMPTY_INVENTORY = (): Inventory => ({
   ironOre: 8,
@@ -364,6 +385,7 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   chest: 2,
   assembler: 1,
   splitter: 0,
+  roboport: 1,
 })
 
 export const DEFAULT_HABITS = (): Habit[] => [
@@ -506,6 +528,7 @@ export function entityGlyph(kind: EntityKind, dir: Dir): string {
   if (kind === 'furnace' || kind === 'steelFurnace') return '▲'
   if (kind === 'assembler') return '⧉'
   if (kind === 'splitter') return '⇔'
+  if (kind === 'roboport') return '❖'
   return '▣'
 }
 

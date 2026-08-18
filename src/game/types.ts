@@ -18,6 +18,7 @@ export type ItemId =
   | 'chest'
   | 'assembler'
   | 'splitter'
+  | 'roboport'
 
 export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
@@ -36,6 +37,7 @@ export type EntityKind =
   | 'chest'
   | 'assembler'
   | 'splitter'
+  | 'roboport'
 
 export type TechId =
   | 'automation'
@@ -77,6 +79,27 @@ export interface Entity {
   cargo: BeltCargo | null
   /** Splitter output toggle / UG belt: 0=entrance, 1=exit */
   toggle?: number
+  /** True while this is an unbuilt construction site awaiting a drone. */
+  ghost?: boolean
+  /** Drone build progress 0..1 while a ghost is being assembled. */
+  buildProgress?: number
+}
+
+export type DroneState = 'idle' | 'toSite' | 'building' | 'returning'
+
+/** A construction drone that flies out from a roboport to build ghosts. */
+export interface Drone {
+  id: string
+  /** Roboport entity id this drone returns to. */
+  homeId: string
+  /** Current position in tile coordinates (floats for smooth flight). */
+  x: number
+  y: number
+  state: DroneState
+  /** Ghost entity id currently assigned, if any. */
+  targetId: string | null
+  /** Progress 0..1 while assembling the current ghost. */
+  buildProgress: number
 }
 
 export interface Tile {
@@ -105,6 +128,7 @@ export interface Inventory {
   chest: number
   assembler: number
   splitter: number
+  roboport: number
 }
 
 export type Placeable = Extract<
@@ -121,6 +145,7 @@ export type Placeable = Extract<
   | 'chest'
   | 'assembler'
   | 'splitter'
+  | 'roboport'
 >
 
 export type ToolId = Placeable | 'remove' | 'copy' | 'paste' | 'rotate'
@@ -203,6 +228,8 @@ export interface GameState {
   height: number
   tiles: Tile[]
   entities: Record<string, Entity>
+  /** Construction drones tied to placed roboports. */
+  drones: Drone[]
   inventory: Inventory
   habits: Habit[]
   stepsToday: number

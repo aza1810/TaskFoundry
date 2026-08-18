@@ -1,6 +1,9 @@
 import {
   DEFAULT_HABITS,
   DIR_DELTA,
+  DRONE_BUILD_SECONDS,
+  DRONE_SPEED,
+  DRONES_PER_ROBOPORT,
   EMPTY_INVENTORY,
   GAME_VERSION,
   GRID_H,
@@ -61,6 +64,8 @@ import type {
   BlueprintEntity,
   CraftJob,
   Dir,
+  Drone,
+  Entity,
   GameState,
   Habit,
   HabitCategory,
@@ -82,6 +87,7 @@ export function createInitialState(): GameState {
     height: GRID_H,
     tiles: createTiles(),
     entities: {},
+    drones: [],
     inventory: EMPTY_INVENTORY(),
     habits: DEFAULT_HABITS(),
     stepsToday: 0,
@@ -95,7 +101,7 @@ export function createInitialState(): GameState {
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
-      'Welcome - place a drill on iron ore, or plant a Starter line. Steps power every drill.',
+      'Welcome - drop a Roboport to deploy a construction drone, then place a drill on iron ore. Steps power every drill.',
     offlineReport: null,
     stats: emptyStats(),
     completedGoals: [],
@@ -137,6 +143,7 @@ export function loadState(accountSaveKey?: string): GameState {
       stats: { ...emptyStats(), ...parsed.stats },
       tiles: parsed.tiles?.length === GRID_W * GRID_H ? parsed.tiles : createTiles(),
       entities: parsed.entities ?? {},
+      drones: Array.isArray(parsed.drones) ? parsed.drones : [],
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
       completedGoals: parsed.completedGoals ?? [],
       craftQueue: parsed.craftQueue ?? [],
@@ -168,6 +175,7 @@ export function loadState(accountSaveKey?: string): GameState {
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
     next = scrubChestsToWarehouse(next)
+    next = reconcileDrones(next)
     // Existing saves with a furnace already placed keep the 2nd chest unlock.
     const hasFurnace = Object.values(next.entities).some(
       (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
@@ -410,6 +418,7 @@ export function tickState(state: GameState, now = Date.now()): GameState {
     const step = Math.min(stepSize, left)
     next = simTick(next, step)
     next = tickHandCraft(next, step)
+    next = tickDrones(next, step)
     left -= step
   }
 
@@ -462,6 +471,201 @@ export function setPlaceDir(state: GameState, dir: Dir): GameState {
   return { ...state, placeDir: dir }
 }
 
+/** A built (non-ghost) roboport exists, so new placements become drone jobs. */
+function hasActiveRoboport(state: GameState): boolean {
+  return Object.values(state.entities).some(
+    (e) => e.kind === 'roboport' && !e.ghost,
+  )
+}
+
+function makeDrone(roboport: Entity, seq: number): Drone {
+  return {
+    id: `drone-${roboport.id}-${seq}-${Math.random().toString(36).slice(2, 6)}`,
+    homeId: roboport.id,
+    x: roboport.x,
+    y: roboport.y,
+    state: 'idle',
+    targetId: null,
+    buildProgress: 0,
+  }
+}
+
+/** Keep one drone per built roboport; drop drones whose roboport is gone. */
+function reconcileDrones(state: GameState): GameState {
+  const roboports = Object.values(state.entities).filter(
+    (e) => e.kind === 'roboport' && !e.ghost,
+  )
+  const roboIds = new Set(roboports.map((r) => r.id))
+  let drones = state.drones.filter((d) => roboIds.has(d.homeId))
+  const countByHome: Record<string, number> = {}
+  for (const d of drones) countByHome[d.homeId] = (countByHome[d.homeId] ?? 0) + 1
+
+  let added = false
+  for (const r of roboports) {
+    const have = countByHome[r.id] ?? 0
+    for (let i = have; i < DRONES_PER_ROBOPORT; i++) {
+      drones = [...drones, makeDrone(r, i)]
+      added = true
+    }
+  }
+  if (!added && drones.length === state.drones.length) return state
+  return { ...state, drones }
+}
+
+/** Load a freshly built burner drill with coal from the warehouse. */
+function fuelDrillEntity(state: GameState, id: string): GameState {
+  const e = state.entities[id]
+  if (!e || e.kind !== 'drill') return state
+  const fuel = Math.min(5, stockOf(state, 'coal'))
+  if (fuel <= 0) return state
+  const next = spendStock(state, { coal: fuel })
+  const ent = next.entities[id]
+  return {
+    ...next,
+    entities: {
+      ...next.entities,
+      [id]: { ...ent, store: { ...ent.store, coal: (ent.store.coal ?? 0) + fuel } },
+    },
+  }
+}
+
+/** Turn a construction ghost into a working entity + run post-build setup. */
+function finishGhost(state: GameState, id: string): GameState {
+  const ghost = state.entities[id]
+  if (!ghost) return state
+  const built: Entity = { ...ghost }
+  delete built.ghost
+  delete built.buildProgress
+  let next: GameState = {
+    ...state,
+    entities: { ...state.entities, [id]: built },
+  }
+  if (built.kind === 'drill') next = fuelDrillEntity(next, id)
+  if (built.kind === 'roboport') next = reconcileDrones(next)
+  return next
+}
+
+/** Advance construction drones: assign ghosts, fly, build, return home. */
+export function tickDrones(state: GameState, dt: number): GameState {
+  if (dt <= 0 || state.drones.length === 0) return state
+
+  const ghosts = Object.values(state.entities).filter((e) => e.ghost)
+  const drones = state.drones.map((d) => ({ ...d }))
+  // Ghosts already claimed by a still-valid drone.
+  const claimed = new Set<string>()
+  for (const d of drones) {
+    if (d.targetId && state.entities[d.targetId]?.ghost) claimed.add(d.targetId)
+  }
+
+  const moveToward = (d: Drone, tx: number, ty: number): boolean => {
+    const dx = tx - d.x
+    const dy = ty - d.y
+    const dist = Math.hypot(dx, dy)
+    const step = DRONE_SPEED * dt
+    if (dist <= step || dist < 1e-4) {
+      d.x = tx
+      d.y = ty
+      return true
+    }
+    d.x += (dx / dist) * step
+    d.y += (dy / dist) * step
+    return false
+  }
+
+  let next = state
+  const completed: string[] = []
+
+  for (const d of drones) {
+    // Drop targets that were demolished or already built by someone else.
+    if (d.targetId && !state.entities[d.targetId]?.ghost) {
+      claimed.delete(d.targetId)
+      d.targetId = null
+      d.buildProgress = 0
+      if (d.state === 'toSite' || d.state === 'building') d.state = 'returning'
+    }
+
+    // Idle / free drone looks for the nearest unclaimed ghost.
+    if (!d.targetId && (d.state === 'idle' || d.state === 'returning')) {
+      let best: Entity | null = null
+      let bestD = Infinity
+      for (const g of ghosts) {
+        if (claimed.has(g.id)) continue
+        const dd = (g.x - d.x) ** 2 + (g.y - d.y) ** 2
+        if (dd < bestD) {
+          bestD = dd
+          best = g
+        }
+      }
+      if (best) {
+        d.targetId = best.id
+        claimed.add(best.id)
+        d.state = 'toSite'
+        d.buildProgress = 0
+      }
+    }
+
+    if (d.state === 'toSite' && d.targetId) {
+      const g = state.entities[d.targetId]
+      if (g && moveToward(d, g.x, g.y)) d.state = 'building'
+    } else if (d.state === 'building' && d.targetId) {
+      d.buildProgress += dt / DRONE_BUILD_SECONDS
+      if (d.buildProgress >= 1) {
+        completed.push(d.targetId)
+        claimed.delete(d.targetId)
+        d.targetId = null
+        d.buildProgress = 0
+        d.state = 'returning'
+      }
+    } else if (d.state === 'returning') {
+      const home = state.entities[d.homeId]
+      if (home) {
+        if (moveToward(d, home.x, home.y)) d.state = 'idle'
+      } else {
+        d.state = 'idle'
+      }
+    } else if (d.state === 'idle') {
+      const home = state.entities[d.homeId]
+      if (home) {
+        d.x = home.x
+        d.y = home.y
+      }
+    }
+  }
+
+  // Mirror in-progress build fill onto the ghost entities for rendering.
+  if (completed.length > 0 || drones.some((d) => d.state === 'building')) {
+    const entities = { ...state.entities }
+    for (const d of drones) {
+      if (d.state === 'building' && d.targetId && entities[d.targetId]?.ghost) {
+        entities[d.targetId] = {
+          ...entities[d.targetId],
+          buildProgress: Math.min(0.999, d.buildProgress),
+        }
+      }
+    }
+    next = { ...state, entities, drones }
+  } else {
+    next = { ...state, drones }
+  }
+
+  let lastBuilt: Entity | null = null
+  for (const id of completed) {
+    lastBuilt = next.entities[id] ?? lastBuilt
+    next = finishGhost(next, id)
+  }
+  if (lastBuilt) {
+    const label = PLACEABLE_META[lastBuilt.kind as Placeable]?.label ?? 'building'
+    next = {
+      ...next,
+      unlockedToast:
+        completed.length > 1
+          ? `Drones finished ${completed.length} builds`
+          : `Drone finished ${label}`,
+    }
+  }
+  return next
+}
+
 export function placeEntity(state: GameState, x: number, y: number): GameState {
   if (!inBounds(x, y)) return state
   const tool = state.selected
@@ -496,7 +700,17 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     if (ent.cargo) {
       inventory = gain(inventory, { [ent.cargo.item]: 1 } as Partial<typeof inventory>)
     }
-    return claimGoals({ ...state, tiles, entities, inventory })
+
+    // Release any drone building this tile so it does not get stranded.
+    const drones = state.drones.map((d) =>
+      d.targetId === ent.id
+        ? { ...d, targetId: null, buildProgress: 0, state: 'returning' as const }
+        : d,
+    )
+    let next: GameState = { ...state, tiles, entities, inventory, drones }
+    // Removing a roboport retires its drones.
+    if (ent.kind === 'roboport') next = reconcileDrones(next)
+    return claimGoals(next)
   }
 
   if (tile.entityId) return state
@@ -527,7 +741,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
 
   const placeDir = suggestPlaceDir(state, tool, x, y)
 
-  let inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
+  const inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
   const ent = createEntity(tool, x, y, placeDir)
 
   if (tool === 'splitter') {
@@ -535,6 +749,14 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   }
   if (tool === 'undergroundBelt') {
     ent.toggle = resolveUgToggle(state, x, y, placeDir)
+  }
+
+  // Roboports are the drone hub, so they are always built by hand.
+  // Everything else becomes a construction ghost once a roboport is online.
+  const useGhost = tool !== 'roboport' && hasActiveRoboport(state)
+  if (useGhost) {
+    ent.ghost = true
+    ent.buildProgress = 0
   }
 
   tile.entityId = ent.id
@@ -546,19 +768,17 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     placeDir,
   }
 
-  if (tool === 'drill') {
-    const fuel = Math.min(5, stockOf(next, 'coal'))
-    if (fuel > 0) {
-      next = spendStock(next, { coal: fuel })
-      const e = next.entities[ent.id]
-      next = {
-        ...next,
-        entities: {
-          ...next.entities,
-          [ent.id]: { ...e, store: { ...e.store, coal: fuel } },
-        },
-      }
-    }
+  if (useGhost) {
+    return claimGoals({
+      ...next,
+      unlockedToast: `${meta.label} queued - drone dispatched`,
+    })
+  }
+
+  if (tool === 'drill') next = fuelDrillEntity(next, ent.id)
+  if (tool === 'roboport') {
+    next = reconcileDrones(next)
+    next = { ...next, unlockedToast: 'Roboport online - construction drone deployed' }
   }
 
   return claimGoals(next)
@@ -709,6 +929,7 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
   const drillFuels: { id: string; fuel: number }[] = []
+  const useGhost = hasActiveRoboport(state)
 
   for (const piece of bp) {
     const x = ox + piece.dx
@@ -717,9 +938,23 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     const ent = createEntity(piece.kind, x, y, piece.dir)
     if (piece.toggle !== undefined) ent.toggle = piece.toggle
     if (piece.kind === 'splitter' && ent.toggle === undefined) ent.toggle = 0
+    if (useGhost) {
+      ent.ghost = true
+      ent.buildProgress = 0
+    }
     tiles[idx(x, y)].entityId = ent.id
     entities[ent.id] = ent
-    if (piece.kind === 'drill') drillFuels.push({ id: ent.id, fuel: 5 })
+    if (!useGhost && piece.kind === 'drill') drillFuels.push({ id: ent.id, fuel: 5 })
+  }
+
+  if (useGhost) {
+    return claimGoals({
+      ...state,
+      inventory,
+      tiles,
+      entities,
+      unlockedToast: `${bp.length} buildings queued for drones`,
+    })
   }
 
   let next: GameState = {

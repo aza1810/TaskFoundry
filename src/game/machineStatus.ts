@@ -23,6 +23,27 @@ export function machineStatus(
   tile: Tile | undefined,
   _state: GameState,
 ): MachineStatus {
+  if (ent.ghost) {
+    const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
+    return {
+      label: pct > 0 ? `Under construction ${pct}%` : 'Awaiting construction drone',
+      tone: pct > 0 ? 'work' : 'idle',
+      floorClass: 'is-waiting',
+    }
+  }
+
+  if (ent.kind === 'roboport') {
+    const drones = _state.drones.filter((d) => d.homeId === ent.id)
+    const busy = drones.filter((d) => d.state !== 'idle').length
+    return {
+      label:
+        drones.length === 0
+          ? 'Drone hub'
+          : `Drone hub · ${busy}/${drones.length} out`,
+      tone: busy > 0 ? 'work' : 'ok',
+    }
+  }
+
   if (isDrillKind(ent.kind)) {
     if (!tile?.ore) return { label: 'No ore under drill', tone: 'idle', floorClass: 'is-waiting' }
     if (ent.kind === 'drill' && (ent.store.coal ?? 0) < 0.25) {

@@ -557,6 +557,59 @@ export function AssemblerSprite({ active }: { active?: boolean }) {
   )
 }
 
+export function RoboportSprite({ active }: { active?: boolean }) {
+  return (
+    <svg
+      className={`sprite sprite-roboport ${active ? 'is-active' : ''}`}
+      viewBox="0 0 64 64"
+      aria-hidden
+    >
+      <rect x="6" y="6" width="52" height="52" rx="6" fill="#2a4a58" stroke="#12303c" strokeWidth="2" />
+      <rect x="10" y="10" width="44" height="44" rx="4" fill="#356878" />
+      {/* Corner drone pads */}
+      <rect x="12" y="12" width="14" height="14" rx="2" fill="#1c3a46" />
+      <rect x="38" y="12" width="14" height="14" rx="2" fill="#1c3a46" />
+      <rect x="12" y="38" width="14" height="14" rx="2" fill="#1c3a46" />
+      <rect x="38" y="38" width="14" height="14" rx="2" fill="#1c3a46" />
+      {/* Central landing dish */}
+      <circle cx="32" cy="32" r="12" fill="#123039" stroke="#0c2129" strokeWidth="2" />
+      <circle
+        className="roboport-core"
+        cx="32"
+        cy="32"
+        r="7"
+        fill={active ? '#7fe8ff' : '#4a8fa5'}
+        stroke="#0c2129"
+        strokeWidth="1.5"
+      />
+      <circle cx="32" cy="32" r="2.5" fill="#eafcff" />
+      {/* Beacon lamps */}
+      <circle cx="19" cy="19" r="2" fill={active ? '#8dffcf' : '#2c5460'} />
+      <circle cx="45" cy="19" r="2" fill={active ? '#8dffcf' : '#2c5460'} />
+      <circle cx="19" cy="45" r="2" fill={active ? '#8dffcf' : '#2c5460'} />
+      <circle cx="45" cy="45" r="2" fill={active ? '#8dffcf' : '#2c5460'} />
+    </svg>
+  )
+}
+
+export function DroneSprite() {
+  return (
+    <svg className="sprite sprite-drone" viewBox="0 0 32 32" aria-hidden>
+      <ellipse className="drone-shadow" cx="16" cy="27" rx="7" ry="2.4" fill="rgba(0,0,0,0.35)" />
+      {/* Rotor blur */}
+      <ellipse cx="9" cy="11" rx="6" ry="1.8" fill="#bfe9f5" opacity="0.7" />
+      <ellipse cx="23" cy="11" rx="6" ry="1.8" fill="#bfe9f5" opacity="0.7" />
+      <line x1="9" y1="11" x2="14" y2="16" stroke="#123039" strokeWidth="2" />
+      <line x1="23" y1="11" x2="18" y2="16" stroke="#123039" strokeWidth="2" />
+      {/* Body */}
+      <rect x="11" y="14" width="10" height="8" rx="3" fill="#3fa7c9" stroke="#0c2129" strokeWidth="1.5" />
+      <circle cx="16" cy="18" r="2.2" fill="#eafcff" />
+      {/* Carried spark */}
+      <circle className="drone-spark" cx="16" cy="24" r="1.8" fill="#ffe08a" />
+    </svg>
+  )
+}
+
 const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   ironOre: { fill: '#8B7355', edge: '#5a4a38' },
   copperOre: { fill: '#C4783A', edge: '#8a4a28' },
@@ -577,6 +630,7 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   undergroundBelt: { fill: '#c4783a', edge: '#6a3a18' },
   electricDrill: { fill: '#3D9E5F', edge: '#1a5030' },
   splitter: { fill: '#c4a035', edge: '#6a5010' },
+  roboport: { fill: '#3fa7c9', edge: '#1a5060' },
 }
 
 const PLACEABLE_ITEMS = new Set<ItemId>([
@@ -592,6 +646,7 @@ const PLACEABLE_ITEMS = new Set<ItemId>([
   'chest',
   'assembler',
   'splitter',
+  'roboport',
 ])
 
 function OreItemSprite({ item }: { item: 'ironOre' | 'copperOre' | 'coal' }) {
@@ -738,6 +793,8 @@ export function EntitySprite({
       return <AssemblerSprite active={active || lit} />
     case 'splitter':
       return <SplitterSprite dir={dir} moving={moving} />
+    case 'roboport':
+      return <RoboportSprite active={active} />
   }
 }
 
