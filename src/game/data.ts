@@ -359,9 +359,9 @@ export const BELT_SPEED = 1.8 // tiles per second
 export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT
 export const INSERTER_COOLDOWN = 0.45
 /** Construction drone flight speed (tiles per second). */
-export const DRONE_SPEED = 4
+export const DRONE_SPEED = 2
 /** Seconds a drone spends assembling a construction ghost. */
-export const DRONE_BUILD_SECONDS = 1.2
+export const DRONE_BUILD_SECONDS = 2.4
 /** How many construction drones each roboport deploys. */
 export const DRONES_PER_ROBOPORT = 1
 
