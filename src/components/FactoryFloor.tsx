@@ -296,13 +296,24 @@ function buzz(ms = 12) {
 
 let floaterSeq = 0
 
+/** Stable empty results so the grid stays frozen (no re-render churn) while hidden. */
+const EMPTY_IO: { pickup: Set<string>; drop: Set<string> } = {
+  pickup: new Set(),
+  drop: new Set(),
+}
+const EMPTY_BENDS = new Map<string, ReturnType<typeof getBeltBend>>()
+const EMPTY_GHOSTS: ReturnType<typeof tutorialGhosts> = []
+
 export function FactoryFloor({
   highlight = null,
+  active = true,
   onOpenTasks,
   onOpenSteps,
   onOpenSettings,
 }: {
   highlight?: Highlight
+  /** False while a sheet/tab covers the factory - skip all per-tick render work. */
+  active?: boolean
   onOpenTasks: () => void
   onOpenSteps: () => void
   onOpenSettings: () => void
@@ -344,8 +355,8 @@ export function FactoryFloor({
   )
   const tourTool = tutorialRecommendedTool(tourChecks, tourStep?.autoSelect)
   const planGhosts = useMemo(
-    () => tutorialGhosts(state, tourStep, tourTool),
-    [state, tourStep, tourTool],
+    () => (active ? tutorialGhosts(state, tourStep, tourTool) : EMPTY_GHOSTS),
+    [state, tourStep, tourTool, active],
   )
   const ghostAt = useMemo(() => {
     const map = new Map<string, (typeof planGhosts)[number]>()
@@ -998,6 +1009,7 @@ export function FactoryFloor({
               : 'Drag pans the map'
 
   const activeMachines = useMemo(() => {
+    if (!active) return 0
     let n = 0
     for (const e of Object.values(entities)) {
       if (e.kind === 'drill' && (e.store.coal ?? 0) > 0) n++
@@ -1005,7 +1017,7 @@ export function FactoryFloor({
       else if ((isFurnaceKind(e.kind) || e.kind === 'assembler') && e.smelting) n++
     }
     return n
-  }, [entities])
+  }, [entities, active])
 
   const rateLine =
     rates.ore > 0.05
@@ -1018,6 +1030,7 @@ export function FactoryFloor({
 
   /** Green IO marks: pickup (behind) / drop (front) for every inserter + place ghost. */
   const inserterIo = useMemo(() => {
+    if (!active) return EMPTY_IO
     const pickup = new Set<string>()
     const drop = new Set<string>()
     const mark = (
@@ -1046,16 +1059,17 @@ export function FactoryFloor({
     }
 
     return { pickup, drop }
-  }, [entities, width, height, hover, selected, hoverDir])
+  }, [entities, width, height, hover, selected, hoverDir, active])
 
   const beltBends = useMemo(() => {
+    if (!active) return EMPTY_BENDS
     const map = new Map<string, ReturnType<typeof getBeltBend>>()
     for (const e of Object.values(entities)) {
       if (!isBeltKind(e.kind)) continue
       map.set(e.id, getBeltBend(tiles, entities, e, width, height))
     }
     return map
-  }, [entities, tiles, width, height])
+  }, [entities, tiles, width, height, active])
 
   return (
     <section className="factory-floor is-playable">
@@ -1207,6 +1221,8 @@ export function FactoryFloor({
             height: height * CELL,
           }}
         >
+          {active && (
+            <>
           <div
             className="factory-grid"
             style={{
@@ -1441,6 +1457,8 @@ export function FactoryFloor({
               <DroneSprite />
             </span>
           ))}
+            </>
+          )}
         </div>
 
         <div className="viewport-fabs">
@@ -1479,17 +1497,19 @@ export function FactoryFloor({
           </button>
         </div>
 
-        <Minimap
-          width={width}
-          height={height}
-          tiles={tiles}
-          entities={entities}
-          state={state}
-          pan={pan}
-          zoom={zoom}
-          viewportRef={viewportRef}
-          onJump={centerOn}
-        />
+        {active && (
+          <Minimap
+            width={width}
+            height={height}
+            tiles={tiles}
+            entities={entities}
+            state={state}
+            pan={pan}
+            zoom={zoom}
+            viewportRef={viewportRef}
+            onJump={centerOn}
+          />
+        )}
 
         {(selected || paintActive) && (
           <div
