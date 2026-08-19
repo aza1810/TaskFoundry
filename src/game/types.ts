@@ -19,6 +19,7 @@ export type ItemId =
   | 'assembler'
   | 'splitter'
   | 'roboport'
+  | 'wood'
 
 export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
@@ -38,6 +39,7 @@ export type EntityKind =
   | 'assembler'
   | 'splitter'
   | 'roboport'
+  | 'tree'
 
 export type TechId =
   | 'automation'
@@ -81,8 +83,10 @@ export interface Entity {
   toggle?: number
   /** True while this is an unbuilt construction site awaiting a drone. */
   ghost?: boolean
-  /** Drone build progress 0..1 while a ghost is being assembled. */
+  /** Drone build progress 0..1 while a ghost is being assembled (or a tree cut). */
   buildProgress?: number
+  /** Tree only: flagged for a drone to chop down. */
+  marked?: boolean
 }
 
 export type DroneState = 'idle' | 'toSite' | 'building' | 'returning'
@@ -129,6 +133,7 @@ export interface Inventory {
   assembler: number
   splitter: number
   roboport: number
+  wood: number
 }
 
 export type Placeable = Extract<
@@ -264,6 +269,8 @@ export interface GameState {
   /** null = finished or not started after complete; 0+ = active step index */
   tutorialStep: number | null
   tutorialComplete: boolean
+  /** One-time flag so map trees are scattered once (and not respawned each load). */
+  treesSeeded: boolean
 }
 
 export type TabId =

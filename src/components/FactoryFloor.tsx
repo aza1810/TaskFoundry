@@ -114,6 +114,7 @@ const HUD_RESOURCES: ItemId[] = [
   'copperPlate',
   'gear',
   'steel',
+  'wood',
 ]
 
 type Highlight =
@@ -625,7 +626,14 @@ export function FactoryFloor({
       )
 
       if (selected === 'remove') {
-        if (removed) {
+        const beforeEnt = beforeId ? state.entities[beforeId] : null
+        if (beforeEnt?.kind === 'tree') {
+          // Toggle a drone cut order rather than instant-removing.
+          const afterEnt = afterId ? preview.entities[afterId] : null
+          const nowMarked = Boolean(afterEnt?.marked)
+          buzz(6)
+          spawnFloater(x, y, nowMarked ? 'cut' : 'keep', nowMarked ? 'place' : 'warn')
+        } else if (removed) {
           setFlash(key)
           window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
           buzz(8)
@@ -1252,6 +1260,7 @@ export function FactoryFloor({
                   isHover && !!selected && !isEditMetaTool(selected)
 
                 const isGhost = Boolean(ent?.ghost)
+                const isMarkedTree = ent?.kind === 'tree' && Boolean(ent.marked)
                 const lit = Boolean(
                   ent &&
                     !isGhost &&
@@ -1294,6 +1303,7 @@ export function FactoryFloor({
                       bpGhost ? 'is-bp-ghost' : '',
                       highlight === 'ore' && tile.ore === 'ironOre' && !ent ? 'is-ore-hint' : '',
                       isGhost ? 'is-constructing' : '',
+                      isMarkedTree ? 'is-marked-tree' : '',
                       planGhost ? 'is-plan-ghost' : '',
                       planGhost?.next ? 'is-plan-next' : '',
                       showGhost ? (valid ? 'is-valid-ghost' : 'is-invalid-ghost') : '',
@@ -1402,7 +1412,7 @@ export function FactoryFloor({
                       />
                     )}
 
-                    {ent && isGhost && (
+                    {ent && (isGhost || isMarkedTree) && (
                       <span
                         className="build-bar"
                         style={{
@@ -1975,6 +1985,7 @@ function Minimap({
           if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
           else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
           else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
+          else if (kind === 'tree') ctx.fillStyle = ent.marked ? '#e0b050' : '#2f6b32'
           else ctx.fillStyle = '#7b8792'
           ctx.fillRect(x * scale, y * scale, scale, scale)
 

@@ -8,6 +8,9 @@ import {
   GAME_VERSION,
   GRID_H,
   GRID_W,
+  TREE_COUNT,
+  TREE_CUT_SECONDS,
+  WOOD_PER_TREE,
   HABIT_REWARDS,
   HAND_RECIPES,
   ITEM_META,
@@ -36,7 +39,9 @@ import { GOALS, TIPS, emptyStats } from './goals'
 import { createEntity, createTiles, getTile } from './grid'
 import {
   canAffordStock,
+  canChestsAccept,
   depositStock,
+  depositToChests,
   isWarehouseItem,
   scrubChestsToWarehouse,
   spendStock,
@@ -77,8 +82,38 @@ import type {
   TechId,
 } from './types'
 
+/** Scatter natural trees on empty (non-ore) tiles in loose clusters. */
+export function scatterTrees(state: GameState, count = TREE_COUNT): GameState {
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  const entities = { ...state.entities }
+  const free = (x: number, y: number) => {
+    if (!inBounds(x, y)) return false
+    const t = tiles[idx(x, y)]
+    return !t.entityId && !t.ore
+  }
+  const clusters = Math.max(1, Math.round(count / 4))
+  const centers = Array.from({ length: clusters }, () => ({
+    x: Math.floor(Math.random() * GRID_W),
+    y: Math.floor(Math.random() * GRID_H),
+  }))
+  let placed = 0
+  let attempts = 0
+  while (placed < count && attempts < count * 40) {
+    attempts++
+    const c = centers[Math.floor(Math.random() * centers.length)]
+    const x = c.x + Math.round((Math.random() - 0.5) * 6)
+    const y = c.y + Math.round((Math.random() - 0.5) * 6)
+    if (!free(x, y)) continue
+    const ent = createEntity('tree', x, y, 'N')
+    tiles[idx(x, y)].entityId = ent.id
+    entities[ent.id] = ent
+    placed++
+  }
+  return { ...state, tiles, entities, treesSeeded: true }
+}
+
 export function createInitialState(): GameState {
-  return {
+  const base: GameState = {
     version: GAME_VERSION,
     playerName: 'Operator',
     level: 1,
@@ -117,7 +152,9 @@ export function createInitialState(): GameState {
     contracts: [],
     tutorialStep: 0,
     tutorialComplete: false,
+    treesSeeded: false,
   }
+  return scatterTrees(base)
 }
 
 export function loadState(accountSaveKey?: string): GameState {
@@ -172,9 +209,11 @@ export function loadState(accountSaveKey?: string): GameState {
         parsed.tutorialComplete === true ||
         (typeof parsed.tutorialStep === 'number' &&
           parsed.tutorialStep >= TUTORIAL_STEP_COUNT),
+      treesSeeded: parsed.treesSeeded === true,
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
     next = scrubChestsToWarehouse(next)
+    if (!next.treesSeeded) next = scatterTrees(next)
     next = reconcileDrones(next)
     // Existing saves with a furnace already placed keep the 2nd chest unlock.
     const hasFurnace = Object.values(next.entities).some(
@@ -545,16 +584,41 @@ function finishGhost(state: GameState, id: string): GameState {
   return next
 }
 
+/** A drone finished chopping a tree: clear the tile and stack wood in a chest. */
+function fellTree(state: GameState, id: string): GameState {
+  const tree = state.entities[id]
+  if (!tree || tree.kind !== 'tree') return state
+  // Requires a chest with space - otherwise leave the tree standing to retry.
+  if (!canChestsAccept(state, 'wood')) return state
+  const entities = { ...state.entities }
+  delete entities[id]
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  tiles[idx(tree.x, tree.y)].entityId = null
+  return depositToChests({ ...state, entities, tiles }, 'wood', WOOD_PER_TREE)
+}
+
+/** A ghost to build, or a marked tree a drone can chop (needs chest space). */
+function isDroneJob(ent: Entity | undefined, woodOk: boolean): boolean {
+  if (!ent) return false
+  if (ent.ghost) return true
+  return ent.kind === 'tree' && Boolean(ent.marked) && woodOk
+}
+
 /** Advance construction drones: assign ghosts, fly, build, return home. */
 export function tickDrones(state: GameState, dt: number): GameState {
   if (dt <= 0 || state.drones.length === 0) return state
 
-  const ghosts = Object.values(state.entities).filter((e) => e.ghost)
+  const woodOk = canChestsAccept(state, 'wood')
+  const jobs = Object.values(state.entities).filter((e) =>
+    isDroneJob(e, woodOk),
+  )
   const drones = state.drones.map((d) => ({ ...d }))
-  // Ghosts already claimed by a still-valid drone.
+  // Jobs already claimed by a still-valid drone.
   const claimed = new Set<string>()
   for (const d of drones) {
-    if (d.targetId && state.entities[d.targetId]?.ghost) claimed.add(d.targetId)
+    if (d.targetId && isDroneJob(state.entities[d.targetId], woodOk)) {
+      claimed.add(d.targetId)
+    }
   }
 
   const moveToward = (d: Drone, tx: number, ty: number): boolean => {
@@ -576,19 +640,19 @@ export function tickDrones(state: GameState, dt: number): GameState {
   const completed: string[] = []
 
   for (const d of drones) {
-    // Drop targets that were demolished or already built by someone else.
-    if (d.targetId && !state.entities[d.targetId]?.ghost) {
+    // Drop targets that were finished, demolished, or lost their chest space.
+    if (d.targetId && !isDroneJob(state.entities[d.targetId], woodOk)) {
       claimed.delete(d.targetId)
       d.targetId = null
       d.buildProgress = 0
       if (d.state === 'toSite' || d.state === 'building') d.state = 'returning'
     }
 
-    // Idle / free drone looks for the nearest unclaimed ghost.
+    // Idle / free drone looks for the nearest unclaimed job.
     if (!d.targetId && (d.state === 'idle' || d.state === 'returning')) {
       let best: Entity | null = null
       let bestD = Infinity
-      for (const g of ghosts) {
+      for (const g of jobs) {
         if (claimed.has(g.id)) continue
         const dd = (g.x - d.x) ** 2 + (g.y - d.y) ** 2
         if (dd < bestD) {
@@ -608,7 +672,9 @@ export function tickDrones(state: GameState, dt: number): GameState {
       const g = state.entities[d.targetId]
       if (g && moveToward(d, g.x, g.y)) d.state = 'building'
     } else if (d.state === 'building' && d.targetId) {
-      d.buildProgress += dt / DRONE_BUILD_SECONDS
+      const job = state.entities[d.targetId]
+      const dur = job?.kind === 'tree' ? TREE_CUT_SECONDS : DRONE_BUILD_SECONDS
+      d.buildProgress += dt / dur
       if (d.buildProgress >= 1) {
         completed.push(d.targetId)
         claimed.delete(d.targetId)
@@ -636,7 +702,7 @@ export function tickDrones(state: GameState, dt: number): GameState {
   if (completed.length > 0 || drones.some((d) => d.state === 'building')) {
     const entities = { ...state.entities }
     for (const d of drones) {
-      if (d.state === 'building' && d.targetId && entities[d.targetId]?.ghost) {
+      if (d.state === 'building' && d.targetId && entities[d.targetId]) {
         entities[d.targetId] = {
           ...entities[d.targetId],
           buildProgress: Math.min(0.999, d.buildProgress),
@@ -648,19 +714,26 @@ export function tickDrones(state: GameState, dt: number): GameState {
     next = { ...state, drones }
   }
 
-  let lastBuilt: Entity | null = null
+  let lastLabel: string | null = null
   for (const id of completed) {
-    lastBuilt = next.entities[id] ?? lastBuilt
-    next = finishGhost(next, id)
+    const done = next.entities[id]
+    if (done?.kind === 'tree') {
+      next = fellTree(next, id)
+      lastLabel = 'a tree'
+    } else {
+      next = finishGhost(next, id)
+      lastLabel = PLACEABLE_META[done?.kind as Placeable]?.label ?? 'building'
+    }
   }
-  if (lastBuilt) {
-    const label = PLACEABLE_META[lastBuilt.kind as Placeable]?.label ?? 'building'
+  if (lastLabel) {
     next = {
       ...next,
       unlockedToast:
         completed.length > 1
-          ? `Drones finished ${completed.length} builds`
-          : `Drone finished ${label}`,
+          ? `Drones finished ${completed.length} jobs`
+          : lastLabel === 'a tree'
+            ? 'Drone chopped a tree (+wood)'
+            : `Drone finished ${lastLabel}`,
     }
   }
   return next
@@ -690,6 +763,35 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     if (!tile.entityId) return state
     const ent = state.entities[tile.entityId]
     if (!ent) return state
+
+    // Trees are chopped by drones, not the player. Demolish toggles a cut order.
+    if (ent.kind === 'tree') {
+      const entities = { ...state.entities }
+      if (ent.marked) {
+        entities[ent.id] = { ...ent, marked: false, buildProgress: 0 }
+        const drones = state.drones.map((d) =>
+          d.targetId === ent.id
+            ? { ...d, targetId: null, buildProgress: 0, state: 'returning' as const }
+            : d,
+        )
+        return { ...state, entities, drones, unlockedToast: 'Cut order cancelled' }
+      }
+      if (!canChestsAccept(state, 'wood')) {
+        return {
+          ...state,
+          unlockedToast: 'Place a chest with a free slot so drones can stack the wood',
+        }
+      }
+      entities[ent.id] = { ...ent, marked: true }
+      return {
+        ...state,
+        entities,
+        unlockedToast: hasActiveRoboport(state)
+          ? 'Tree marked - a drone will chop it'
+          : 'Tree marked - build a roboport so a drone can chop it',
+      }
+    }
+
     const entities = { ...state.entities }
     delete entities[ent.id]
     tile.entityId = null
@@ -846,7 +948,7 @@ function handleCopyClick(state: GameState, x: number, y: number): GameState {
     for (let cx = x0; cx <= x1; cx++) {
       const tile = state.tiles[idx(cx, cy)]
       const ent = tile.entityId ? state.entities[tile.entityId] : null
-      if (!ent) continue
+      if (!ent || ent.kind === 'tree') continue
       blueprint.push({
         kind: ent.kind as Placeable,
         dx: cx - x0,

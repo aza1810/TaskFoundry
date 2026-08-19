@@ -2811,6 +2811,22 @@ html[data-theme='light'] .ghost-btn.is-danger {
   transition: width 0.2s linear;
 }
 
+/* A tree flagged for drones to chop down. */
+.cell.is-marked-tree::after {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  z-index: 4;
+  border: 2px dashed rgba(240, 176, 64, 0.95);
+  border-radius: 4px;
+  pointer-events: none;
+  animation: ghost-pulse 1.1s ease-in-out infinite alternate;
+}
+
+.cell.is-marked-tree .cell-ent {
+  filter: drop-shadow(0 0 5px rgba(240, 120, 40, 0.85));
+}
+
 /* Construction drones fly between the roboport and build sites. */
 .construction-drone {
   position: absolute;

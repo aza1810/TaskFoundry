@@ -20,6 +20,7 @@ export const WAREHOUSE_ITEMS: ItemId[] = [
   'copperPlate',
   'steel',
   'gear',
+  'wood',
 ]
 
 const WAREHOUSE_SET = new Set<ItemId>(WAREHOUSE_ITEMS)
@@ -185,6 +186,45 @@ export function depositStock(
   }
 
   return { ...state, entities, inventory }
+}
+
+/** True if at least one floor chest can accept one more of `item`. */
+export function canChestsAccept(state: GameState, item: ItemId): boolean {
+  for (const e of Object.values(state.entities)) {
+    if (e.kind !== 'chest') continue
+    const have = asItemCount(e.store[item] ?? 0)
+    if (have > 0) {
+      if (have < CHEST_STACK_SIZE) return true
+      continue
+    }
+    const used = Object.values(e.store).filter((n) => (n ?? 0) > 0).length
+    if (used < CHEST_SLOT_COUNT) return true
+  }
+  return false
+}
+
+/** Deposit `n` of `item` into floor chests only (no backpack overflow). */
+export function depositToChests(
+  state: GameState,
+  item: ItemId,
+  n: number,
+): GameState {
+  let left = asItemCount(n)
+  if (left <= 0) return state
+  const entities: Record<string, Entity> = { ...state.entities }
+  let changed = false
+  for (const [id, e] of Object.entries(state.entities)) {
+    if (left <= 0) break
+    if (e.kind !== 'chest') continue
+    const store = { ...e.store }
+    const put = putInChestStore(store, item, left)
+    if (put > 0) {
+      entities[id] = { ...e, store }
+      left -= put
+      changed = true
+    }
+  }
+  return changed ? { ...state, entities } : state
 }
 
 /**
