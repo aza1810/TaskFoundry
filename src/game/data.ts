@@ -70,6 +70,7 @@ export const ITEM_META: Record<
   assembler: { label: 'Assembling Machine', short: '⧉', color: '#4a6a8a' },
   splitter: { label: 'Splitter', short: '⇔', color: '#c4a035' },
   roboport: { label: 'Roboport', short: '❖', color: '#3fa7c9' },
+  wood: { label: 'Wood', short: 'Wd', color: '#7a5230' },
 }
 
 export const PLACEABLE_META: Record<
@@ -369,6 +370,12 @@ export const DRONE_SPEED = 2
 export const DRONE_BUILD_SECONDS = 2.4
 /** How many construction drones each roboport deploys. */
 export const DRONES_PER_ROBOPORT = 1
+/** Seconds a drone spends chopping a marked tree. */
+export const TREE_CUT_SECONDS = 2
+/** Wood dropped into a chest when a drone fells a tree. */
+export const WOOD_PER_TREE = 4
+/** How many trees to scatter across the map. */
+export const TREE_COUNT = 22
 
 export const EMPTY_INVENTORY = (): Inventory => ({
   ironOre: 8,
@@ -391,6 +398,7 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   assembler: 1,
   splitter: 0,
   roboport: 1,
+  wood: 0,
 })
 
 export const DEFAULT_HABITS = (): Habit[] => [
@@ -534,6 +542,7 @@ export function entityGlyph(kind: EntityKind, dir: Dir): string {
   if (kind === 'assembler') return '⧉'
   if (kind === 'splitter') return '⇔'
   if (kind === 'roboport') return '❖'
+  if (kind === 'tree') return '♣'
   return '▣'
 }
 

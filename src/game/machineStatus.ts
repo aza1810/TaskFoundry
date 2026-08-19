@@ -32,6 +32,18 @@ export function machineStatus(
     }
   }
 
+  if (ent.kind === 'tree') {
+    if (ent.marked) {
+      const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
+      return {
+        label: pct > 0 ? `Drone chopping ${pct}%` : 'Marked - waiting for a drone',
+        tone: pct > 0 ? 'work' : 'idle',
+        floorClass: 'is-waiting',
+      }
+    }
+    return { label: 'Tree - Demolish to mark for drones', tone: 'idle' }
+  }
+
   if (ent.kind === 'roboport') {
     const drones = _state.drones.filter((d) => d.homeId === ent.id)
     const busy = drones.filter((d) => d.state !== 'idle').length

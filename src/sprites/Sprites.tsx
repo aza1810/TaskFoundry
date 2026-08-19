@@ -615,6 +615,20 @@ export function DroneSprite() {
   )
 }
 
+export const TreeSprite = memo(function TreeSprite() {
+  return (
+    <svg className="sprite sprite-tree" viewBox="0 0 64 64" aria-hidden>
+      <ellipse cx="32" cy="55" rx="13" ry="4" fill="rgba(0,0,0,0.28)" />
+      <rect x="28" y="38" width="8" height="16" rx="2" fill="#6b4a2a" stroke="#3d2a15" strokeWidth="1.5" />
+      <circle cx="32" cy="26" r="16" fill="#2f6b32" stroke="#1c3f1e" strokeWidth="2" />
+      <circle cx="22" cy="32" r="11" fill="#357a38" stroke="#1c3f1e" strokeWidth="1.5" />
+      <circle cx="42" cy="32" r="11" fill="#357a38" stroke="#1c3f1e" strokeWidth="1.5" />
+      <circle cx="27" cy="21" r="5" fill="#4c9a4f" opacity="0.85" />
+      <circle cx="38" cy="24" r="4" fill="#4c9a4f" opacity="0.7" />
+    </svg>
+  )
+})
+
 const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   ironOre: { fill: '#8B7355', edge: '#5a4a38' },
   copperOre: { fill: '#C4783A', edge: '#8a4a28' },
@@ -636,6 +650,7 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   electricDrill: { fill: '#3D9E5F', edge: '#1a5030' },
   splitter: { fill: '#c4a035', edge: '#6a5010' },
   roboport: { fill: '#3fa7c9', edge: '#1a5060' },
+  wood: { fill: '#8a5a30', edge: '#4a2f18' },
 }
 
 const PLACEABLE_ITEMS = new Set<ItemId>([
@@ -730,6 +745,17 @@ export const ItemSprite = memo(function ItemSprite({ item }: { item: ItemId }) {
   if (item === 'gear') {
     return <GearItemSprite />
   }
+  if (item === 'wood') {
+    return (
+      <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
+        <rect x="2" y="2" width="28" height="28" rx="3" fill="#1a1612" opacity="0.28" />
+        <rect x="6" y="12" width="20" height="9" rx="2.5" fill="#8a5a30" stroke="#4a2f18" strokeWidth="1.6" />
+        <ellipse cx="26" cy="16.5" rx="2.6" ry="4.5" fill="#c79a63" stroke="#4a2f18" strokeWidth="1.2" />
+        <circle cx="26" cy="16.5" r="1.4" fill="#8a5a30" />
+        <path d="M9 15h12M9 18h10" stroke="#5f3e22" strokeWidth="1" opacity="0.6" />
+      </svg>
+    )
+  }
   if (PLACEABLE_ITEMS.has(item)) {
     return (
       <span className="sprite sprite-item sprite-item-entity" aria-hidden>
@@ -811,6 +837,8 @@ export const EntitySprite = memo(function EntitySprite({
       return <SplitterSprite dir={dir} moving={moving} />
     case 'roboport':
       return <RoboportSprite active={active} />
+    case 'tree':
+      return <TreeSprite />
   }
 })
 
