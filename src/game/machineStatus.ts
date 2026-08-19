@@ -3,6 +3,7 @@ import {
   CHEST_SLOT_COUNT,
   CHEST_STACK_SIZE,
   FURNACE_COAL_PER_SMELT,
+  fuelUnits,
   isDrillKind,
   isFurnaceKind,
 } from './data'
@@ -58,8 +59,8 @@ export function machineStatus(
 
   if (isDrillKind(ent.kind)) {
     if (!tile?.ore) return { label: 'No ore under drill', tone: 'idle', floorClass: 'is-waiting' }
-    if (ent.kind === 'drill' && (ent.store.coal ?? 0) < 0.25) {
-      return { label: 'Needs coal', tone: 'warn', floorClass: 'is-needs-fuel' }
+    if (ent.kind === 'drill' && fuelUnits(ent.store) < 0.25) {
+      return { label: 'Needs fuel (coal or wood)', tone: 'warn', floorClass: 'is-needs-fuel' }
     }
     const cap = MACHINE_CAP[ent.kind] ?? 5
     const oreHeld = Object.entries(ent.store)
@@ -78,20 +79,20 @@ export function machineStatus(
     if (ent.smelting) return { label: 'Smelting', tone: 'work' }
     const coalNeed = FURNACE_COAL_PER_SMELT
     const hasOre = (ent.store.ironOre ?? 0) >= 1 || (ent.store.copperOre ?? 0) >= 1
-    const hasCoal = (ent.store.coal ?? 0) >= coalNeed
+    const hasFuel = fuelUnits(ent.store) >= coalNeed
     const plates =
       (ent.store.ironPlate ?? 0) + (ent.store.copperPlate ?? 0) + (ent.store.steel ?? 0)
     const cap = MACHINE_CAP[ent.kind] ?? 12
     if (plates >= cap) {
       return { label: 'Output full', tone: 'warn', floorClass: 'is-blocked' }
     }
-    if (!hasOre && !hasCoal) {
-      return { label: 'Needs ore + coal', tone: 'warn', floorClass: 'is-waiting' }
+    if (!hasOre && !hasFuel) {
+      return { label: 'Needs ore + fuel', tone: 'warn', floorClass: 'is-waiting' }
     }
     if (!hasOre) return { label: 'Waiting for ore', tone: 'idle', floorClass: 'is-waiting' }
-    if (!hasCoal) {
+    if (!hasFuel) {
       return {
-        label: 'Needs coal (fuel)',
+        label: 'Needs fuel (coal or wood)',
         tone: 'warn',
         floorClass: 'is-needs-fuel',
       }

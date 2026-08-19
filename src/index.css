@@ -2827,6 +2827,19 @@ html[data-theme='light'] .ghost-btn.is-danger {
   filter: drop-shadow(0 0 5px rgba(240, 120, 40, 0.85));
 }
 
+/* Trees render ~1.5 tiles tall (canopy overflows upward) but occupy one tile. */
+.cell.has-tree {
+  overflow: visible;
+  z-index: 3;
+}
+
+.cell.has-tree .cell-ent {
+  inset: auto 2% 2% 2%;
+  height: 165%;
+  z-index: 3;
+  overflow: visible;
+}
+
 /* Construction drones fly between the roboport and build sites. */
 .construction-drone {
   position: absolute;
@@ -4339,6 +4352,13 @@ html[data-theme='light'] .machine-progress-track {
   letter-spacing: 0.02em;
   padding: 0.28rem 0.5rem;
   border-radius: 999px;
+}
+
+.rail-chip.is-on {
+  border-color: #7dff9a;
+  background: rgba(40, 80, 48, 0.95);
+  color: #d8ffe0;
+  box-shadow: 0 0 8px rgba(125, 255, 154, 0.35);
 }
 
 .build-rail-modes {

@@ -338,6 +338,19 @@ export const SMELT_MAP: Record<OreId, ItemId> = {
 
 export const FURNACE_INPUT_ORES: OreId[] = ['ironOre', 'copperOre']
 export const FURNACE_COAL_PER_SMELT = 1
+
+/** Fuel value per item, in coal-equivalent units. Wood burns at half a coal. */
+export const FUEL_VALUE = { coal: 1, wood: 0.5 } as const
+export type FuelItem = keyof typeof FUEL_VALUE
+
+export function isFuelItem(item: ItemId): item is FuelItem {
+  return item === 'coal' || item === 'wood'
+}
+
+/** Total fuel available in a machine store, in coal-equivalent units. */
+export function fuelUnits(store: Partial<Record<ItemId, number>>): number {
+  return (store.coal ?? 0) * FUEL_VALUE.coal + (store.wood ?? 0) * FUEL_VALUE.wood
+}
 export const FURNACE_SECONDS = 2.4
 export const STEEL_FURNACE_SECONDS = FURNACE_SECONDS / STEEL_FURNACE_MULT
 /** Dedicated coal fuel buffer (separate from ore/plate slots). */

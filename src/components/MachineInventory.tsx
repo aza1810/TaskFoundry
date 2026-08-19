@@ -9,6 +9,7 @@ import {
   ITEM_META,
   SMELT_MAP,
   formatNum,
+  fuelUnits,
   isFurnaceKind,
 } from '../game/data'
 import type { Entity, ItemId, OreId } from '../game/types'
@@ -85,6 +86,7 @@ function furnaceSlots(ent: Entity) {
   const iron = ent.store.ironOre ?? 0
   const copper = ent.store.copperOre ?? 0
   const coal = ent.store.coal ?? 0
+  const woodFuel = ent.store.wood ?? 0
   const ironPlate = ent.store.ironPlate ?? 0
   const copperPlate = ent.store.copperPlate ?? 0
   const steel = ent.store.steel ?? 0
@@ -139,11 +141,11 @@ function furnaceSlots(ent: Entity) {
           empty={!inputItem || inputAmount <= 0}
         />
         <Slot
-          item="coal"
-          amount={coal}
+          item={coal > 0 ? 'coal' : woodFuel > 0 ? 'wood' : 'coal'}
+          amount={coal > 0 ? coal : woodFuel}
           cap={FURNACE_FUEL_CAP}
           label="Fuel"
-          empty={coal < FURNACE_COAL_PER_SMELT}
+          empty={fuelUnits(ent.store) < FURNACE_COAL_PER_SMELT}
         />
         <Arrow />
         <Slot
