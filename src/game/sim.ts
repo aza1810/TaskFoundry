@@ -6,10 +6,12 @@ import {
   CHEST_STACK_SIZE,
   DIR_DELTA,
   ELECTRIC_DRILL_YIELD,
+  FUEL_VALUE,
   FURNACE_COAL_PER_SMELT,
   FURNACE_FUEL_CAP,
   FURNACE_INPUT_ORES,
   FURNACE_SLOT_CAP,
+  fuelUnits,
   inserterCooldownFor,
   MAX_UNDERGROUND,
   OPPOSITE,
@@ -65,6 +67,27 @@ function tryAcceptChest(
 
 const FURNACE_OUTPUT_ITEMS: ItemId[] = ['ironPlate', 'copperPlate', 'steel']
 const FURNACE_ORE_ITEMS: ItemId[] = ['ironOre', 'copperOre']
+
+/** Burn `units` (coal-equivalent) of fuel from a store, wood first then coal. */
+function drawFuel(store: Partial<Record<ItemId, number>>, units: number): void {
+  let need = units
+  const wood = store.wood ?? 0
+  if (need > 0 && wood > 0) {
+    const use = Math.min(need, wood * FUEL_VALUE.wood)
+    const left = wood - use / FUEL_VALUE.wood
+    if (left <= 1e-9) delete store.wood
+    else store.wood = left
+    need -= use
+  }
+  if (need > 0) {
+    const coal = store.coal ?? 0
+    const use = Math.min(need, coal * FUEL_VALUE.coal)
+    const left = coal - use / FUEL_VALUE.coal
+    if (left <= 1e-9) delete store.coal
+    else store.coal = left
+    need -= use
+  }
+}
 
 function storeSum(
   store: Partial<Record<ItemId, number>>,
@@ -200,14 +223,15 @@ function tryAcceptItem(entity: Entity, item: ItemId): boolean {
     return true
   }
   if (isDrillKind(entity.kind)) {
-    return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind], ['coal']) > 0
+    // Coal and wood are fuel - excluded from the ore-holding cap.
+    return addToStore(entity.store, item, 1, MACHINE_CAP[entity.kind], ['coal', 'wood']) > 0
   }
   if (entity.kind === 'chest') {
     return tryAcceptChest(entity.store, item)
   }
   if (isFurnaceKind(entity.kind)) {
-    if (item === 'coal') {
-      // Fuel cap counts coal only - ore/plates must not block fuel intake.
+    if (item === 'coal' || item === 'wood') {
+      // Fuel cap counts fuel only - ore/plates must not block fuel intake.
       return (
         addToStore(entity.store, item, 1, FURNACE_FUEL_CAP, [
           ...FURNACE_ORE_ITEMS,
@@ -338,7 +362,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       }
 
       const electric = e.kind === 'electricDrill'
-      if (!electric && (e.store.coal ?? 0) < coalCost) continue
+      if (!electric && fuelUnits(e.store) < coalCost) continue
 
       tryDrillEject(view, entities, e)
 
@@ -357,10 +381,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       )
       if (put <= 0) continue
 
-      if (!electric) {
-        e.store.coal = (e.store.coal ?? 0) - coalCost
-        if (e.store.coal <= 0.001) delete e.store.coal
-      }
+      if (!electric) drawFuel(e.store, coalCost)
 
       if (tile.amount !== null) {
         tile.amount -= put
@@ -425,10 +446,10 @@ export function simTick(state: GameState, dt: number): GameState {
       if (!e.smelting) {
         let started = false
         for (const ore of FURNACE_INPUT_ORES) {
-          if ((e.store[ore] ?? 0) >= 1 && (e.store.coal ?? 0) >= coalNeed) {
+          if ((e.store[ore] ?? 0) >= 1 && fuelUnits(e.store) >= coalNeed) {
             e.smelting = ore
             takeFromStore(e.store, ore, 1)
-            takeFromStore(e.store, 'coal', coalNeed)
+            drawFuel(e.store, coalNeed)
             e.progress = 0
             started = true
             break
@@ -582,11 +603,12 @@ export function simTick(state: GameState, dt: number): GameState {
     const dest = entities[front.entity.id]
 
     let prefer: ItemId[] | undefined
-    if (isFurnaceKind(dest.kind)) prefer = ['coal', 'ironOre', 'copperOre']
+    if (isFurnaceKind(dest.kind)) prefer = ['coal', 'wood', 'ironOre', 'copperOre']
+    if (isDrillKind(dest.kind)) prefer = ['coal', 'wood']
     if (dest.kind === 'assembler') prefer = ['ironPlate']
     if (isFurnaceKind(src.kind)) prefer = ['ironPlate', 'copperPlate']
     if (src.kind === 'assembler') prefer = ['gear']
-    if (isDrillKind(src.kind)) prefer = ['ironOre', 'copperOre', 'coal']
+    if (isDrillKind(src.kind)) prefer = ['ironOre', 'copperOre']
 
     if (!peekExtractable(src)) continue
     const item = tryExtractItem(src, prefer)

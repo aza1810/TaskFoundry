@@ -69,7 +69,6 @@ const ZOOM_MIN = 0.45
 const ZOOM_MAX = 2.2
 /** Touch browsers often report movementX/Y as 0 - use client deltas instead. */
 const PAN_SLOP = 10
-const PAINT_HOLD_MS = 280
 
 /** Extra pixels past the map edge so you can see you've hit the border. */
 const PAN_EDGE_SLACK = 56
@@ -375,6 +374,8 @@ export function FactoryFloor({
   const [stepPulse, setStepPulse] = useState(false)
   const [railOpen, setRailOpen] = useState(false)
   const [paintActive, setPaintActive] = useState(false)
+  // Default: one-finger drag pans. Opt in to paint lines by dragging.
+  const [dragBuild, setDragBuild] = useState(false)
   const [resPulse, setResPulse] = useState<Partial<Record<ItemId, boolean>>>({})
   const prevChestStock = useRef(sumChestStores(state))
 
@@ -805,23 +806,8 @@ export function FactoryFloor({
       pointerId: e.pointerId,
     }
 
-    // Long-press then drag = paint belts / demolish (keeps one-finger pan free)
-    if (isDragPaintTool(selected)) {
-      holdTimer.current = window.setTimeout(() => {
-        if (gesture.current.kind !== 'pending' || gesture.current.pointerId !== e.pointerId) return
-        gesture.current.kind = 'paint'
-        setPaintActive(true)
-        buzz(10)
-        const c = cellFromPoint(
-          gesture.current.last?.x ?? e.clientX,
-          gesture.current.last?.y ?? e.clientY,
-        )
-        if (c) {
-          setHover(c)
-          paintCell(c.x, c.y)
-        }
-      }, PAINT_HOLD_MS)
-    }
+    // Painting a line is opt-in via the Drag:Build toggle - otherwise a drag
+    // always pans so you can scroll the map freely with a tool selected.
   }
 
   const onPointerMove = (e: ReactPointerEvent) => {
@@ -866,13 +852,20 @@ export function FactoryFloor({
     const dy = e.clientY - last.y
     gesture.current.last = { x: e.clientX, y: e.clientY }
 
-    // Resolve pending → pan once the finger moves past slop
+    // Resolve pending → pan (default) or paint (only when Drag:Build is on)
     if (gesture.current.kind === 'pending' && gesture.current.origin) {
       const ox = e.clientX - gesture.current.origin.x
       const oy = e.clientY - gesture.current.origin.y
       if (Math.hypot(ox, oy) > PAN_SLOP) {
         clearHoldTimer()
-        gesture.current.kind = 'pan'
+        if (dragBuild && isDragPaintTool(selected)) {
+          gesture.current.kind = 'paint'
+          setPaintActive(true)
+          const oc = cellFromPoint(gesture.current.origin.x, gesture.current.origin.y)
+          if (oc) paintCell(oc.x, oc.y)
+        } else {
+          gesture.current.kind = 'pan'
+        }
         gesture.current.moved = true
       }
     }
@@ -983,15 +976,21 @@ export function FactoryFloor({
       : !selected
       ? 'Drag to pan · tap a tile to inspect · tap again to close'
       : selected === 'remove'
-        ? 'Tap or hold-drag to demolish · drag pans'
+        ? dragBuild
+          ? 'Drag to demolish a path · tap to demolish one'
+          : 'Tap to demolish · drag pans'
         : selected === 'rotate'
-          ? 'Tap or hold-drag to rotate · drag pans'
+          ? dragBuild
+            ? 'Drag to rotate a path · tap to rotate one'
+            : 'Tap to rotate · drag pans'
           : selected === 'copy'
             ? 'Tap two corners · drag to pan'
             : selected === 'paste'
               ? 'Tap origin · drag to pan'
               : isDragPaintTool(selected)
-                ? 'Tap to place · hold-drag to paint · drag pans'
+                ? dragBuild
+                  ? 'Drag to lay a line · tap to place one'
+                  : 'Tap to place · drag pans freely'
                 : 'Tap to place · drag pans'
 
   const modeHint = paintActive
@@ -1617,6 +1616,23 @@ export function FactoryFloor({
                 })}
               </div>
               <div className="build-rail-quick">
+                {selected && isDragPaintTool(selected) && (
+                  <button
+                    type="button"
+                    className={`rail-chip ${dragBuild ? 'is-on' : ''}`}
+                    onClick={() => {
+                      setDragBuild((v) => !v)
+                      buzz(6)
+                    }}
+                    title={
+                      dragBuild
+                        ? 'Drag lays a line of buildings'
+                        : 'Drag pans the map (tap to place)'
+                    }
+                  >
+                    {dragBuild ? 'Drag: Build' : 'Drag: Pan'}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="rail-chip"

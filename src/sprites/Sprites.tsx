@@ -616,15 +616,23 @@ export function DroneSprite() {
 }
 
 export const TreeSprite = memo(function TreeSprite() {
+  // Tall viewBox, bottom-aligned so the trunk sits on its tile while the
+  // canopy rises ~1.5 tiles above it (the tree still occupies one tile).
   return (
-    <svg className="sprite sprite-tree" viewBox="0 0 64 64" aria-hidden>
-      <ellipse cx="32" cy="55" rx="13" ry="4" fill="rgba(0,0,0,0.28)" />
-      <rect x="28" y="38" width="8" height="16" rx="2" fill="#6b4a2a" stroke="#3d2a15" strokeWidth="1.5" />
-      <circle cx="32" cy="26" r="16" fill="#2f6b32" stroke="#1c3f1e" strokeWidth="2" />
-      <circle cx="22" cy="32" r="11" fill="#357a38" stroke="#1c3f1e" strokeWidth="1.5" />
-      <circle cx="42" cy="32" r="11" fill="#357a38" stroke="#1c3f1e" strokeWidth="1.5" />
-      <circle cx="27" cy="21" r="5" fill="#4c9a4f" opacity="0.85" />
-      <circle cx="38" cy="24" r="4" fill="#4c9a4f" opacity="0.7" />
+    <svg
+      className="sprite sprite-tree"
+      viewBox="0 0 64 96"
+      preserveAspectRatio="xMidYMax meet"
+      aria-hidden
+    >
+      <ellipse cx="32" cy="90" rx="15" ry="4.5" fill="rgba(0,0,0,0.3)" />
+      <rect x="27" y="60" width="10" height="31" rx="3" fill="#6b4a2a" stroke="#3d2a15" strokeWidth="1.5" />
+      <path d="M32 74 L24 66 M32 68 L40 60" stroke="#5a3d22" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="32" cy="34" r="21" fill="#2f6b32" stroke="#1c3f1e" strokeWidth="2" />
+      <circle cx="17" cy="45" r="13" fill="#357a38" stroke="#1c3f1e" strokeWidth="1.5" />
+      <circle cx="47" cy="45" r="13" fill="#357a38" stroke="#1c3f1e" strokeWidth="1.5" />
+      <circle cx="25" cy="24" r="7" fill="#4c9a4f" opacity="0.85" />
+      <circle cx="41" cy="29" r="5.5" fill="#4c9a4f" opacity="0.7" />
     </svg>
   )
 })
