@@ -183,12 +183,28 @@ function InserterDirOverlay({ dir }: { dir: Dir }) {
   )
 }
 
-function storeSummary(e: Entity): string {
-  const parts: string[] = []
-  for (const [id, n] of Object.entries(e.store)) {
-    if (n && n > 0) parts.push(`${ITEM_META[id as keyof typeof ITEM_META].short}:${Math.floor(n)}`)
-  }
-  return parts.join(' ')
+function storeHasItems(e: Entity): boolean {
+  return Object.values(e.store).some((n) => (n ?? 0) > 0)
+}
+
+/** Machine contents shown as resource icons + counts (instead of text codes). */
+function StoreTags({ store }: { store: Entity['store'] }) {
+  const parts = (Object.entries(store) as [ItemId, number][]).filter(
+    ([, n]) => (n ?? 0) > 0,
+  )
+  if (parts.length === 0) return null
+  return (
+    <>
+      {parts.map(([id, n]) => (
+        <span className="store-tag" key={id} title={ITEM_META[id].label}>
+          <span className="store-tag-icon">
+            <ItemSprite item={id} />
+          </span>
+          <em>{formatNum(n)}</em>
+        </span>
+      ))}
+    </>
+  )
 }
 
 function cargoOffset(
@@ -1400,8 +1416,10 @@ export function FactoryFloor({
                         isFurnaceKind(ent.kind) ||
                         ent.kind === 'chest' ||
                         ent.kind === 'assembler') &&
-                      storeSummary(ent) && (
-                        <span className="cell-store">{storeSummary(ent)}</span>
+                      storeHasItems(ent) && (
+                        <span className="cell-store">
+                          <StoreTags store={ent.store} />
+                        </span>
                       )}
 
                     {ent && (isFurnaceKind(ent.kind) || ent.kind === 'assembler') && ent.smelting && (
@@ -1810,13 +1828,13 @@ export function FactoryFloor({
                           : ''
                       }`
                     : ' · plain ground'}
-                  {!hasMachineInventory(inspectEnt.kind) && storeSummary(inspectEnt)
-                    ? ` · ${storeSummary(inspectEnt)}`
-                    : ''}
-                  {inspectEnt.kind === 'drill'
-                    ? ` · coal ${Math.floor(inspectEnt.store.coal ?? 0)}`
-                    : ''}
                 </p>
+                {!hasMachineInventory(inspectEnt.kind) &&
+                  storeHasItems(inspectEnt) && (
+                    <div className="inspect-store">
+                      <StoreTags store={inspectEnt.store} />
+                    </div>
+                  )}
                 <div className="inspect-card-actions">
                   <button
                     type="button"

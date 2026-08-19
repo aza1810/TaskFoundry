@@ -2742,19 +2742,58 @@ html[data-theme='light'] .ghost-btn.is-danger {
   left: 1px;
   bottom: 1px;
   right: 1px;
-  font-family: var(--font-mono);
-  font-size: clamp(0.4rem, 1.1vw, 0.55rem);
-  line-height: 1.1;
-  color: #fff8e8;
-  text-shadow: 0 1px 2px #000;
-  opacity: 0.95;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1px 3px;
   z-index: 5;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.45);
   padding: 1px 2px;
+}
+
+.store-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.store-tag-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+}
+
+.store-tag em {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff8e8;
+  text-shadow: 0 1px 2px #000;
+}
+
+.inspect-store {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  align-items: center;
+  padding: 0.15rem 0;
+}
+
+.inspect-store .store-tag-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.inspect-store .store-tag em {
+  font-size: 0.8rem;
+  color: var(--text-chrome-bright);
+  text-shadow: none;
 }
 
 .smelt-bar {
