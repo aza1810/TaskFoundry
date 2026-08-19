@@ -191,7 +191,7 @@ export function depositStock(
 /** True if at least one floor chest can accept one more of `item`. */
 export function canChestsAccept(state: GameState, item: ItemId): boolean {
   for (const e of Object.values(state.entities)) {
-    if (e.kind !== 'chest') continue
+    if (e.kind !== 'chest' || e.ghost) continue
     const have = asItemCount(e.store[item] ?? 0)
     if (have > 0) {
       if (have < CHEST_STACK_SIZE) return true
@@ -215,7 +215,7 @@ export function depositToChests(
   let changed = false
   for (const [id, e] of Object.entries(state.entities)) {
     if (left <= 0) break
-    if (e.kind !== 'chest') continue
+    if (e.kind !== 'chest' || e.ghost) continue
     const store = { ...e.store }
     const put = putInChestStore(store, item, left)
     if (put > 0) {
