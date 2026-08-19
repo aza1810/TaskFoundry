@@ -52,6 +52,7 @@ import {
   tutorialToolsFor,
 } from '../game/tutorialGuide'
 import {
+  DroneSprite,
   EntitySprite,
   GroundTexture,
   ItemSprite,
@@ -136,6 +137,7 @@ type Floater = {
 }
 
 const BUILD_TOOLS: Placeable[] = [
+  'roboport',
   'drill',
   'electricDrill',
   'furnace',
@@ -249,7 +251,8 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
     tool === 'inserter' ||
     tool === 'furnace' ||
     tool === 'chest' ||
-    tool === 'assembler'
+    tool === 'assembler' ||
+    tool === 'roboport'
   ) {
     return true
   }
@@ -1232,12 +1235,19 @@ export function FactoryFloor({
                 const showGhost =
                   isHover && !!selected && !isEditMetaTool(selected)
 
+                const isGhost = Boolean(ent?.ghost)
                 const lit = Boolean(
-                  ent && (isFurnaceKind(ent.kind) || ent.kind === 'assembler') && ent.smelting,
+                  ent &&
+                    !isGhost &&
+                    (isFurnaceKind(ent.kind) || ent.kind === 'assembler') &&
+                    ent.smelting,
                 )
                 const active = Boolean(
-                  (ent?.kind === 'drill' && (ent.store.coal ?? 0) > 0 && tile.ore) ||
-                    (ent?.kind === 'electricDrill' && tile.ore),
+                  !isGhost &&
+                    ((ent?.kind === 'drill' && (ent.store.coal ?? 0) > 0 && tile.ore) ||
+                      (ent?.kind === 'electricDrill' && tile.ore) ||
+                      (ent?.kind === 'roboport' &&
+                        state.drones.some((d) => d.homeId === ent.id && d.state !== 'idle'))),
                 )
                 const status = ent ? machineStatus(ent, tile, state) : null
                 const movingBelt =
@@ -1267,6 +1277,7 @@ export function FactoryFloor({
                       isCopyCorner ? 'is-copy-corner' : '',
                       bpGhost ? 'is-bp-ghost' : '',
                       highlight === 'ore' && tile.ore === 'ironOre' && !ent ? 'is-ore-hint' : '',
+                      isGhost ? 'is-constructing' : '',
                       planGhost ? 'is-plan-ghost' : '',
                       planGhost?.next ? 'is-plan-next' : '',
                       showGhost ? (valid ? 'is-valid-ghost' : 'is-invalid-ghost') : '',
@@ -1375,6 +1386,15 @@ export function FactoryFloor({
                       />
                     )}
 
+                    {ent && isGhost && (
+                      <span
+                        className="build-bar"
+                        style={{
+                          width: `${Math.min(100, (ent.buildProgress ?? 0) * 100)}%`,
+                        }}
+                      />
+                    )}
+
                     {(isIoPickup || isIoDrop) && (
                       <span
                         className={[
@@ -1405,6 +1425,20 @@ export function FactoryFloor({
               }}
             >
               {f.text}
+            </span>
+          ))}
+
+          {state.drones.map((d) => (
+            <span
+              key={d.id}
+              className={`construction-drone is-${d.state}`}
+              style={{
+                left: (d.x + 0.5) * CELL,
+                top: (d.y + 0.5) * CELL,
+              }}
+              aria-hidden
+            >
+              <DroneSprite />
             </span>
           ))}
         </div>
