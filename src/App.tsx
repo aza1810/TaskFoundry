@@ -308,6 +308,7 @@ function Shell() {
       <div className={`game-stage ${playing ? 'is-front' : 'is-back'}`}>
         <FactoryFloor
           highlight={highlight}
+          active={playing}
           onOpenTasks={() => setTabSafe('habits')}
           onOpenSteps={() => setTabSafe('steps')}
           onOpenSettings={() => setTabSafe('settings')}

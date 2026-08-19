@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { memo, useId } from 'react'
 import { INSERTER_COOLDOWN } from '../game/data'
 import type { BeltTurn } from '../game/beltShape'
 import type { Dir, EntityKind, ItemId, OreId } from '../game/types'
@@ -14,7 +14,7 @@ function inserterArmAngle(progress: number, cooldown: number): number {
   return 180 * ((u - 0.5) / 0.5)
 }
 
-export function GroundTexture({ seed = 0 }: { seed?: number }) {
+export const GroundTexture = memo(function GroundTexture({ seed = 0 }: { seed?: number }) {
   const base =
     seed % 3 === 0
       ? 'var(--ground-a)'
@@ -43,9 +43,9 @@ export function GroundTexture({ seed = 0 }: { seed?: number }) {
       />
     </svg>
   )
-}
+})
 
-export function OreTexture({ ore, amount }: { ore: OreId; amount: number | null }) {
+export const OreTexture = memo(function OreTexture({ ore, amount }: { ore: OreId; amount: number | null }) {
   const colors =
     ore === 'ironOre'
       ? { base: '#8a7e6e', spark: '#d8cfc0', deep: '#5a5248' }
@@ -79,7 +79,7 @@ export function OreTexture({ ore, amount }: { ore: OreId; amount: number | null 
       })}
     </svg>
   )
-}
+})
 
 export function BeltSprite({
   dir,
@@ -720,7 +720,7 @@ function GearItemSprite() {
   )
 }
 
-export function ItemSprite({ item }: { item: ItemId }) {
+export const ItemSprite = memo(function ItemSprite({ item }: { item: ItemId }) {
   if (item === 'ironOre' || item === 'copperOre' || item === 'coal') {
     return <OreItemSprite item={item} />
   }
@@ -744,9 +744,9 @@ export function ItemSprite({ item }: { item: ItemId }) {
       <ellipse cx="12" cy="12" rx="4" ry="3" fill="rgba(255,255,255,0.25)" />
     </svg>
   )
-}
+})
 
-export function EntitySprite({
+export const EntitySprite = memo(function EntitySprite({
   kind,
   dir,
   lit,
@@ -812,7 +812,7 @@ export function EntitySprite({
     case 'roboport':
       return <RoboportSprite active={active} />
   }
-}
+})
 
 export function ToolIcon({
   kind,
