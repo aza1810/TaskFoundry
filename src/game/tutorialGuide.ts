@@ -360,7 +360,7 @@ export function tutorialFocusCell(
 
 export function tutorialToolsFor(
   step: TutorialStepDef | null,
-  tab: 'build' | 'belts' | 'edit',
+  tab: 'build' | 'logistics' | 'edit',
   full: ToolId[],
 ): ToolId[] {
   if (!step || step.mode !== 'coach') return full

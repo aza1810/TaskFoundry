@@ -133,7 +133,7 @@ type Highlight =
   | 'walkSteps'
   | 'habit'
   | null
-type ToolTab = 'build' | 'belts' | 'edit'
+type ToolTab = 'build' | 'logistics' | 'edit'
 
 type Floater = {
   id: number
@@ -145,6 +145,7 @@ type Floater = {
   item?: ItemId
 }
 
+// Machines & storage - things that make or hold resources.
 const BUILD_TOOLS: Placeable[] = [
   'generator',
   'roboport',
@@ -152,18 +153,33 @@ const BUILD_TOOLS: Placeable[] = [
   'electricDrill',
   'furnace',
   'steelFurnace',
-  'chest',
   'assembler',
+  'chest',
 ]
-const BELT_TOOLS: Placeable[] = [
+// Logistics - everything that moves items around (belts, inserters, splitters).
+const LOGISTICS_TOOLS: Placeable[] = [
   'belt',
   'fastBelt',
   'undergroundBelt',
+  'splitter',
   'inserter',
   'longInserter',
-  'splitter',
 ]
 const EDIT_TOOLS: ToolId[] = ['remove', 'rotate', 'copy', 'paste']
+
+const TOOL_TABS: { id: ToolTab; label: string }[] = [
+  { id: 'build', label: 'Build' },
+  { id: 'logistics', label: 'Logistics' },
+  { id: 'edit', label: 'Edit' },
+]
+
+function tabTools(tab: ToolTab): ToolId[] {
+  return tab === 'build'
+    ? BUILD_TOOLS
+    : tab === 'logistics'
+      ? LOGISTICS_TOOLS
+      : EDIT_TOOLS
+}
 
 function isEditMetaTool(
   tool: ToolId | null,
@@ -562,7 +578,7 @@ export function FactoryFloor({
 
   useEffect(() => {
     if (highlight === 'beltTool') {
-      setToolTab('belts')
+      setToolTab('logistics')
       setRailOpen(true)
     }
     if (
@@ -575,7 +591,7 @@ export function FactoryFloor({
       setRailOpen(true)
     }
     if (highlight === 'inserterTool') {
-      setToolTab('belts')
+      setToolTab('logistics')
       setRailOpen(true)
     }
   }, [highlight])
@@ -607,11 +623,7 @@ export function FactoryFloor({
     }
   }, [])
 
-  const toolsForTab: ToolId[] = tutorialToolsFor(
-    tourStep,
-    toolTab,
-    toolTab === 'build' ? BUILD_TOOLS : toolTab === 'belts' ? BELT_TOOLS : EDIT_TOOLS,
-  )
+  const toolsForTab: ToolId[] = tutorialToolsFor(tourStep, toolTab, tabTools(toolTab))
 
   const selectionRect = useMemo(() => {
     if (!copyCorner || !hover || selected !== 'copy') return null
@@ -1617,10 +1629,25 @@ export function FactoryFloor({
           )}
           {railOpen && selected && (
             <div className="build-rail-tray" role="toolbar" aria-label="Build tools">
+              <div className="build-rail-cat">
+                <strong>
+                  {toolTab === 'build'
+                    ? 'Build'
+                    : toolTab === 'logistics'
+                      ? 'Logistics'
+                      : 'Edit'}
+                </strong>
+                <span>
+                  {toolTab === 'build'
+                    ? 'Machines & storage'
+                    : toolTab === 'logistics'
+                      ? 'Move items around'
+                      : 'Demolish · rotate · copy'}
+                </span>
+              </div>
               <div className="build-rail-tools">
                 {toolsForTab.map((tool) => {
                   const unlocked = isUnlocked(tool, state.researched)
-                  if (!unlocked) return null
                   const label =
                     tool === 'remove'
                       ? 'Demolish'
@@ -1651,34 +1678,39 @@ export function FactoryFloor({
                     <button
                       key={tool}
                       type="button"
+                      disabled={!unlocked}
                       className={[
                         'rail-tool',
                         selected === tool ? 'is-active' : '',
-                        !affordable ? 'is-empty' : '',
+                        !unlocked ? 'is-locked' : '',
+                        unlocked && !affordable ? 'is-empty' : '',
                         pulse ? 'is-tutorial-pulse' : '',
-                        tourStep ? 'is-named' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}
                       onClick={() => {
+                        if (!unlocked) return
                         selectTool(selected === tool ? null : tool)
                         setInspect(null)
                         buzz(6)
                       }}
-                      title={label}
+                      title={unlocked ? label : `${label} - research to unlock`}
                       aria-label={
                         count !== null ? `${label}, ${formatNum(count)}` : label
                       }
                     >
-                      <ToolIcon kind={tool} />
+                      <span className="rail-tool-icon">
+                        <ToolIcon kind={tool} />
+                      </span>
+                      <span className="rail-tool-name">{label}</span>
                       {count !== null && (
                         <span className="rail-tool-count">{formatNum(count)}</span>
                       )}
-                      {tourStep ? (
-                        <span className="rail-tool-name">
-                          {label.split(' ')[0]}
+                      {!unlocked && (
+                        <span className="rail-tool-lock" aria-hidden>
+                          🔒
                         </span>
-                      ) : null}
+                      )}
                     </button>
                   )
                 })}
@@ -1757,15 +1789,8 @@ export function FactoryFloor({
             >
               Hand
             </button>
-            {(
-              [
-                ['build', 'Build'],
-                ['belts', 'Belts'],
-                ['edit', 'Edit'],
-              ] as const
-            ).map(([id, label]) => {
-              const list =
-                id === 'build' ? BUILD_TOOLS : id === 'belts' ? BELT_TOOLS : EDIT_TOOLS
+            {TOOL_TABS.map(({ id, label }) => {
+              const list = tabTools(id)
               const tabActive = toolTab === id && !!selected && list.includes(selected)
               return (
                 <button
@@ -1792,13 +1817,7 @@ export function FactoryFloor({
                 if (railOpen && selected) {
                   setRailOpen(false)
                 } else {
-                  const list =
-                    toolTab === 'build'
-                      ? BUILD_TOOLS
-                      : toolTab === 'belts'
-                        ? BELT_TOOLS
-                        : EDIT_TOOLS
-                  const next = selected ?? pickTool(list)
+                  const next = selected ?? pickTool(tabTools(toolTab))
                   if (next) selectTool(next)
                   setRailOpen(true)
                 }
