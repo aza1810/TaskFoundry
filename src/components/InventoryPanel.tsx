@@ -84,11 +84,11 @@ export function InventoryPanel() {
       <div className="panel-head">
         <h2>Warehouse</h2>
         <p>
-          Materials live in floor chests ({chestCount} placed). Buildings stay in your pack
-          ready to place.
+          Materials live in floor chests ({chestCount} placed). Totals below are summed
+          across every chest. Buildings stay in your pack ready to place.
         </p>
         <p className="panel-stat">
-          {formatNum(matTotal)} in chests · {formatNum(buildTotal)} buildings
+          {formatNum(matTotal)} across chests · {formatNum(buildTotal)} buildings
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export function InventoryPanel() {
         </p>
       )}
 
-      <InvSection title="Chest materials" ids={MATERIALS} amounts={materials} />
+      <InvSection title="Resources (all chests)" ids={MATERIALS} amounts={materials} />
       <InvSection title="Buildings (pack)" ids={BUILDINGS} amounts={buildings} />
     </section>
   )

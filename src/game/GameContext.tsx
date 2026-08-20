@@ -14,7 +14,6 @@ import {
   clearToast as clearToastLogic,
   clearOfflineReport as clearOfflineReportLogic,
   clearSkillGains as clearSkillGainsLogic,
-  collectChest as collectChestLogic,
   completeHabit as completeHabitLogic,
   craftRecipe as craftRecipeLogic,
   cancelCraft as cancelCraftLogic,
@@ -61,7 +60,6 @@ type Action =
   | { type: 'ROTATE_DIR' }
   | { type: 'PLACE'; x: number; y: number }
   | { type: 'ROTATE_AT'; x: number; y: number }
-  | { type: 'COLLECT'; x: number; y: number }
   | { type: 'LOG_STEPS'; amount: number }
   | { type: 'IMPORT_HEALTH_STEPS'; healthStepsToday: number; quiet?: boolean }
   | { type: 'COMPLETE_HABIT'; id: string }
@@ -98,8 +96,6 @@ function reducer(state: GameState, action: Action): GameState {
       return placeEntityLogic(state, action.x, action.y)
     case 'ROTATE_AT':
       return rotateEntityAtLogic(state, action.x, action.y)
-    case 'COLLECT':
-      return collectChestLogic(state, action.x, action.y)
     case 'LOG_STEPS':
       return logStepsLogic(state, action.amount)
     case 'IMPORT_HEALTH_STEPS':
@@ -160,7 +156,6 @@ interface GameContextValue {
   rotateDir: () => void
   place: (x: number, y: number) => void
   rotateAt: (x: number, y: number) => void
-  collect: (x: number, y: number) => void
   logSteps: (amount: number) => void
   importHealthSteps: (healthStepsToday: number, options?: { quiet?: boolean }) => void
   completeHabit: (id: string) => void
@@ -448,10 +443,6 @@ export function GameProvider({
     (x: number, y: number) => dispatch({ type: 'ROTATE_AT', x, y }),
     [],
   )
-  const collect = useCallback(
-    (x: number, y: number) => dispatch({ type: 'COLLECT', x, y }),
-    [],
-  )
   const logSteps = useCallback(
     (amount: number) => dispatch({ type: 'LOG_STEPS', amount }),
     [],
@@ -624,7 +615,6 @@ export function GameProvider({
       rotateDir,
       place,
       rotateAt,
-      collect,
       logSteps,
       importHealthSteps,
       completeHabit,
@@ -659,7 +649,6 @@ export function GameProvider({
       rotateDir,
       place,
       rotateAt,
-      collect,
       logSteps,
       importHealthSteps,
       completeHabit,
