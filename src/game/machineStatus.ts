@@ -57,10 +57,14 @@ export function machineStatus(
     }
   }
 
+  if (ent.kind === 'generator') {
+    return { label: 'Power generator - steps charge the grid', tone: 'ok' }
+  }
+
   if (isDrillKind(ent.kind)) {
     if (!tile?.ore) return { label: 'No ore under drill', tone: 'idle', floorClass: 'is-waiting' }
-    if (ent.kind === 'drill' && fuelUnits(ent.store) < 0.25) {
-      return { label: 'Needs fuel (coal or wood)', tone: 'warn', floorClass: 'is-needs-fuel' }
+    if (_state.power <= 0) {
+      return { label: 'No power - walk to charge the grid', tone: 'warn', floorClass: 'is-needs-fuel' }
     }
     const cap = MACHINE_CAP[ent.kind] ?? 5
     const oreHeld = Object.entries(ent.store)
@@ -70,7 +74,7 @@ export function machineStatus(
       return { label: 'Output full - clear the belt', tone: 'warn', floorClass: 'is-blocked' }
     }
     return {
-      label: ent.kind === 'electricDrill' ? 'Mining (steps)' : 'Mining (steps + coal)',
+      label: ent.kind === 'electricDrill' ? 'Mining (electric)' : 'Mining (powered)',
       tone: 'work',
     }
   }

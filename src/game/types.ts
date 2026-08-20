@@ -20,6 +20,7 @@ export type ItemId =
   | 'splitter'
   | 'roboport'
   | 'wood'
+  | 'generator'
 
 export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
@@ -40,6 +41,7 @@ export type EntityKind =
   | 'splitter'
   | 'roboport'
   | 'tree'
+  | 'generator'
 
 export type TechId =
   | 'automation'
@@ -134,6 +136,7 @@ export interface Inventory {
   splitter: number
   roboport: number
   wood: number
+  generator: number
 }
 
 export type Placeable = Extract<
@@ -151,6 +154,7 @@ export type Placeable = Extract<
   | 'assembler'
   | 'splitter'
   | 'roboport'
+  | 'generator'
 >
 
 export type ToolId = Placeable | 'remove' | 'copy' | 'paste' | 'rotate'
@@ -271,6 +275,8 @@ export interface GameState {
   tutorialComplete: boolean
   /** One-time flag so map trees are scattered once (and not respawned each load). */
   treesSeeded: boolean
+  /** Stored electrical energy. Steps charge it; electric machines drain it. */
+  power: number
 }
 
 export type TabId =

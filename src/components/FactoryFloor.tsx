@@ -36,6 +36,13 @@ import {
 } from '../game/logic'
 import { machineStatus } from '../game/machineStatus'
 import { countPlacedChests, maxChestsFor } from '../game/research'
+import {
+  generatorCount,
+  powerCapacity,
+  powerDemand,
+  powerFraction,
+  powerPerStep,
+} from '../game/power'
 import { skillBonuses } from '../game/skills'
 import {
   stockOf,
@@ -139,6 +146,7 @@ type Floater = {
 }
 
 const BUILD_TOOLS: Placeable[] = [
+  'generator',
   'roboport',
   'drill',
   'electricDrill',
@@ -270,7 +278,8 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
     tool === 'furnace' ||
     tool === 'chest' ||
     tool === 'assembler' ||
-    tool === 'roboport'
+    tool === 'roboport' ||
+    tool === 'generator'
   ) {
     return true
   }
@@ -365,6 +374,13 @@ export function FactoryFloor({
     : 0
   const xpNeeded = xpForLevel(state.level)
   const xpPct = Math.min(100, (state.xp / xpNeeded) * 100)
+  const powerCap = powerCapacity(state)
+  const powerFrac = powerFraction(state)
+  const powerStored = Math.floor(state.power)
+  const powerStep = powerPerStep(state)
+  const powerUse = powerDemand(state)
+  const genCount = generatorCount(state)
+  const powerLevel = powerFrac <= 0 ? 'is-empty' : powerFrac < 0.25 ? 'is-low' : 'is-ok'
   const tourStep = getActiveTutorialStep(state)
   const tourChecks = useMemo(
     () => tutorialChecklist(state, tourStep),
@@ -1158,6 +1174,29 @@ export function FactoryFloor({
           })}
         </div>
 
+        <div
+          className={`game-hud-power ${powerLevel}`}
+          title={`Power ${powerStored}/${powerCap} · +${powerStep}/step from ${genCount} generator${
+            genCount === 1 ? '' : 's'
+          } · using ${powerUse.toFixed(1)}/s`}
+        >
+          <span className="game-hud-power-icon" aria-hidden>
+            <ItemSprite item="generator" />
+          </span>
+          <div className="game-hud-power-bar" aria-hidden>
+            <div
+              className="game-hud-power-fill"
+              style={{ width: `${Math.round(powerFrac * 100)}%` }}
+            />
+          </div>
+          <span className="game-hud-power-text">
+            {powerStored}/{formatNum(powerCap)}
+            <em>
+              {powerFrac <= 0 ? 'walk to charge' : `+${powerStep}/step · -${powerUse.toFixed(1)}/s`}
+            </em>
+          </span>
+        </div>
+
         {goal ? (
           <button
             type="button"
@@ -1290,8 +1329,8 @@ export function FactoryFloor({
                 )
                 const active = Boolean(
                   !isGhost &&
-                    ((ent?.kind === 'drill' && (ent.store.coal ?? 0) > 0 && tile.ore) ||
-                      (ent?.kind === 'electricDrill' && tile.ore) ||
+                    ((isDrillKind(ent?.kind ?? 'belt') && tile.ore && state.power > 0) ||
+                      (ent?.kind === 'generator' && state.power > 0) ||
                       (ent?.kind === 'roboport' &&
                         state.drones.some((d) => d.homeId === ent.id && d.state !== 'idle'))),
                 )
@@ -1669,9 +1708,10 @@ export function FactoryFloor({
                     const preview = fuelAllDrills(state)
                     let fueled = 0
                     for (const e of Object.values(state.entities)) {
-                      if (!isDrillKind(e.kind) || e.kind !== 'drill') continue
-                      const before = e.store.coal ?? 0
-                      const after = preview.entities[e.id]?.store.coal ?? 0
+                      if (!isFurnaceKind(e.kind)) continue
+                      const before = (e.store.coal ?? 0) + (e.store.wood ?? 0)
+                      const p = preview.entities[e.id]?.store
+                      const after = (p?.coal ?? 0) + (p?.wood ?? 0)
                       if (after > before + 0.01) {
                         spawnFloater(e.x, e.y, '+fuel', 'good')
                         fueled += 1
@@ -1679,8 +1719,10 @@ export function FactoryFloor({
                     }
                     fuelDrills()
                     if (fueled <= 0) {
-                      const anyDrill = Object.values(state.entities).find((e) => e.kind === 'drill')
-                      if (anyDrill) spawnFloater(anyDrill.x, anyDrill.y, 'no fuel', 'warn')
+                      const anyFurnace = Object.values(state.entities).find((e) =>
+                        isFurnaceKind(e.kind),
+                      )
+                      if (anyFurnace) spawnFloater(anyFurnace.x, anyFurnace.y, 'no fuel', 'warn')
                       buzz(4)
                     } else {
                       buzz(10)
@@ -1857,16 +1899,17 @@ export function FactoryFloor({
                   >
                     Rotate
                   </button>
-                  {inspectEnt.kind === 'drill' && (
+                  {isFurnaceKind(inspectEnt.kind) && (
                     <button
                       type="button"
                       className="primary-btn"
-                      disabled={stockOf(state, 'coal') < 1}
+                      disabled={stockOf(state, 'coal') < 1 && stockOf(state, 'wood') < 1}
                       onClick={() => {
-                        const beforeCoal = stockOf(state, 'coal')
+                        const before = stockOf(state, 'coal') + stockOf(state, 'wood')
                         const preview = fuelDrillAt(state, inspect.x, inspect.y)
                         fuelAt(inspect.x, inspect.y)
-                        const spent = beforeCoal - stockOf(preview, 'coal')
+                        const spent =
+                          before - (stockOf(preview, 'coal') + stockOf(preview, 'wood'))
                         if (spent <= 0) {
                           spawnFloater(inspect.x, inspect.y, 'no fuel', 'warn')
                           buzz(4)
