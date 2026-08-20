@@ -143,7 +143,7 @@ export function createInitialState(): GameState {
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
-      'Welcome - drop a Roboport to deploy a construction drone, then place a drill on iron ore. Steps power every drill.',
+      'Welcome! Place a drill on an ore patch, run a belt + inserter into a chest, then walk - your steps power the drill and it mines ore into the chest.',
     offlineReport: null,
     stats: emptyStats(),
     completedGoals: [],
@@ -1611,19 +1611,25 @@ export function researchTech(state: GameState, techId: TechId): GameState {
 export function buildStarterLine(state: GameState): GameState {
   // Layout facing east (9 tiles):
   // [drill>][belt>][inserter>][chest][inserter>][belt>][inserter>][furnace][inserter>][chest]
+  // Only the drill sits on ore; the belt/inserter/chest/furnace line runs onto
+  // clear grass so the rest of the patch stays free for more drills.
   let origin: { x: number; y: number } | null = null
   for (let y = 0; y < state.height && !origin; y++) {
     for (let x = 0; x < state.width - 9; x++) {
       if (state.tiles[idx(x, y)].ore !== 'ironOre') continue
-      const cells = Array.from({ length: 10 }, (_, i) => [x + i, y] as const)
-      if (cells.every(([cx, cy]) => !state.tiles[idx(cx, cy)].entityId)) {
+      const drillClear = !state.tiles[idx(x, y)].entityId
+      const lineClear = Array.from({ length: 9 }, (_, i) => x + 1 + i).every((cx) => {
+        const t = state.tiles[idx(cx, y)]
+        return !t.entityId && !t.ore
+      })
+      if (drillClear && lineClear) {
         origin = { x, y }
         break
       }
     }
   }
   if (!origin) {
-    return { ...state, unlockedToast: 'No clear iron patch for a starter line' }
+    return { ...state, unlockedToast: 'No clear iron patch edge for a starter line' }
   }
 
   const need = {
@@ -1632,13 +1638,11 @@ export function buildStarterLine(state: GameState): GameState {
     inserter: 4,
     furnace: 1,
     chest: 2,
-    coal: 5,
   }
   if (!canAffordStock(state, need)) {
     return {
       ...state,
-      unlockedToast:
-        'Need 1 drill, 2 belts, 4 inserters, 1 furnace, 2 chests, 5 coal',
+      unlockedToast: 'Need 1 drill, 2 belts, 4 inserters, 1 furnace, 2 chests',
     }
   }
 

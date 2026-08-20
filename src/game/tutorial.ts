@@ -45,7 +45,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'Walk in the real world. Those steps power drills. Route ore into floor chests (your warehouse), smelt plates, and come back to a stockpile when you leave.',
+    body: 'You start with no resources - you gather them. Walking in the real world charges your power grid, powered drills mine ore into floor chests (your warehouse), and you smelt plates from there. Let us set up your first miner.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },
@@ -79,8 +79,8 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   },
   {
     id: 'logSteps',
-    title: 'Walk to mine',
-    body: 'Every step runs a mining cycle. Sync Health / Health Connect, or start the pedometer and take a short walk until ore reaches the chest.',
+    title: 'Walk to power the drill',
+    body: 'Every step charges your power grid, and powered drills mine ore. Sync Health / Health Connect, or start the pedometer and take a short walk until ore reaches the chest.',
     mode: 'coach',
     tab: 'steps',
     action: 'Sync health or walk at least 10 steps',

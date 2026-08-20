@@ -436,13 +436,16 @@ export const WOOD_PER_TREE = 4
 export const TREE_COUNT = 22
 
 export const EMPTY_INVENTORY = (): Inventory => ({
-  ironOre: 8,
-  copperOre: 4,
-  coal: 12,
-  ironPlate: 10,
-  copperPlate: 2,
-  gear: 4,
+  // Raw materials start at zero - you gather them by mining into a chest.
+  ironOre: 0,
+  copperOre: 0,
+  coal: 0,
+  ironPlate: 0,
+  copperPlate: 0,
+  gear: 0,
   steel: 0,
+  wood: 0,
+  // Starter buildings so you can set up your first mining line.
   belt: 20,
   fastBelt: 0,
   undergroundBelt: 0,
@@ -456,7 +459,6 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   assembler: 1,
   splitter: 0,
   roboport: 1,
-  wood: 0,
   generator: 2,
 })
 
