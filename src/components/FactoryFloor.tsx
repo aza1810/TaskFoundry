@@ -134,6 +134,8 @@ type Floater = {
   y: number
   text: string
   tone: 'ore' | 'place' | 'good' | 'warn'
+  /** When set, the floater shows this resource's icon (e.g. mined ore). */
+  item?: ItemId
 }
 
 const BUILD_TOOLS: Placeable[] = [
@@ -475,9 +477,15 @@ export function FactoryFloor({
   }, [inspect, tiles])
 
   const spawnFloater = useCallback(
-    (x: number, y: number, text: string, tone: Floater['tone'] = 'good') => {
+    (
+      x: number,
+      y: number,
+      text: string,
+      tone: Floater['tone'] = 'good',
+      item?: ItemId,
+    ) => {
       const id = ++floaterSeq
-      setFloaters((list) => [...list.slice(-18), { id, x, y, text, tone }])
+      setFloaters((list) => [...list.slice(-18), { id, x, y, text, tone, item }])
       window.setTimeout(() => {
         setFloaters((list) => list.filter((f) => f.id !== id))
       }, 900)
@@ -532,8 +540,7 @@ export function FactoryFloor({
     const sample = drills.slice(0, Math.min(4, drills.length))
     for (const d of sample) {
       const tile = tiles[idx(d.x, d.y)]
-      const label = tile?.ore ? ITEM_META[tile.ore].short : '+'
-      spawnFloater(d.x, d.y, `+${label}`, 'ore')
+      spawnFloater(d.x, d.y, '+', 'ore', tile?.ore ?? undefined)
     }
   }, [state.stats.oreMined, state.mineCycles, entities, tiles, spawnFloater])
 
@@ -940,7 +947,7 @@ export function FactoryFloor({
             buzz(6)
             const tile = tiles[idx(cell.x, cell.y)]
             if (tile?.ore) {
-              spawnFloater(cell.x, cell.y, ITEM_META[tile.ore].short, 'ore')
+              spawnFloater(cell.x, cell.y, '', 'ore', tile.ore)
             }
           }
         } else if (!selected) {
@@ -1460,13 +1467,18 @@ export function FactoryFloor({
           {floaters.map((f) => (
             <span
               key={f.id}
-              className={`world-floater tone-${f.tone}`}
+              className={`world-floater tone-${f.tone}${f.item ? ' has-icon' : ''}`}
               style={{
                 left: f.x * CELL + CELL * 0.2,
                 top: f.y * CELL + CELL * 0.15,
               }}
             >
               {f.text}
+              {f.item && (
+                <span className="floater-icon">
+                  <ItemSprite item={f.item} />
+                </span>
+              )}
             </span>
           ))}
 
