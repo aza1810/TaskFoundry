@@ -338,7 +338,6 @@ export function FactoryFloor({
     state,
     place,
     rotateAt,
-    collect,
     selectTool,
     rotateDir,
     fuelDrills,
@@ -1866,28 +1865,6 @@ export function FactoryFloor({
                       }}
                     >
                       Fuel
-                    </button>
-                  )}
-                  {inspectEnt.kind === 'chest' && (
-                    <button
-                      type="button"
-                      className="primary-btn"
-                      onClick={() => {
-                        const beforeHeld = Object.values(inspectEnt.store).reduce(
-                          (s, n) => s + (n ?? 0),
-                          0,
-                        )
-                        collect(inspect.x, inspect.y)
-                        if (beforeHeld <= 0) {
-                          spawnFloater(inspect.x, inspect.y, 'empty', 'warn')
-                          buzz(4)
-                        } else {
-                          spawnFloater(inspect.x, inspect.y, 'loot', 'good')
-                          buzz(10)
-                        }
-                      }}
-                    >
-                      Collect / withdraw
                     </button>
                   )}
                   <button

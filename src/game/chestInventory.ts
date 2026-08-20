@@ -46,10 +46,13 @@ export function sumChestStores(
   return out
 }
 
-/** HUD amount: chests only for warehouse mats. */
+/**
+ * Displayed amount = the true total the player has (chests + any residual
+ * pack), so the UI never hides a separate resource bank. Materials are swept
+ * into chests each tick, so in practice this equals the sum across all chests.
+ */
 export function warehouseHudAmount(state: GameState, id: ItemId): number {
-  if (!isWarehouseItem(id)) return asItemCount(state.inventory[id] ?? 0)
-  return asItemCount(sumChestStores(state)[id] ?? 0)
+  return stockOf(state, id)
 }
 
 /**
@@ -225,6 +228,34 @@ export function depositToChests(
     }
   }
   return changed ? { ...state, entities } : state
+}
+
+/**
+ * Move warehouse materials out of the pack and into floor chests. Keeps chests
+ * as the single resource bank; anything that will not fit stays in the pack and
+ * is still counted in the displayed total.
+ */
+export function sweepPackToChests(state: GameState): GameState {
+  const entities: Record<string, Entity> = { ...state.entities }
+  const inventory = { ...state.inventory }
+  let moved = false
+  for (const item of WAREHOUSE_ITEMS) {
+    let have = asItemCount(inventory[item] ?? 0)
+    if (have <= 0) continue
+    for (const [id, e] of Object.entries(entities)) {
+      if (have <= 0) break
+      if (e.kind !== 'chest' || e.ghost) continue
+      const store = { ...e.store }
+      const put = putInChestStore(store, item, have)
+      if (put > 0) {
+        entities[id] = { ...e, store }
+        have -= put
+        moved = true
+      }
+    }
+    inventory[item] = have
+  }
+  return moved ? { ...state, entities, inventory } : state
 }
 
 /**

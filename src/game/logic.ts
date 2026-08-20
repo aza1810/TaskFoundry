@@ -48,6 +48,7 @@ import {
   scrubChestsToWarehouse,
   spendStock,
   stockOf,
+  sweepPackToChests,
 } from './chestInventory'
 import { TECH_MAP, TECHS, countPlacedChests, maxChestsFor, prereqsMet, withImpliedResearched } from './research'
 import {
@@ -215,6 +216,7 @@ export function loadState(accountSaveKey?: string): GameState {
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
     next = scrubChestsToWarehouse(next)
+    next = sweepPackToChests(next)
     if (!next.treesSeeded) next = scatterTrees(next)
     next = reconcileDrones(next)
     // Existing saves with a furnace already placed keep the 2nd chest unlock.
@@ -437,6 +439,8 @@ function mergeItemGains(
 
 export function tickState(state: GameState, now = Date.now()): GameState {
   let next = refreshDaily(state)
+  // Keep chests as the single resource bank: materials never linger in the pack.
+  next = sweepPackToChests(next)
   const rawDt = Math.max(0, (now - next.lastTick) / 1000)
   const dt = Math.min(OFFLINE_CAP_SECONDS, rawDt)
   next = { ...next, lastTick: now }
@@ -1410,27 +1414,6 @@ export function cancelCraft(state: GameState, jobId: string): GameState {
     ...next,
     unlockedToast: `Cancelled ${recipe?.name ?? 'craft'} - materials returned`,
   }
-}
-
-export function collectChest(state: GameState, x: number, y: number): GameState {
-  const tile = getTile(state.tiles, x, y)
-  if (!tile?.entityId) return state
-  const ent = state.entities[tile.entityId]
-  if (!ent || ent.kind !== 'chest') return state
-  const held = Object.values(ent.store).reduce((s, n) => s + (n ?? 0), 0)
-  if (held <= 0) {
-    return { ...state, unlockedToast: 'Chest empty' }
-  }
-  // Withdraw frees chest slots; materials move to hand stock (still spendable).
-  return claimGoals({
-    ...state,
-    inventory: gain(state.inventory, ent.store as Partial<typeof state.inventory>),
-    entities: {
-      ...state.entities,
-      [ent.id]: { ...ent, store: {} },
-    },
-    unlockedToast: 'Withdrew chest to hand stock (HUD shows floor chests)',
-  })
 }
 
 function fuelStock(state: GameState): number {
