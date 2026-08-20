@@ -16,6 +16,8 @@ const MATERIALS: ItemId[] = [
 ]
 
 const BUILDINGS: ItemId[] = [
+  'generator',
+  'roboport',
   'drill',
   'electricDrill',
   'belt',

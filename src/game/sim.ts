@@ -5,6 +5,8 @@ import {
   CHEST_SLOT_COUNT,
   CHEST_STACK_SIZE,
   DIR_DELTA,
+  DRILL_POWER_PER_CYCLE,
+  ELECTRIC_DRILL_POWER_PER_CYCLE,
   ELECTRIC_DRILL_YIELD,
   FUEL_VALUE,
   FURNACE_COAL_PER_SMELT,
@@ -15,6 +17,7 @@ import {
   inserterCooldownFor,
   MAX_UNDERGROUND,
   OPPOSITE,
+  POWER_DRAW,
   SMELT_MAP,
   beltSpeedFor,
   furnaceSecondsFor,
@@ -335,7 +338,7 @@ function tryDrillEject(
   return true
 }
 
-/** One mining cycle per drill - driven by player steps */
+/** One mining cycle per drill per step - each cycle spends stored power. */
 export function runMineCycles(state: GameState, cycles: number): GameState {
   if (cycles <= 0) return state
   const entities: Record<string, Entity> = {}
@@ -344,10 +347,12 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
   }
   const tiles = state.tiles.map((t) => ({ ...t }))
   let mined = 0
+  let cyclesRun = 0
+  let power = state.power
   const stats: FactoryStats = { ...state.stats }
   const view = { ...state, entities }
   const bonuses = skillBonuses(state.skills)
-  const coalCost = 0.25 * (1 - bonuses.drillCoalSave)
+  const save = 1 - bonuses.drillCoalSave
 
   for (let c = 0; c < cycles; c++) {
     for (const id of Object.keys(entities)) {
@@ -362,7 +367,9 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       }
 
       const electric = e.kind === 'electricDrill'
-      if (!electric && fuelUnits(e.store) < coalCost) continue
+      const cost =
+        (electric ? ELECTRIC_DRILL_POWER_PER_CYCLE : DRILL_POWER_PER_CYCLE) * save
+      if (power < cost) continue
 
       tryDrillEject(view, entities, e)
 
@@ -372,16 +379,10 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       const frac = raw - whole
       const yieldAmt = Math.max(1, whole + (Math.random() < frac ? 1 : 0))
 
-      const put = addToStore(
-        e.store,
-        tile.ore,
-        yieldAmt,
-        MACHINE_CAP[e.kind] ?? 5,
-        ['coal'],
-      )
+      const put = addToStore(e.store, tile.ore, yieldAmt, MACHINE_CAP[e.kind] ?? 5, ['coal'])
       if (put <= 0) continue
 
-      if (!electric) drawFuel(e.store, coalCost)
+      power -= cost
 
       if (tile.amount !== null) {
         tile.amount -= put
@@ -391,6 +392,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
         }
       }
       mined += put
+      cyclesRun += 1
       stats.oreMined += put
       tryDrillEject(view, entities, e)
     }
@@ -401,7 +403,8 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
     entities,
     tiles,
     stats,
-    mineCycles: state.mineCycles + cycles,
+    power: Math.max(0, power),
+    mineCycles: state.mineCycles + cyclesRun,
     xp: state.xp + Math.floor(mined / 5),
   }
 }
@@ -422,6 +425,29 @@ export function simTick(state: GameState, dt: number): GameState {
   const bonuses = skillBonuses(state.skills)
   const ugRange = MAX_UNDERGROUND + bonuses.ugBonus
   const inserterCd = inserterCooldownFor(bonuses.inserterSpeedMult)
+
+  // --- Power grid: electric machines draw from the battery; a brownout
+  //     (not enough stored power) slows every electric machine this tick. ---
+  let demand = 0
+  for (const e of Object.values(entities)) {
+    if (e.ghost) continue
+    const draw = POWER_DRAW[e.kind] ?? 0
+    if (draw <= 0) continue
+    if (isBeltKind(e.kind) || e.kind === 'undergroundBelt' || e.kind === 'splitter') {
+      if (e.cargo) demand += draw
+    } else if (isInserterKind(e.kind)) {
+      demand += draw
+    } else if (e.kind === 'assembler') {
+      if (e.smelting || (e.store.ironPlate ?? 0) >= ASSEMBLER_PLATES_PER_GEAR) {
+        demand += draw
+      }
+    } else {
+      demand += draw
+    }
+  }
+  const need = demand * dt
+  const powerRatio = need > 0 ? Math.min(1, state.power / need) : 1
+  const powerLeft = Math.max(0, state.power - need * powerRatio)
 
   // --- Drill auto-eject ---
   for (const e of Object.values(entities)) {
@@ -480,7 +506,7 @@ export function simTick(state: GameState, dt: number): GameState {
     if (e.ghost) continue
     if (e.kind !== 'assembler') continue
     const seconds = ASSEMBLER_SECONDS / bonuses.assemblerSpeedMult
-    let timeLeft = dt
+    let timeLeft = dt * powerRatio
     while (timeLeft > 0) {
       const plates = e.store.ironPlate ?? 0
       if (!e.smelting) {
@@ -517,7 +543,7 @@ export function simTick(state: GameState, dt: number): GameState {
     if (!e.cargo) continue
     e.cargo.progress = Math.min(
       1,
-      e.cargo.progress + beltSpeedFor(e.kind) * bonuses.beltSpeedMult * dt,
+      e.cargo.progress + beltSpeedFor(e.kind) * bonuses.beltSpeedMult * dt * powerRatio,
     )
     if (e.cargo.progress < 1) continue
 
@@ -537,7 +563,7 @@ export function simTick(state: GameState, dt: number): GameState {
     if (e.kind !== 'undergroundBelt' || !e.cargo) continue
     e.cargo.progress = Math.min(
       1,
-      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt,
+      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt * powerRatio,
     )
     if (e.cargo.progress < 1) continue
 
@@ -563,7 +589,7 @@ export function simTick(state: GameState, dt: number): GameState {
     if (e.kind !== 'splitter' || !e.cargo) continue
     e.cargo.progress = Math.min(
       1,
-      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt,
+      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt * powerRatio,
     )
     if (e.cargo.progress < 1) continue
 
@@ -591,7 +617,8 @@ export function simTick(state: GameState, dt: number): GameState {
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
     if (!isInserterKind(e.kind)) continue
-    e.progress = Math.max(0, e.progress - dt)
+    if (powerRatio <= 0) continue
+    e.progress = Math.max(0, e.progress - dt * powerRatio)
     if (e.progress > 0) continue
 
     const reach = e.kind === 'longInserter' ? 2 : 1
@@ -623,7 +650,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   stats.itemsMoved += moved
 
-  return { ...state, entities, stats, lastTick: Date.now() }
+  return { ...state, entities, stats, power: powerLeft, lastTick: Date.now() }
 }
 
 export { addToStore, takeFromStore, MACHINE_CAP }

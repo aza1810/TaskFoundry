@@ -615,6 +615,38 @@ export function DroneSprite() {
   )
 }
 
+export const GeneratorSprite = memo(function GeneratorSprite({
+  active,
+}: {
+  active?: boolean
+}) {
+  return (
+    <svg
+      className={`sprite sprite-generator ${active ? 'is-active' : ''}`}
+      viewBox="0 0 64 64"
+      aria-hidden
+    >
+      <rect x="8" y="16" width="48" height="38" rx="4" fill="#4a4436" stroke="#241f16" strokeWidth="2" />
+      <rect x="12" y="20" width="40" height="24" rx="2" fill="#2e2a20" />
+      {/* Dynamo drum */}
+      <circle cx="32" cy="32" r="11" fill="#6a6252" stroke="#241f16" strokeWidth="2" />
+      <circle cx="32" cy="32" r="6" fill={active ? '#ffe14d' : '#8a7f66'} stroke="#241f16" strokeWidth="1.5" />
+      {/* Lightning bolt */}
+      <path
+        d="M33 23 L26 34 L31 34 L29 42 L38 30 L33 30 Z"
+        fill={active ? '#fff2a0' : '#c9be9a'}
+        stroke="#241f16"
+        strokeWidth="1"
+      />
+      {/* Vents + feet */}
+      <rect x="14" y="47" width="36" height="5" fill="#3a3428" />
+      <circle cx="16" cy="20" r="1.6" fill="#241f16" />
+      <circle cx="48" cy="20" r="1.6" fill="#241f16" />
+      {active && <circle cx="49" cy="50" r="3" fill="#8dffcf" className="drill-lamp" />}
+    </svg>
+  )
+})
+
 export const TreeSprite = memo(function TreeSprite() {
   // Tall viewBox, bottom-aligned so the trunk sits on its tile while the
   // canopy rises ~1.5 tiles above it (the tree still occupies one tile).
@@ -659,6 +691,7 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   splitter: { fill: '#c4a035', edge: '#6a5010' },
   roboport: { fill: '#3fa7c9', edge: '#1a5060' },
   wood: { fill: '#8a5a30', edge: '#4a2f18' },
+  generator: { fill: '#f5d020', edge: '#8a6a10' },
 }
 
 const PLACEABLE_ITEMS = new Set<ItemId>([
@@ -675,6 +708,7 @@ const PLACEABLE_ITEMS = new Set<ItemId>([
   'assembler',
   'splitter',
   'roboport',
+  'generator',
 ])
 
 function OreItemSprite({ item }: { item: 'ironOre' | 'copperOre' | 'coal' }) {
@@ -847,6 +881,8 @@ export const EntitySprite = memo(function EntitySprite({
       return <RoboportSprite active={active} />
     case 'tree':
       return <TreeSprite />
+    case 'generator':
+      return <GeneratorSprite active={active} />
   }
 })
 

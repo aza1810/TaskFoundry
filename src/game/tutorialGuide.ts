@@ -267,13 +267,16 @@ function findLineOrigin(state: GameState): { x: number; y: number; dir: Dir } | 
     return { x: d.x, y: d.y, dir: d.dir }
   }
 
+  // The drill sits on ore; the rest of the line must be clear grass so the
+  // belt/inserter/chest never land on the ore patch.
   const tryOrigin = (x: number, y: number, dir: Dir) => {
     const { dx, dy } = DIR_DELTA[dir]
     for (let i = 1; i <= 9; i++) {
       const nx = x + dx * i
       const ny = y + dy * i
       if (!inBounds(nx, ny, state.width, state.height)) return false
-      if (state.tiles[idx(nx, ny)]?.entityId) return false
+      const t = state.tiles[idx(nx, ny)]
+      if (!t || t.entityId || t.ore) return false
     }
     return true
   }

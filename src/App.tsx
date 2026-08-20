@@ -162,6 +162,11 @@ function Shell() {
       syncingRef.current = false
     }
   }, [isNative, readIfAuthorized, importHealthSteps])
+  // DEBUG: Expose logSteps for testing
+  useEffect(() => {
+    window.__debugLogSteps = logSteps
+    return () => { delete window.__debugLogSteps }
+  }, [logSteps])
 
   // Auto-pull Health steps on login/boot so drills mine before the away recap.
   useEffect(() => {
@@ -414,4 +419,11 @@ export default function App() {
       <AuthenticatedApp />
     </AuthProvider>
   )
+}
+
+// DEBUG: Expose logSteps for testing
+declare global {
+  interface Window {
+    __debugLogSteps?: (amount: number) => void
+  }
 }

@@ -24,13 +24,16 @@ import {
   ACTIVE_SAVE_KEY,
   setActiveSaveKey,
   asItemCount,
+  BASE_POWER_CAP,
   canAfford,
   FUEL_VALUE,
   fuelUnits,
+  FURNACE_FUEL_CAP,
   gain,
   idx,
   inBounds,
   isDrillKind,
+  isFurnaceKind,
   rotateDir,
   sanitizeInventory,
   spend,
@@ -68,6 +71,7 @@ import {
   contractComplete,
 } from './contracts'
 import { findUgPartner, runMineCycles, simTick } from './sim'
+import { powerCapacity, powerPerStep } from './power'
 import type {
   BlueprintEntity,
   CraftJob,
@@ -139,7 +143,7 @@ export function createInitialState(): GameState {
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
-      'Welcome - drop a Roboport to deploy a construction drone, then place a drill on iron ore. Steps power every drill.',
+      'Welcome! Place a drill on an ore patch, run a belt + inserter into a chest, then walk - your steps power the drill and it mines ore into the chest.',
     offlineReport: null,
     stats: emptyStats(),
     completedGoals: [],
@@ -156,6 +160,7 @@ export function createInitialState(): GameState {
     tutorialStep: 0,
     tutorialComplete: false,
     treesSeeded: false,
+    power: BASE_POWER_CAP,
   }
   return scatterTrees(base)
 }
@@ -219,6 +224,14 @@ export function loadState(accountSaveKey?: string): GameState {
     next = sweepPackToChests(next)
     if (!next.treesSeeded) next = scatterTrees(next)
     next = reconcileDrones(next)
+    // Clamp/default stored power to the current battery capacity.
+    next = {
+      ...next,
+      power: Math.min(
+        powerCapacity(next),
+        typeof parsed.power === 'number' ? Math.max(0, parsed.power) : powerCapacity(next),
+      ),
+    }
     // Existing saves with a furnace already placed keep the 2nd chest unlock.
     const hasFurnace = Object.values(next.entities).some(
       (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
@@ -557,10 +570,14 @@ function reconcileDrones(state: GameState): GameState {
   return { ...state, drones }
 }
 
-/** Top a burner drill up toward `capUnits` fuel using warehouse coal, then wood. */
-function addDrillFuel(state: GameState, id: string, capUnits = 5): GameState {
+/** Top a furnace up toward `capUnits` fuel using warehouse coal, then wood. */
+function addFurnaceFuel(
+  state: GameState,
+  id: string,
+  capUnits = FURNACE_FUEL_CAP,
+): GameState {
   const start = state.entities[id]
-  if (!start || start.kind !== 'drill') return state
+  if (!start || !isFurnaceKind(start.kind)) return state
   let next = state
   for (const fuel of ['coal', 'wood'] as const) {
     const ent = next.entities[id]
@@ -582,11 +599,6 @@ function addDrillFuel(state: GameState, id: string, capUnits = 5): GameState {
   return next
 }
 
-/** Load a freshly built burner drill with fuel from the warehouse. */
-function fuelDrillEntity(state: GameState, id: string): GameState {
-  return addDrillFuel(state, id, 5)
-}
-
 /** Turn a construction ghost into a working entity + run post-build setup. */
 function finishGhost(state: GameState, id: string): GameState {
   const ghost = state.entities[id]
@@ -598,7 +610,7 @@ function finishGhost(state: GameState, id: string): GameState {
     ...state,
     entities: { ...state.entities, [id]: built },
   }
-  if (built.kind === 'drill') next = fuelDrillEntity(next, id)
+  if (isFurnaceKind(built.kind)) next = addFurnaceFuel(next, id)
   if (built.kind === 'roboport') next = reconcileDrones(next)
   return next
 }
@@ -896,10 +908,13 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     })
   }
 
-  if (tool === 'drill') next = fuelDrillEntity(next, ent.id)
+  if (isFurnaceKind(tool)) next = addFurnaceFuel(next, ent.id)
   if (tool === 'roboport') {
     next = reconcileDrones(next)
     next = { ...next, unlockedToast: 'Roboport online - construction drone deployed' }
+  }
+  if (tool === 'generator') {
+    next = { ...next, unlockedToast: 'Generator online - your steps now store more power' }
   }
 
   return claimGoals(next)
@@ -1049,7 +1064,7 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
   let inventory = { ...state.inventory }
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
-  const drillFuels: { id: string; fuel: number }[] = []
+  const furnaceIds: string[] = []
   const useGhost = hasActiveRoboport(state)
 
   for (const piece of bp) {
@@ -1065,7 +1080,7 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     }
     tiles[idx(x, y)].entityId = ent.id
     entities[ent.id] = ent
-    if (!useGhost && piece.kind === 'drill') drillFuels.push({ id: ent.id, fuel: 5 })
+    if (!useGhost && isFurnaceKind(piece.kind)) furnaceIds.push(ent.id)
   }
 
   if (useGhost) {
@@ -1085,18 +1100,8 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     entities,
     unlockedToast: `Pasted ${bp.length} buildings`,
   }
-  for (const { id, fuel: maxFuel } of drillFuels) {
-    const fuel = Math.min(maxFuel, stockOf(next, 'coal'))
-    if (fuel <= 0) continue
-    next = spendStock(next, { coal: fuel })
-    const e = next.entities[id]
-    next = {
-      ...next,
-      entities: {
-        ...next.entities,
-        [id]: { ...e, store: { ...e.store, coal: fuel } },
-      },
-    }
+  for (const id of furnaceIds) {
+    next = addFurnaceFuel(next, id)
   }
 
   return claimGoals(next)
@@ -1116,26 +1121,13 @@ export function rotateEntityAt(state: GameState, x: number, y: number): GameStat
   }
 }
 
-export function topUpDrillFuel(state: GameState): GameState {
+export function topUpFurnaceFuel(state: GameState): GameState {
   let next = state
   for (const id of Object.keys(state.entities)) {
     const ent = next.entities[id]
-    if (!ent || ent.kind !== 'drill') continue
+    if (!ent || !isFurnaceKind(ent.kind)) continue
     if (fuelUnits(ent.store) >= 2) continue
-    next = addDrillFuel(next, id, 5)
-  }
-  return next
-}
-
-function ensureDrillFuel(state: GameState): GameState {
-  let next = state
-  const coalNeed = 0.25 * (1 - skillBonuses(state.skills).drillCoalSave)
-  for (const id of Object.keys(state.entities)) {
-    const ent = next.entities[id]
-    if (!ent || ent.kind !== 'drill') continue
-    if (fuelUnits(ent.store) >= coalNeed) continue
-    if (stockOf(next, 'coal') < 1 && stockOf(next, 'wood') < 1) continue
-    next = addDrillFuel(next, id, 5)
+    next = addFurnaceFuel(next, id)
   }
   return next
 }
@@ -1150,7 +1142,11 @@ export function logSteps(state: GameState, amount: number): GameState {
     stepsToday: next.stepsToday + add,
     stepsLifetime: next.stepsLifetime + add,
   }
-  next = ensureDrillFuel(next)
+  // Steps charge the power grid (more generators store more per step).
+  next = {
+    ...next,
+    power: Math.min(powerCapacity(next), next.power + add * powerPerStep(next)),
+  }
   next = runMineCycles(next, add)
 
   const bonuses = skillBonuses(next.skills)
@@ -1421,44 +1417,46 @@ function fuelStock(state: GameState): number {
 }
 
 export function fuelAllDrills(state: GameState): GameState {
-  const drills = Object.values(state.entities).filter((e) => e.kind === 'drill')
-  if (drills.length === 0) {
-    return { ...state, unlockedToast: 'No burner drills on the floor' }
+  const furnaces = Object.values(state.entities).filter(
+    (e) => isFurnaceKind(e.kind) && !e.ghost,
+  )
+  if (furnaces.length === 0) {
+    return { ...state, unlockedToast: 'No furnaces on the floor to fuel' }
   }
   const before = fuelStock(state)
-  const next = topUpDrillFuel(state)
+  const next = topUpFurnaceFuel(state)
   const used = before - fuelStock(next)
   if (used <= 0) {
-    const anyHungry = drills.some((e) => fuelUnits(e.store) < 2)
+    const anyHungry = furnaces.some((e) => fuelUnits(e.store) < 2)
     return {
       ...state,
       unlockedToast: anyHungry
-        ? 'Need coal or wood in a chest to fuel drills'
-        : 'All burner drills already fueled',
+        ? 'Need coal or wood in a chest to fuel furnaces'
+        : 'All furnaces already fueled',
     }
   }
   return {
     ...next,
-    unlockedToast: `Fueled drills (−${used} fuel)`,
+    unlockedToast: `Fueled furnaces (−${used} fuel)`,
   }
 }
 
-/** Top up a single burner drill from warehouse coal, then wood. */
+/** Top up a single furnace from warehouse coal, then wood. */
 export function fuelDrillAt(state: GameState, x: number, y: number): GameState {
   const tile = state.tiles[idx(x, y)]
   if (!tile?.entityId) return state
   const ent = state.entities[tile.entityId]
-  if (!ent || ent.kind !== 'drill') return state
-  if (fuelUnits(ent.store) >= 5) {
-    return { ...state, unlockedToast: 'Drill already fueled' }
+  if (!ent || !isFurnaceKind(ent.kind)) return state
+  if (fuelUnits(ent.store) >= FURNACE_FUEL_CAP) {
+    return { ...state, unlockedToast: 'Furnace already fueled' }
   }
   const before = fuelStock(state)
-  const next = addDrillFuel(state, ent.id, 5)
+  const next = addFurnaceFuel(state, ent.id)
   const used = before - fuelStock(next)
   if (used <= 0) {
     return { ...state, unlockedToast: 'Need coal or wood in a chest' }
   }
-  return { ...next, unlockedToast: `Fueled drill (+${used} fuel)` }
+  return { ...next, unlockedToast: `Fueled furnace (+${used} fuel)` }
 }
 
 export function cycleTip(state: GameState): GameState {
@@ -1613,19 +1611,25 @@ export function researchTech(state: GameState, techId: TechId): GameState {
 export function buildStarterLine(state: GameState): GameState {
   // Layout facing east (9 tiles):
   // [drill>][belt>][inserter>][chest][inserter>][belt>][inserter>][furnace][inserter>][chest]
+  // Only the drill sits on ore; the belt/inserter/chest/furnace line runs onto
+  // clear grass so the rest of the patch stays free for more drills.
   let origin: { x: number; y: number } | null = null
   for (let y = 0; y < state.height && !origin; y++) {
     for (let x = 0; x < state.width - 9; x++) {
       if (state.tiles[idx(x, y)].ore !== 'ironOre') continue
-      const cells = Array.from({ length: 10 }, (_, i) => [x + i, y] as const)
-      if (cells.every(([cx, cy]) => !state.tiles[idx(cx, cy)].entityId)) {
+      const drillClear = !state.tiles[idx(x, y)].entityId
+      const lineClear = Array.from({ length: 9 }, (_, i) => x + 1 + i).every((cx) => {
+        const t = state.tiles[idx(cx, y)]
+        return !t.entityId && !t.ore
+      })
+      if (drillClear && lineClear) {
         origin = { x, y }
         break
       }
     }
   }
   if (!origin) {
-    return { ...state, unlockedToast: 'No clear iron patch for a starter line' }
+    return { ...state, unlockedToast: 'No clear iron patch edge for a starter line' }
   }
 
   const need = {
@@ -1634,20 +1638,17 @@ export function buildStarterLine(state: GameState): GameState {
     inserter: 4,
     furnace: 1,
     chest: 2,
-    coal: 5,
   }
   if (!canAffordStock(state, need)) {
     return {
       ...state,
-      unlockedToast:
-        'Need 1 drill, 2 belts, 4 inserters, 1 furnace, 2 chests, 5 coal',
+      unlockedToast: 'Need 1 drill, 2 belts, 4 inserters, 1 furnace, 2 chests',
     }
   }
 
   let inventory = { ...state.inventory }
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
-  let drillId: string | null = null
   let furnaceId: string | null = null
 
   const put = (kind: Placeable, px: number, py: number, dir: Dir) => {
@@ -1655,7 +1656,6 @@ export function buildStarterLine(state: GameState): GameState {
     const ent = createEntity(kind, px, py, dir)
     tiles[idx(px, py)].entityId = ent.id
     entities[ent.id] = ent
-    if (kind === 'drill') drillId = ent.id
     if (kind === 'furnace' || kind === 'steelFurnace') furnaceId = ent.id
   }
 
@@ -1678,20 +1678,6 @@ export function buildStarterLine(state: GameState): GameState {
     entities,
     placeDir: 'E',
     selected: null,
-  }
-  if (drillId) {
-    const fuel = Math.min(5, stockOf(next, 'coal'))
-    if (fuel > 0) {
-      next = spendStock(next, { coal: fuel })
-      const e = next.entities[drillId]
-      next = {
-        ...next,
-        entities: {
-          ...next.entities,
-          [drillId]: { ...e, store: { ...e.store, coal: fuel } },
-        },
-      }
-    }
   }
   if (furnaceId) {
     const fuel = Math.min(5, stockOf(next, 'coal'))

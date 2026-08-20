@@ -71,6 +71,7 @@ export const ITEM_META: Record<
   splitter: { label: 'Splitter', short: '⇔', color: '#c4a035' },
   roboport: { label: 'Roboport', short: '❖', color: '#3fa7c9' },
   wood: { label: 'Wood', short: 'Wd', color: '#7a5230' },
+  generator: { label: 'Generator', short: '⚡', color: '#f5d020' },
 }
 
 export const PLACEABLE_META: Record<
@@ -142,6 +143,11 @@ export const PLACEABLE_META: Record<
     inventoryKey: 'roboport',
     hint: 'Drone hub. Each roboport deploys one construction drone that builds everything you place.',
   },
+  generator: {
+    label: 'Generator',
+    inventoryKey: 'generator',
+    hint: 'Turns your steps into stored power. More generators = more power per step and a bigger battery.',
+  },
 }
 
 export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
@@ -158,6 +164,7 @@ export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
   assembler: { ironPlate: 6, gear: 4, copperPlate: 2 },
   splitter: { ironPlate: 4, gear: 4, copperPlate: 2 },
   roboport: { ironPlate: 8, gear: 6, copperPlate: 4 },
+  generator: { ironPlate: 6, gear: 4, copperPlate: 3 },
 }
 
 export type HandRecipe = {
@@ -324,6 +331,14 @@ export const HAND_RECIPES: HandRecipe[] = [
     handSeconds: 12,
     category: 'building',
   },
+  {
+    id: 'craftGenerator',
+    name: 'Craft Generator',
+    inputs: { ironPlate: 6, gear: 4, copperPlate: 3 },
+    outputs: { generator: 1 },
+    handSeconds: 10,
+    category: 'building',
+  },
 ]
 
 export const RECIPE_MAP = Object.fromEntries(
@@ -383,6 +398,36 @@ export const DRONE_SPEED = 2
 export const DRONE_BUILD_SECONDS = 2.4
 /** How many construction drones each roboport deploys. */
 export const DRONES_PER_ROBOPORT = 1
+
+/* ---- Power grid ---- */
+/** Battery capacity with zero generators. */
+export const BASE_POWER_CAP = 500
+/** Extra battery capacity each generator adds. */
+export const GEN_CAPACITY = 800
+/** Power stored per step with zero generators; scaled by (1 + generators). */
+export const POWER_PER_STEP = 6
+/** Power a burner drill spends per mining cycle. */
+export const DRILL_POWER_PER_CYCLE = 2
+/** Power an electric drill spends per mining cycle (it mines more per cycle). */
+export const ELECTRIC_DRILL_POWER_PER_CYCLE = 3
+/** Continuous power draw (per second) for electric machines that run on the grid. */
+export const POWER_DRAW: Record<EntityKind, number> = {
+  drill: 0,
+  electricDrill: 0,
+  belt: 0.3,
+  fastBelt: 0.6,
+  undergroundBelt: 0.3,
+  inserter: 0.8,
+  longInserter: 1.2,
+  furnace: 0,
+  steelFurnace: 0,
+  chest: 0,
+  assembler: 2.5,
+  splitter: 0.6,
+  roboport: 0,
+  tree: 0,
+  generator: 0,
+}
 /** Seconds a drone spends chopping a marked tree. */
 export const TREE_CUT_SECONDS = 2
 /** Wood dropped into a chest when a drone fells a tree. */
@@ -391,13 +436,16 @@ export const WOOD_PER_TREE = 4
 export const TREE_COUNT = 22
 
 export const EMPTY_INVENTORY = (): Inventory => ({
-  ironOre: 8,
-  copperOre: 4,
-  coal: 12,
-  ironPlate: 10,
-  copperPlate: 2,
-  gear: 4,
+  // Raw materials start at zero - you gather them by mining into a chest.
+  ironOre: 0,
+  copperOre: 0,
+  coal: 0,
+  ironPlate: 0,
+  copperPlate: 0,
+  gear: 0,
   steel: 0,
+  wood: 0,
+  // Starter buildings so you can set up your first mining line.
   belt: 20,
   fastBelt: 0,
   undergroundBelt: 0,
@@ -411,7 +459,7 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   assembler: 1,
   splitter: 0,
   roboport: 1,
-  wood: 0,
+  generator: 2,
 })
 
 export const DEFAULT_HABITS = (): Habit[] => [
@@ -556,6 +604,7 @@ export function entityGlyph(kind: EntityKind, dir: Dir): string {
   if (kind === 'splitter') return '⇔'
   if (kind === 'roboport') return '❖'
   if (kind === 'tree') return '♣'
+  if (kind === 'generator') return '⚡'
   return '▣'
 }
 
