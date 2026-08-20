@@ -1,12 +1,25 @@
 import { useState, type FormEvent } from 'react'
 import { HABIT_REWARDS, ITEM_META, formatNum } from '../game/data'
 import { useGame } from '../game/GameContext'
+import { ItemSprite } from '../sprites/Sprites'
 import type { HabitCategory, ItemId } from '../game/types'
 
-function rewardLabel(items: Partial<Record<ItemId, number>>): string {
-  return (Object.entries(items) as [ItemId, number][])
-    .map(([id, n]) => `+${formatNum(n)} ${ITEM_META[id].short}`)
-    .join(' · ')
+function RewardIcons({ items }: { items: Partial<Record<ItemId, number>> }) {
+  const parts = (Object.entries(items) as [ItemId, number][]).filter(
+    ([, n]) => (n ?? 0) > 0,
+  )
+  return (
+    <p className="habit-reward">
+      {parts.map(([id, n]) => (
+        <span className="reward-tag" key={id} title={ITEM_META[id].label}>
+          <span className="reward-tag-icon">
+            <ItemSprite item={id} />
+          </span>
+          <em>+{formatNum(n)}</em>
+        </span>
+      ))}
+    </p>
+  )
 }
 
 const CATEGORIES: { id: HabitCategory; label: string }[] = [
@@ -87,7 +100,7 @@ export function HabitsPanel({ highlightHabit = false }: { highlightHabit?: boole
                   Streak {habit.streak} · +{reward.xp} XP
                   {habit.completedToday ? ' · stamped' : ''}
                 </p>
-                <p className="habit-reward">{rewardLabel(reward.items)}</p>
+                <RewardIcons items={reward.items} />
               </div>
               <button
                 type="button"

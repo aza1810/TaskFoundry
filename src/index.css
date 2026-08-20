@@ -3795,6 +3795,19 @@ html[data-theme='light'] .ghost-btn.is-danger {
   white-space: nowrap;
 }
 
+.world-floater.has-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.floater-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+}
+
 .world-floater.tone-ore {
   color: #d8c090;
 }
@@ -5694,9 +5707,30 @@ html[data-theme='light'] .settings-theme {
 
 .habit-reward {
   margin: 0.2rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--moss);
+}
+
+.reward-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.reward-tag-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.reward-tag em {
+  font-style: normal;
 }
 
 .inv-section {
