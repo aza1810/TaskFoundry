@@ -22,6 +22,7 @@ export type ItemId =
   | 'wood'
   | 'generator'
   | 'stone'
+  | 'foundation'
 
 export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
@@ -114,6 +115,8 @@ export interface Tile {
   ore: OreId | null
   amount: number | null
   entityId: string | null
+  /** Concrete floor. Machines (except drills) need this connected to a generator. */
+  foundation?: boolean
 }
 
 export interface Inventory {
@@ -140,9 +143,11 @@ export interface Inventory {
   wood: number
   generator: number
   stone: number
+  foundation: number
 }
 
-export type Placeable = Extract<
+/** Buildings that occupy tiles as entities. Foundation is a floor flag, not an entity. */
+export type EntityPlaceable = Extract<
   EntityKind,
   | 'drill'
   | 'electricDrill'
@@ -160,10 +165,12 @@ export type Placeable = Extract<
   | 'generator'
 >
 
+export type Placeable = EntityPlaceable | 'foundation'
+
 export type ToolId = Placeable | 'remove' | 'copy' | 'paste' | 'rotate'
 
 export interface BlueprintEntity {
-  kind: Placeable
+  kind: EntityPlaceable
   dx: number
   dy: number
   dir: Dir

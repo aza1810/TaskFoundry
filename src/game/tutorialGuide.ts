@@ -19,7 +19,7 @@ import {
   type TutorialStepDef,
   type TutorialStepId,
 } from './tutorial'
-import type { Dir, Entity, GameState, Placeable, ToolId } from './types'
+import type { Dir, Entity, GameState, EntityPlaceable, ToolId } from './types'
 
 export interface TutorialCheckStatus {
   id: string
@@ -31,7 +31,7 @@ export interface TutorialCheckStatus {
 export interface TutorialGhost {
   x: number
   y: number
-  kind: Placeable
+  kind: EntityPlaceable
   dir: Dir
   next: boolean
 }
@@ -44,7 +44,7 @@ type KindCounts = {
   furnaces: number
 }
 
-const LINE: { kind: Placeable; d: number }[] = [
+const LINE: { kind: EntityPlaceable; d: number }[] = [
   { kind: 'drill', d: 0 },
   { kind: 'belt', d: 1 },
   { kind: 'inserter', d: 2 },
@@ -511,6 +511,11 @@ export function placeFailReason(
   }
   if (!inBounds(x, y, state.width, state.height)) return 'off map'
   const tile = state.tiles[idx(x, y)]
+  if (tool === 'foundation') {
+    if (tile.foundation) return 'already paved'
+    if (Math.floor((state.inventory.foundation ?? 0) + 1e-9) < 1) return 'craft more'
+    return null
+  }
   if (tile.entityId) return 'blocked'
   if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) return 'needs ore'
   if (tool === 'chest') {

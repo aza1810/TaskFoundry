@@ -713,6 +713,7 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   wood: { fill: '#8a5a30', edge: '#4a2f18' },
   generator: { fill: '#f5d020', edge: '#8a6a10' },
   stone: { fill: '#9a9184', edge: '#5f5850' },
+  foundation: { fill: '#b8b0a4', edge: '#6a645c' },
 }
 
 const PLACEABLE_ITEMS = new Set<ItemId>([
@@ -830,6 +831,9 @@ export const ItemSprite = memo(function ItemSprite({ item }: { item: ItemId }) {
       </svg>
     )
   }
+  if (item === 'foundation') {
+    return <FoundationSprite />
+  }
   if (PLACEABLE_ITEMS.has(item)) {
     return (
       <span className="sprite sprite-item sprite-item-entity" aria-hidden>
@@ -920,11 +924,33 @@ export const EntitySprite = memo(function EntitySprite({
   }
 })
 
+export const FoundationSprite = memo(function FoundationSprite() {
+  return (
+    <svg className="sprite sprite-foundation" viewBox="0 0 64 64" aria-hidden>
+      <rect x="1" y="1" width="62" height="62" fill="#8e877c" />
+      <rect x="1" y="1" width="62" height="62" fill="none" stroke="#5c574e" strokeWidth="2" />
+      <path d="M1 32 H63" stroke="#6e6860" strokeWidth="1.4" />
+      <path d="M32 1 V63" stroke="#6e6860" strokeWidth="1.4" />
+      <path d="M1 16 H31" stroke="#a39c92" strokeWidth="0.8" opacity="0.7" />
+      <path d="M33 48 H63" stroke="#a39c92" strokeWidth="0.8" opacity="0.7" />
+      <rect x="4" y="4" width="10" height="6" fill="#c4bdb2" opacity="0.28" />
+      <rect x="40" y="36" width="14" height="5" fill="#5c574e" opacity="0.25" />
+    </svg>
+  )
+})
+
 export function ToolIcon({
   kind,
 }: {
-  kind: EntityKind | 'remove' | 'copy' | 'paste' | 'rotate'
+  kind: EntityKind | 'foundation' | 'remove' | 'copy' | 'paste' | 'rotate'
 }) {
+  if (kind === 'foundation') {
+    return (
+      <span className="tool-icon-wrap">
+        <FoundationSprite />
+      </span>
+    )
+  }
   if (kind === 'remove') {
     return (
       <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>

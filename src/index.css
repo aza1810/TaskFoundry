@@ -2513,6 +2513,24 @@ html[data-theme='light'] .ghost-btn.is-danger {
   pointer-events: none;
 }
 
+.cell-foundation {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+.cell.has-foundation.is-powered-floor .cell-foundation {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 220, 90, 0.55),
+    0 0 10px rgba(120, 220, 255, 0.28);
+}
+
+.cell.has-foundation:not(.is-powered-floor) .cell-foundation {
+  filter: saturate(0.75) brightness(0.88);
+}
+
 .tex {
   width: 100%;
   height: 100%;

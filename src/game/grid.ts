@@ -33,6 +33,7 @@ export function createTiles(): Tile[] {
     ore: null,
     amount: null,
     entityId: null,
+    foundation: false,
   }))
 
   // Bigger map patches

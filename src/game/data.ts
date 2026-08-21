@@ -1,15 +1,17 @@
 import type {
   Dir,
   EntityKind,
+  EntityPlaceable,
   Habit,
   Inventory,
   ItemId,
   OreId,
   Placeable,
+  ToolId,
 } from './types'
 
 export const SAVE_KEY = 'task-foundry-v9'
-export const GAME_VERSION = 9
+export const GAME_VERSION = 10
 export const APP_NAME = 'Task Foundry'
 export const APP_TAGLINE = 'Walk. Task. Automate.'
 /** Overridden per signed-in account at runtime */
@@ -73,6 +75,7 @@ export const ITEM_META: Record<
   wood: { label: 'Wood', short: 'Wd', color: '#7a5230' },
   generator: { label: 'Generator', short: '⚡', color: '#f5d020' },
   stone: { label: 'Stone', short: 'Sto', color: '#9a9184' },
+  foundation: { label: 'Foundation', short: 'Fd', color: '#b8b0a4' },
 }
 
 export const PLACEABLE_META: Record<
@@ -82,37 +85,37 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto belts in front of the orange port.',
+    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto belts in front of the orange port. Needs a generator or powered Foundation within 5 tiles.',
   },
   electricDrill: {
     label: 'Electric Drill',
     inventoryKey: 'electricDrill',
-    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle.',
+    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle. Needs a generator or powered Foundation within 5 tiles.',
   },
   belt: {
     label: 'Transport Belt',
     inventoryKey: 'belt',
-    hint: 'Moves items in the facing direction.',
+    hint: 'Moves items in the facing direction. Needs Foundation connected to a generator.',
   },
   fastBelt: {
     label: 'Fast Belt',
     inventoryKey: 'fastBelt',
-    hint: 'About 2× yellow belt speed.',
+    hint: 'About 2x yellow belt speed. Needs Foundation connected to a generator.',
   },
   undergroundBelt: {
     label: 'Underground Belt',
     inventoryKey: 'undergroundBelt',
-    hint: 'Entrance tunnels to an exit up to 6 tiles ahead (same facing).',
+    hint: 'Entrance tunnels to an exit up to 6 tiles ahead (same facing). Needs Foundation connected to a generator.',
   },
   inserter: {
     label: 'Inserter',
     inventoryKey: 'inserter',
-    hint: 'Pulls from the dashed tile behind, drops on the solid tile in front.',
+    hint: 'Pulls from the dashed tile behind, drops on the solid tile in front. Needs Foundation connected to a generator.',
   },
   longInserter: {
     label: 'Long Inserter',
     inventoryKey: 'longInserter',
-    hint: 'Reaches 2 tiles behind and 2 tiles ahead.',
+    hint: 'Reaches 2 tiles behind and 2 tiles ahead. Needs Foundation connected to a generator.',
   },
   furnace: {
     label: 'Stone Furnace',
@@ -132,12 +135,12 @@ export const PLACEABLE_META: Record<
   assembler: {
     label: 'Assembling Machine',
     inventoryKey: 'assembler',
-    hint: 'Crafts gears from iron plates automatically.',
+    hint: 'Crafts gears from iron plates automatically. Needs Foundation connected to a generator.',
   },
   splitter: {
     label: 'Splitter',
     inventoryKey: 'splitter',
-    hint: 'Alternates items forward and to the right.',
+    hint: 'Alternates items forward and to the right. Needs Foundation connected to a generator.',
   },
   roboport: {
     label: 'Roboport',
@@ -147,7 +150,12 @@ export const PLACEABLE_META: Record<
   generator: {
     label: 'Generator',
     inventoryKey: 'generator',
-    hint: 'Turns your steps into stored power. More generators = more power per step and a bigger battery.',
+    hint: 'Turns your steps into stored power. Place next to Foundation to electrify the floor. Drills can tap a generator or powered floor within 5 tiles.',
+  },
+  foundation: {
+    label: 'Foundation',
+    inventoryKey: 'foundation',
+    hint: 'Paint a concrete floor. Belts, inserters, and assemblers only run on Foundation connected to a generator. Drills can tap a generator or powered floor within 5 tiles.',
   },
 }
 
@@ -166,6 +174,7 @@ export const BUILD_COST: Record<Placeable, Partial<Inventory>> = {
   splitter: { ironPlate: 4, gear: 4, copperPlate: 2 },
   roboport: { ironPlate: 8, gear: 6, copperPlate: 4 },
   generator: { ironPlate: 6, gear: 4, copperPlate: 3 },
+  foundation: { stone: 2 },
 }
 
 export type HandRecipe = {
@@ -340,6 +349,14 @@ export const HAND_RECIPES: HandRecipe[] = [
     handSeconds: 10,
     category: 'building',
   },
+  {
+    id: 'craftFoundation',
+    name: 'Craft Foundation',
+    inputs: { stone: 2 },
+    outputs: { foundation: 1 },
+    handSeconds: 2,
+    category: 'building',
+  },
 ]
 
 export const RECIPE_MAP = Object.fromEntries(
@@ -411,6 +428,8 @@ export const POWER_PER_STEP = 6
 export const DRILL_POWER_PER_CYCLE = 2
 /** Power an electric drill spends per mining cycle (it mines more per cycle). */
 export const ELECTRIC_DRILL_POWER_PER_CYCLE = 3
+/** Chebyshev range: drills can tap a generator or powered Foundation this far away. */
+export const DRILL_POWER_RANGE = 5
 /** Continuous power draw (per second) for electric machines that run on the grid. */
 export const POWER_DRAW: Record<EntityKind, number> = {
   drill: 0,
@@ -573,6 +592,7 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   roboport: 1,
   generator: 2,
   stone: 0,
+  foundation: 48,
 })
 
 export const DEFAULT_HABITS = (): Habit[] => [
@@ -736,6 +756,18 @@ export function isInserterKind(kind: EntityKind): boolean {
 
 export function isDrillKind(kind: EntityKind): boolean {
   return kind === 'drill' || kind === 'electricDrill'
+}
+
+/** True for buildings that occupy tiles (not Foundation floor). */
+export function isEntityPlaceable(tool: ToolId | null): tool is EntityPlaceable {
+  return (
+    !!tool &&
+    tool !== 'foundation' &&
+    tool !== 'remove' &&
+    tool !== 'copy' &&
+    tool !== 'paste' &&
+    tool !== 'rotate'
+  )
 }
 
 export function beltSpeedFor(kind: EntityKind): number {

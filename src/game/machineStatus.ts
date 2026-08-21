@@ -11,6 +11,11 @@ import {
   mineCells,
 } from './data'
 import { MACHINE_CAP } from './sim'
+import {
+  drillHasRemotePower,
+  entityOnPoweredFloor,
+  powerNet,
+} from './power'
 import type { Entity, GameState, Tile } from './types'
 
 export type MachineStatusTone = 'ok' | 'work' | 'warn' | 'idle'
@@ -27,6 +32,8 @@ export function machineStatus(
   _tile: Tile | undefined,
   _state: GameState,
 ): MachineStatus {
+  const net = powerNet(_state)
+
   if (ent.ghost) {
     const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
     return {
@@ -83,6 +90,13 @@ export function machineStatus(
       return !!t.ore && (t.amount === null || t.amount > 0)
     })
     if (!hasOre) return { label: 'No ore in dig area', tone: 'idle', floorClass: 'is-waiting' }
+    if (!drillHasRemotePower(ent, _state, net)) {
+      return {
+        label: 'No power - generator or powered floor within 5 tiles',
+        tone: 'warn',
+        floorClass: 'is-needs-fuel',
+      }
+    }
     if (_state.power <= 0) {
       return { label: 'No power - walk to charge the grid', tone: 'warn', floorClass: 'is-needs-fuel' }
     }
@@ -125,6 +139,16 @@ export function machineStatus(
   }
 
   if (ent.kind === 'assembler') {
+    if (!entityOnPoweredFloor(ent, _state, net)) {
+      return {
+        label: 'No power - pave with Foundation',
+        tone: 'warn',
+        floorClass: 'is-needs-fuel',
+      }
+    }
+    if (_state.power <= 0) {
+      return { label: 'No power - walk to charge the grid', tone: 'warn', floorClass: 'is-needs-fuel' }
+    }
     if (ent.smelting) return { label: 'Assembling gears', tone: 'work' }
     const plates = ent.store.ironPlate ?? 0
     const gears = ent.store.gear ?? 0
@@ -162,6 +186,16 @@ export function machineStatus(
     ent.kind === 'splitter' ||
     ent.kind === 'undergroundBelt'
   ) {
+    if (!entityOnPoweredFloor(ent, _state, net)) {
+      return {
+        label: 'No power - pave with Foundation',
+        tone: 'warn',
+        floorClass: 'is-needs-fuel',
+      }
+    }
+    if (_state.power <= 0) {
+      return { label: 'No power - walk to charge the grid', tone: 'warn', floorClass: 'is-needs-fuel' }
+    }
     return {
       label: ent.cargo ? `Carrying ${ent.cargo.item}` : 'Empty',
       tone: ent.cargo ? 'work' : 'idle',
@@ -169,6 +203,16 @@ export function machineStatus(
   }
 
   if (ent.kind === 'inserter' || ent.kind === 'longInserter') {
+    if (!entityOnPoweredFloor(ent, _state, net)) {
+      return {
+        label: 'No power - pave with Foundation',
+        tone: 'warn',
+        floorClass: 'is-needs-fuel',
+      }
+    }
+    if (_state.power <= 0) {
+      return { label: 'No power - walk to charge the grid', tone: 'warn', floorClass: 'is-needs-fuel' }
+    }
     return {
       label: ent.progress > 0 ? 'Transferring' : 'Ready',
       tone: ent.progress > 0 ? 'work' : 'ok',

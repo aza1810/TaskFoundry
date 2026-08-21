@@ -19,6 +19,7 @@ import {
   inserterCooldownFor,
   isBeltKind,
   isDrillKind,
+  isEntityPlaceable,
   isFurnaceKind,
   isInserterKind,
   sizeOf,
@@ -47,6 +48,9 @@ import {
   powerDemand,
   powerFraction,
   powerPerStep,
+  drillHasRemotePower,
+  powerNet,
+  tileIsPoweredFloor,
 } from '../game/power'
 import { skillBonuses } from '../game/skills'
 import {
@@ -66,6 +70,7 @@ import {
 import {
   DroneSprite,
   EntitySprite,
+  FoundationSprite,
   GroundTexture,
   ItemSprite,
   OreTexture,
@@ -74,7 +79,7 @@ import {
 import { useProductionRates } from '../hooks/useProductionRates'
 import { MachineInventory, hasMachineInventory } from './MachineInventory'
 import { resolveTheme, subscribeTheme } from '../theme'
-import type { Dir, Entity, EntityKind, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
+import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
 
 const CELL = 56
 const ZOOM_MIN = 0.45
@@ -154,6 +159,7 @@ type Floater = {
 
 // Machines & storage - things that make or hold resources.
 const BUILD_TOOLS: Placeable[] = [
+  'foundation',
   'generator',
   'roboport',
   'drill',
@@ -302,7 +308,8 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
     tool === 'chest' ||
     tool === 'assembler' ||
     tool === 'roboport' ||
-    tool === 'generator'
+    tool === 'generator' ||
+    tool === 'foundation'
   ) {
     return true
   }
@@ -319,13 +326,18 @@ function needsPlaceDir(tool: ToolId | null): boolean {
   if (!tool) return false
   if (tool === 'rotate') return true
   if (isEditMetaTool(tool)) return false
-  if (tool === 'chest') return false
+  if (tool === 'chest' || tool === 'foundation' || tool === 'generator') return false
   return true
 }
 
 function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState): boolean {
   if (!tool || isEditMetaTool(tool)) return false
   if (x < 0 || y < 0 || x >= state.width || y >= state.height) return false
+  if (tool === 'foundation') {
+    if (state.tiles[idx(x, y)].foundation) return false
+    return Math.floor((state.inventory.foundation ?? 0) + 1e-9) >= 1
+  }
+  if (!isEntityPlaceable(tool)) return false
   if (!canPlaceFootprint(state, tool, x, y)) return false
   if ((tool === 'drill' || tool === 'electricDrill') && !drillHasOre(state, x, y))
     return false
@@ -403,6 +415,7 @@ export function FactoryFloor({
   const powerUse = powerDemand(state)
   const genCount = generatorCount(state)
   const powerLevel = powerFrac <= 0 ? 'is-empty' : powerFrac < 0.25 ? 'is-low' : 'is-ok'
+  const floorNet = useMemo(() => powerNet(state), [state])
   const tourStep = getActiveTutorialStep(state)
   const tourChecks = useMemo(
     () => tutorialChecklist(state, tourStep),
@@ -449,7 +462,9 @@ export function FactoryFloor({
 
   const hoverFootprint = useMemo(() => {
     if (!hover || !selected || isEditMetaTool(selected)) return null
-    const cells = footprintCells(selected as EntityKind, hover.x, hover.y)
+    const cells = isEntityPlaceable(selected)
+      ? footprintCells(selected, hover.x, hover.y)
+      : [{ x: hover.x, y: hover.y }]
     const valid = canPlaceAt(selected, hover.x, hover.y, state)
     return {
       valid,
@@ -511,7 +526,8 @@ export function FactoryFloor({
     tool === 'remove' ||
     tool === 'rotate' ||
     tool === 'inserter' ||
-    tool === 'longInserter'
+    tool === 'longInserter' ||
+    tool === 'foundation'
 
   const inspectEnt = useMemo(() => {
     if (!inspect) return null
@@ -683,12 +699,16 @@ export function FactoryFloor({
       gesture.current.lastCell = key
       const beforeId = state.tiles[idx(x, y)]?.entityId
       const beforeDir = beforeId ? state.entities[beforeId]?.dir : null
+      const beforeFound = Boolean(state.tiles[idx(x, y)]?.foundation)
       const preview = placeEntity(state, x, y)
       place(x, y)
       const afterId = preview.tiles[idx(x, y)]?.entityId
       const afterDir = afterId ? preview.entities[afterId]?.dir : null
+      const afterFound = Boolean(preview.tiles[idx(x, y)]?.foundation)
       const placed = Boolean(afterId && afterId !== beforeId)
       const removed = Boolean(beforeId && !afterId)
+      const paved = !beforeFound && afterFound
+      const unpaved = beforeFound && !afterFound
       const rotated = Boolean(
         beforeId && afterId && beforeId === afterId && beforeDir !== afterDir,
       )
@@ -701,11 +721,11 @@ export function FactoryFloor({
           const nowMarked = Boolean(afterEnt?.marked)
           buzz(6)
           spawnFloater(x, y, nowMarked ? 'cut' : 'keep', nowMarked ? 'place' : 'warn')
-        } else if (removed) {
+        } else if (removed || unpaved) {
           setFlash(key)
           window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
           buzz(8)
-          spawnFloater(x, y, 'scrap', 'warn')
+          spawnFloater(x, y, unpaved && !removed ? 'unpave' : 'scrap', 'warn')
         } else {
           buzz(4)
           spawnFloater(x, y, 'empty', 'warn')
@@ -726,7 +746,7 @@ export function FactoryFloor({
       }
 
       if (selected && !isEditMetaTool(selected)) {
-        if (placed) {
+        if (placed || paved) {
           setFlash(key)
           window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
           buzz(8)
@@ -1352,9 +1372,8 @@ export function FactoryFloor({
                 const isAnchor = !ent || (ent.x === x && ent.y === y)
                 const drawEnt = !!ent && isAnchor
                 const entBig = entSize.w > 1 || entSize.h > 1
-                const selSize =
-                  selected && !isEditMetaTool(selected)
-                    ? sizeOf(selected as EntityKind)
+                const selSize = isEntityPlaceable(selected)
+                    ? sizeOf(selected)
                     : { w: 1, h: 1 }
                 const selBig = selSize.w > 1 || selSize.h > 1
                 const bigStyle = (w: number, h: number): CSSProperties => ({
@@ -1396,7 +1415,8 @@ export function FactoryFloor({
                     ((ent &&
                       isDrillKind(ent.kind) &&
                       drillHasOre(state, ent.x, ent.y) &&
-                      state.power > 0) ||
+                      state.power > 0 &&
+                      drillHasRemotePower(ent, state, floorNet)) ||
                       (ent?.kind === 'generator' && state.power > 0) ||
                       (ent?.kind === 'roboport' &&
                         state.drones.some((d) => d.homeId === ent.id && d.state !== 'idle'))),
@@ -1447,6 +1467,10 @@ export function FactoryFloor({
                       status?.floorClass ?? '',
                       isIoPickup ? 'is-io-pickup' : '',
                       isIoDrop ? 'is-io-drop' : '',
+                      tile.foundation ? 'has-foundation' : '',
+                      tile.foundation && tileIsPoweredFloor(state, x, y, floorNet)
+                        ? 'is-powered-floor'
+                        : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
@@ -1458,6 +1482,12 @@ export function FactoryFloor({
                         <GroundTexture seed={seed} />
                       )}
                     </span>
+
+                    {tile.foundation && (
+                      <span className="cell-foundation" aria-hidden>
+                        <FoundationSprite />
+                      </span>
+                    )}
 
                     {drawEnt && ent && (
                       <span
@@ -1497,7 +1527,11 @@ export function FactoryFloor({
                         className="cell-ghost"
                         style={selBig ? bigStyle(selSize.w, selSize.h) : undefined}
                       >
-                        <EntitySprite kind={selected as Placeable} dir={hoverDir} />
+                        {selected === 'foundation' ? (
+                          <FoundationSprite />
+                        ) : isEntityPlaceable(selected) ? (
+                          <EntitySprite kind={selected} dir={hoverDir} />
+                        ) : null}
                       </span>
                     )}
 
@@ -1896,6 +1930,11 @@ export function FactoryFloor({
                       {dirArrow(inspectEnt.dir)}
                     </span>
                   </>
+                ) : inspectTile.foundation ? (
+                  <>
+                    <ToolIcon kind="foundation" />
+                    <strong>Foundation</strong>
+                  </>
                 ) : inspectTile.ore ? (
                   <>
                     <ItemSprite item={inspectTile.ore} />
@@ -1936,13 +1975,20 @@ export function FactoryFloor({
                 )}
                 <p className="inspect-card-meta">
                   ({inspect.x},{inspect.y})
+                  {inspectTile.foundation
+                    ? tileIsPoweredFloor(state, inspect.x, inspect.y, floorNet)
+                      ? ' · on powered Foundation'
+                      : ' · on Foundation (no generator connected)'
+                    : ''}
                   {inspectTile.ore
                     ? ` · on ${ITEM_META[inspectTile.ore].label}${
                         inspectTile.amount != null
                           ? ` (${formatNum(inspectTile.amount)} left)`
                           : ''
                       }`
-                    : ' · plain ground'}
+                    : inspectTile.foundation
+                      ? ''
+                      : ' · plain ground'}
                 </p>
                 {!hasMachineInventory(inspectEnt.kind) &&
                   storeHasItems(inspectEnt) && (
@@ -2002,13 +2048,17 @@ export function FactoryFloor({
             ) : (
               <>
                 <p className="inspect-card-desc">
-                  {inspectTile.ore === 'ironOre'
+                  {inspectTile.foundation
+                    ? tileIsPoweredFloor(state, inspect.x, inspect.y, floorNet)
+                      ? 'Foundation - powered. Belts, inserters, and assemblers on this tile can run.'
+                      : 'Foundation - no generator connected. Place a generator on or next to this floor, or paint a path to one.'
+                    : inspectTile.ore === 'ironOre'
                     ? 'Brown iron patch. Place a burner or electric drill here to mine it with steps.'
                     : inspectTile.ore === 'copperOre'
                       ? 'Copper patch. Drill here to mine copper ore for plates and wiring crafts.'
                       : inspectTile.ore === 'coal'
                         ? 'Coal seam. Mine it for fuel - burner drills and furnaces need coal.'
-                        : 'Open ground. Belts, furnaces, chests, and assemblers can go here.'}
+                        : 'Open ground. Paint Foundation here so machines can take power from a generator.'}
                 </p>
                 <p className="inspect-card-meta">
                   ({inspect.x},{inspect.y})
@@ -2016,10 +2066,13 @@ export function FactoryFloor({
                     ? inspectTile.amount == null
                       ? ' · Rich patch'
                       : ` · ${formatNum(inspectTile.amount)} remaining`
-                    : ' · buildable tile'}
+                    : inspectTile.foundation
+                      ? ' · paved tile'
+                      : ' · buildable tile'}
                 </p>
-                {inspectTile.ore && (
-                  <div className="inspect-card-actions">
+                <div className="inspect-card-actions">
+                  {inspectTile.ore && (
+                    <>
                     <button
                       type="button"
                       className="primary-btn"
@@ -2050,8 +2103,24 @@ export function FactoryFloor({
                           Electric drill
                         </button>
                       )}
-                  </div>
-                )}
+                    </>
+                  )}
+                  {inspectTile.foundation && (
+                    <button
+                      type="button"
+                      className="primary-btn danger-btn"
+                      onClick={() => {
+                        selectTool('remove')
+                        place(inspect.x, inspect.y)
+                        selectTool(null)
+                        setInspect(null)
+                        buzz(15)
+                      }}
+                    >
+                      Demolish
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -2107,6 +2176,10 @@ function Minimap({
         else if (tile.ore === 'coal') ctx.fillStyle = light ? '#5a5a5a' : '#2A2A2A'
         else ctx.fillStyle = light ? '#9bb262' : '#3a4a28'
         ctx.fillRect(x * scale, y * scale, scale, scale)
+        if (tile.foundation && !tile.entityId) {
+          ctx.fillStyle = light ? '#c4bdb2' : '#8a8478'
+          ctx.fillRect(x * scale, y * scale, scale, scale)
+        }
         if (tile.entityId && entities[tile.entityId]) {
           const ent = entities[tile.entityId]
           const kind = ent.kind

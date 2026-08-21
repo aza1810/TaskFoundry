@@ -5,10 +5,12 @@ import {
   STARTER_PAD,
   footprintCells,
   idx,
+  inBounds,
   inStarterPad,
   mineCells,
   sizeOf,
 } from '../src/game/data.ts'
+import { createEntity } from '../src/game/grid.ts'
 import {
   createInitialState,
   placeEntity,
@@ -101,6 +103,23 @@ assert(occupyCount(state, drill.id) === 4, 'drill ghost should occupy 4 tiles')
 state = tick(state, 12)
 const builtDrill = state.entities[drill.id]
 assert(builtDrill && !builtDrill.ghost, 'drone should construct the drill')
+
+{
+  let placed = false
+  outerGen: for (let y = builtDrill.y - 5; y <= builtDrill.y + 6; y++) {
+    for (let x = builtDrill.x - 5; x <= builtDrill.x + 6; x++) {
+      if (!inBounds(x, y)) continue
+      if (state.tiles[idx(x, y)].entityId) continue
+      const gen = createEntity('generator', x, y, 'E')
+      const tiles = state.tiles.map((t) => ({ ...t }))
+      tiles[idx(x, y)].entityId = gen.id
+      state = { ...state, tiles, entities: { ...state.entities, [gen.id]: gen } }
+      placed = true
+      break outerGen
+    }
+  }
+  assert(placed, 'could not place a generator within 5 tiles of the drill')
+}
 
 const beforeOre = state.tiles.reduce((n, t) => n + (t.ore === 'ironOre' ? (t.amount ?? 0) : 0), 0)
 state = { ...state, power: 200 }

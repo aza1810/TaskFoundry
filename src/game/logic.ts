@@ -42,6 +42,7 @@ import {
   idx,
   inBounds,
   isDrillKind,
+  isEntityPlaceable,
   isFurnaceKind,
   rotateDir,
   sanitizeInventory,
@@ -88,6 +89,7 @@ import type {
   Drone,
   Entity,
   EntityKind,
+  EntityPlaceable,
   GameState,
   Habit,
   HabitCategory,
@@ -179,7 +181,7 @@ export function createInitialState(): GameState {
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
-      'Welcome! Place a drill on an ore patch, run a belt + inserter into a chest, then walk - your steps power the drill and it mines ore into the chest.',
+      'Welcome! Place a roboport, pave Foundation so belts can run, put a generator near your drill (5-tile range), then walk - your steps charge the grid.',
     offlineReport: null,
     stats: emptyStats(),
     completedGoals: [],
@@ -215,6 +217,38 @@ function stampFootprints(state: GameState): GameState {
   return { ...state, tiles }
 }
 
+/** Version < 10 saves have no Foundation floor. Pave under existing machines
+ *  and grant slabs so the factory is not bricked. */
+function migrateToFoundations(state: GameState): GameState {
+  const tiles = state.tiles.map((t) => ({
+    ...t,
+    foundation: t.foundation === true,
+  }))
+  for (const e of Object.values(state.entities)) {
+    if (e.kind === 'tree' || e.kind === 'rock') continue
+    for (const c of footprintCells(e.kind, e.x, e.y)) {
+      if (inBounds(c.x, c.y)) tiles[idx(c.x, c.y)].foundation = true
+    }
+    if (e.kind === 'generator' && !e.ghost) {
+      for (const c of footprintCells(e.kind, e.x, e.y)) {
+        for (const d of Object.values(DIR_DELTA)) {
+          const nx = c.x + d.dx
+          const ny = c.y + d.dy
+          if (inBounds(nx, ny)) tiles[idx(nx, ny)].foundation = true
+        }
+      }
+    }
+  }
+  return {
+    ...state,
+    tiles,
+    inventory: {
+      ...state.inventory,
+      foundation: Math.max(asItemCount(state.inventory.foundation ?? 0), 48),
+    },
+  }
+}
+
 export function loadState(accountSaveKey?: string): GameState {
   if (accountSaveKey) setActiveSaveKey(accountSaveKey)
   try {
@@ -236,7 +270,10 @@ export function loadState(accountSaveKey?: string): GameState {
       version: GAME_VERSION,
       inventory: sanitizeInventory({ ...EMPTY_INVENTORY(), ...parsed.inventory }),
       stats: { ...emptyStats(), ...parsed.stats },
-      tiles: parsed.tiles?.length === GRID_W * GRID_H ? parsed.tiles : createTiles(),
+      tiles:
+        parsed.tiles?.length === GRID_W * GRID_H
+          ? parsed.tiles.map((t) => ({ ...t, foundation: t.foundation === true }))
+          : createTiles(),
       entities: parsed.entities ?? {},
       drones: Array.isArray(parsed.drones) ? parsed.drones : [],
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
@@ -271,6 +308,7 @@ export function loadState(accountSaveKey?: string): GameState {
       rocksSeeded: parsed.rocksSeeded === true,
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
+    if (parsed.version < 10) next = migrateToFoundations(next)
     next = stampFootprints(next)
     next = scrubChestsToWarehouse(next)
     next = sweepPackToChests(next)
@@ -904,7 +942,15 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   const tile = tiles[idx(x, y)]
 
   if (tool === 'remove') {
-    if (!tile.entityId) return state
+    if (!tile.entityId) {
+      if (!tile.foundation) return state
+      tiles[idx(x, y)].foundation = false
+      return {
+        ...state,
+        tiles,
+        inventory: gain(state.inventory, { foundation: 1 }),
+      }
+    }
     const ent = state.entities[tile.entityId]
     if (!ent) return state
 
@@ -975,6 +1021,26 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     if (ent.kind === 'roboport') next = reconcileDrones(next)
     return claimGoals(next)
   }
+
+  if (tool === 'foundation') {
+    if (tile.foundation) {
+      return { ...state, unlockedToast: 'Already paved' }
+    }
+    if (asItemCount(state.inventory.foundation) < 1) {
+      return {
+        ...state,
+        unlockedToast: 'No Foundation in inventory - craft one from stone',
+      }
+    }
+    tiles[idx(x, y)].foundation = true
+    return {
+      ...state,
+      tiles,
+      inventory: spend(state.inventory, { foundation: 1 }),
+    }
+  }
+
+  if (!isEntityPlaceable(tool)) return state
 
   const meta = PLACEABLE_META[tool]
   // Multi-tile buildings need their whole footprint clear and on the map.
@@ -1126,7 +1192,7 @@ function handleCopyClick(state: GameState, x: number, y: number): GameState {
       // Multi-tile buildings register on many tiles - only capture the anchor.
       if (ent.x !== cx || ent.y !== cy) continue
       blueprint.push({
-        kind: ent.kind as Placeable,
+        kind: ent.kind as EntityPlaceable,
         dx: cx - x0,
         dy: cy - y0,
         dir: ent.dir,
@@ -1779,7 +1845,7 @@ export function buildStarterLine(state: GameState): GameState {
   const entities = { ...state.entities }
   let furnaceId: string | null = null
 
-  const put = (kind: Placeable, px: number, py: number, dir: Dir) => {
+  const put = (kind: EntityPlaceable, px: number, py: number, dir: Dir) => {
     inventory = spend(inventory, { [kind]: 1 })
     const ent = createEntity(kind, px, py, dir)
     tiles[idx(px, py)].entityId = ent.id
@@ -1828,7 +1894,7 @@ export function buildStarterLine(state: GameState): GameState {
   const tiles2 = next.tiles.map((t) => ({ ...t }))
   const entities2 = { ...next.entities }
 
-  const put2 = (kind: Placeable, px: number, py: number, dir: Dir) => {
+  const put2 = (kind: EntityPlaceable, px: number, py: number, dir: Dir) => {
     inventory = spend(inventory, { [kind]: 1 })
     const ent = createEntity(kind, px, py, dir)
     tiles2[idx(px, py)].entityId = ent.id

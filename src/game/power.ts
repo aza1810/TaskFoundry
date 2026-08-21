@@ -1,10 +1,27 @@
 import {
+  DIR_DELTA,
+  DRILL_POWER_RANGE,
   BASE_POWER_CAP,
   GEN_CAPACITY,
+  GRID_H,
+  GRID_W,
   POWER_DRAW,
   POWER_PER_STEP,
+  footprintCells,
+  idx,
+  inBounds,
+  isDrillKind,
 } from './data'
-import type { EntityKind, GameState } from './types'
+import type { Entity, EntityKind, GameState } from './types'
+
+export interface PowerNet {
+  /** True for each tile index that is a Foundation connected to a generator. */
+  floor: boolean[]
+  floorCells: { x: number; y: number }[]
+  genCells: { x: number; y: number }[]
+}
+
+const netCache = new WeakMap<GameState, PowerNet>()
 
 /** Built (non-ghost) generators on the floor. */
 export function generatorCount(state: GameState): number {
@@ -29,15 +46,154 @@ export function machineDraw(kind: EntityKind): number {
   return POWER_DRAW[kind] ?? 0
 }
 
+/** Belts, inserters, assemblers, splitters: must sit on a powered Foundation. */
+export function needsFoundationPower(kind: EntityKind): boolean {
+  return (POWER_DRAW[kind] ?? 0) > 0
+}
+
+function computePowerNet(state: GameState): PowerNet {
+  const n = state.tiles.length
+  const floor = new Array<boolean>(n).fill(false)
+  const visited = new Array<boolean>(n).fill(false)
+  const queue: number[] = []
+  const genCells: { x: number; y: number }[] = []
+
+  const trySeed = (x: number, y: number) => {
+    if (!inBounds(x, y)) return
+    const i = idx(x, y)
+    if (visited[i]) return
+    if (!state.tiles[i].foundation) return
+    visited[i] = true
+    floor[i] = true
+    queue.push(i)
+  }
+
+  for (const e of Object.values(state.entities)) {
+    if (e.kind !== 'generator' || e.ghost) continue
+    for (const c of footprintCells(e.kind, e.x, e.y)) {
+      genCells.push(c)
+      trySeed(c.x, c.y)
+      for (const d of Object.values(DIR_DELTA)) {
+        trySeed(c.x + d.dx, c.y + d.dy)
+      }
+    }
+  }
+
+  while (queue.length) {
+    const i = queue.pop()!
+    const x = i % GRID_W
+    const y = Math.floor(i / GRID_W)
+    for (const d of Object.values(DIR_DELTA)) {
+      const nx = x + d.dx
+      const ny = y + d.dy
+      if (!inBounds(nx, ny)) continue
+      const ni = idx(nx, ny)
+      if (visited[ni]) continue
+      if (!state.tiles[ni].foundation) continue
+      visited[ni] = true
+      floor[ni] = true
+      queue.push(ni)
+    }
+  }
+
+  const floorCells: { x: number; y: number }[] = []
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      if (floor[idx(x, y)]) floorCells.push({ x, y })
+    }
+  }
+
+  return { floor, floorCells, genCells }
+}
+
+/** Flood-fill 4-connected Foundations that touch a generator (on or adjacent). */
+export function powerNet(state: GameState): PowerNet {
+  const hit = netCache.get(state)
+  if (hit) return hit
+  const net = computePowerNet(state)
+  netCache.set(state, net)
+  return net
+}
+
+export function tileIsPoweredFloor(
+  state: GameState,
+  x: number,
+  y: number,
+  net = powerNet(state),
+): boolean {
+  if (!inBounds(x, y)) return false
+  return net.floor[idx(x, y)] === true
+}
+
+export function entityOnPoweredFloor(
+  ent: Entity,
+  state: GameState,
+  net = powerNet(state),
+): boolean {
+  return footprintCells(ent.kind, ent.x, ent.y).some(
+    (c) => inBounds(c.x, c.y) && net.floor[idx(c.x, c.y)],
+  )
+}
+
+function chebyshev(ax: number, ay: number, bx: number, by: number): number {
+  return Math.max(Math.abs(ax - bx), Math.abs(ay - by))
+}
+
 /**
- * Rough steady-state draw (per second) of every electric machine on the floor.
- * Used for the HUD; the exact per-tick demand is computed inside the sim.
+ * Drills do not need to sit on Foundation. They are powered if any cell of
+ * their footprint is within DRILL_POWER_RANGE (Chebyshev) of a generator
+ * footprint cell or a powered Foundation tile.
+ */
+export function drillHasRemotePower(
+  ent: Entity,
+  state: GameState,
+  net = powerNet(state),
+): boolean {
+  const drillCells = footprintCells(ent.kind, ent.x, ent.y)
+  for (const c of drillCells) {
+    if (inBounds(c.x, c.y) && net.floor[idx(c.x, c.y)]) return true
+  }
+  for (const f of net.floorCells) {
+    for (const c of drillCells) {
+      if (chebyshev(c.x, c.y, f.x, f.y) <= DRILL_POWER_RANGE) return true
+    }
+  }
+  for (const g of net.genCells) {
+    for (const c of drillCells) {
+      if (chebyshev(c.x, c.y, g.x, g.y) <= DRILL_POWER_RANGE) return true
+    }
+  }
+  return false
+}
+
+/**
+ * Whether this built machine is connected to the power network.
+ * Furnaces, chests, roboports, trees, rocks, and generators always pass.
+ */
+export function entityHasPower(
+  ent: Entity,
+  state: GameState,
+  net = powerNet(state),
+): boolean {
+  if (ent.ghost) return false
+  if (isDrillKind(ent.kind)) return drillHasRemotePower(ent, state, net)
+  if (needsFoundationPower(ent.kind)) return entityOnPoweredFloor(ent, state, net)
+  return true
+}
+
+/**
+ * Rough steady-state draw (per second) of every electric machine that is
+ * actually connected to a powered Foundation.
  */
 export function powerDemand(state: GameState): number {
+  const net = powerNet(state)
   let d = 0
   for (const e of Object.values(state.entities)) {
     if (e.ghost) continue
-    d += POWER_DRAW[e.kind] ?? 0
+    const draw = POWER_DRAW[e.kind] ?? 0
+    if (draw <= 0) continue
+    if (!entityHasPower(e, state, net)) continue
+    d += draw
   }
   return d
 }

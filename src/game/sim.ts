@@ -33,6 +33,7 @@ import {
 } from './data'
 import { isWarehouseItem } from './chestInventory'
 import { getTile } from './grid'
+import { entityHasPower, powerNet } from './power'
 import { skillBonuses } from './skills'
 import type {
   Dir,
@@ -359,12 +360,14 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
   const view = { ...state, entities }
   const bonuses = skillBonuses(state.skills)
   const save = 1 - bonuses.drillCoalSave
+  const net = powerNet(state)
 
   for (let c = 0; c < cycles; c++) {
     for (const id of Object.keys(entities)) {
       const e = entities[id]
       if (e.ghost) continue
       if (!isDrillKind(e.kind)) continue
+      if (!entityHasPower(e, state, net)) continue
 
       // A 2x2 drill can pull ore from anywhere in its 3x3 dig area.
       let tile: (typeof tiles)[number] | null = null
@@ -439,14 +442,17 @@ export function simTick(state: GameState, dt: number): GameState {
   const bonuses = skillBonuses(state.skills)
   const ugRange = MAX_UNDERGROUND + bonuses.ugBonus
   const inserterCd = inserterCooldownFor(bonuses.inserterSpeedMult)
+  const net = powerNet(state)
 
   // --- Power grid: electric machines draw from the battery; a brownout
-  //     (not enough stored power) slows every electric machine this tick. ---
+  //     (not enough stored power) slows every electric machine this tick.
+  //     Unconnected machines (no powered Foundation) do not draw or run. ---
   let demand = 0
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
     const draw = POWER_DRAW[e.kind] ?? 0
     if (draw <= 0) continue
+    if (!entityHasPower(e, state, net)) continue
     if (isBeltKind(e.kind) || e.kind === 'undergroundBelt' || e.kind === 'splitter') {
       if (e.cargo) demand += draw
     } else if (isInserterKind(e.kind)) {
@@ -519,6 +525,7 @@ export function simTick(state: GameState, dt: number): GameState {
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
     if (e.kind !== 'assembler') continue
+    if (!entityHasPower(e, state, net)) continue
     const seconds = ASSEMBLER_SECONDS / bonuses.assemblerSpeedMult
     let timeLeft = dt * powerRatio
     while (timeLeft > 0) {
@@ -554,6 +561,7 @@ export function simTick(state: GameState, dt: number): GameState {
   })
 
   for (const e of beltOrder) {
+    if (!entityHasPower(e, state, net)) continue
     if (!e.cargo) continue
     e.cargo.progress = Math.min(
       1,
@@ -575,6 +583,7 @@ export function simTick(state: GameState, dt: number): GameState {
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
     if (e.kind !== 'undergroundBelt' || !e.cargo) continue
+    if (!entityHasPower(e, state, net)) continue
     e.cargo.progress = Math.min(
       1,
       e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt * powerRatio,
@@ -601,6 +610,7 @@ export function simTick(state: GameState, dt: number): GameState {
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
     if (e.kind !== 'splitter' || !e.cargo) continue
+    if (!entityHasPower(e, state, net)) continue
     e.cargo.progress = Math.min(
       1,
       e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt * powerRatio,
@@ -631,6 +641,7 @@ export function simTick(state: GameState, dt: number): GameState {
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
     if (!isInserterKind(e.kind)) continue
+    if (!entityHasPower(e, state, net)) continue
     if (powerRatio <= 0) continue
     e.progress = Math.max(0, e.progress - dt * powerRatio)
     if (e.progress > 0) continue

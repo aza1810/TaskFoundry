@@ -13,17 +13,20 @@ function countTransfers(seconds: number, step = 0.2): number {
   const arm = createEntity('inserter', 3, 4, 'E')
   const dest = createEntity('chest', 4, 4, 'E')
   src.store = { ironOre: 40 }
+  const gen = createEntity('generator', 3, 3, 'E')
   state = {
     ...state,
     entities: {
       [src.id]: src,
       [arm.id]: arm,
       [dest.id]: dest,
+      [gen.id]: gen,
     },
     tiles: state.tiles.map((t, i) => {
       if (i === idx(2, 4)) return { ...t, entityId: src.id }
-      if (i === idx(3, 4)) return { ...t, entityId: arm.id }
+      if (i === idx(3, 4)) return { ...t, entityId: arm.id, foundation: true }
       if (i === idx(4, 4)) return { ...t, entityId: dest.id }
+      if (i === idx(3, 3)) return { ...t, entityId: gen.id }
       return t
     }),
   }
