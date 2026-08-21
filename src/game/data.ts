@@ -82,7 +82,7 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: '2x2 building that mines a 3x3 ore patch. Steps charge the power it uses.',
+    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto belts in front of the orange port.',
   },
   electricDrill: {
     label: 'Electric Drill',
@@ -515,6 +515,36 @@ export function drillOutputCells(
   if (dir === 'W') return [{ x: x - 1, y }, { x: x - 1, y: y + 1 }].slice(0, h)
   if (dir === 'S') return [{ x, y: y + h }, { x: x + 1, y: y + h }].slice(0, w)
   return [{ x, y: y - 1 }, { x: x + 1, y: y - 1 }].slice(0, w)
+}
+
+/**
+ * Every tile a drill may drop onto: the facing edge of the current
+ * footprint, plus the old 1-tile neighbor so pre-2x2 lines still work.
+ */
+export function drillDropCells(
+  kind: EntityKind,
+  x: number,
+  y: number,
+  dir: Dir,
+): { x: number; y: number }[] {
+  const cells = drillOutputCells(kind, x, y, dir)
+  const { dx, dy } = DIR_DELTA[dir]
+  const legacy = { x: x + dx, y: y + dy }
+  if (!cells.some((c) => c.x === legacy.x && c.y === legacy.y)) cells.push(legacy)
+  return cells
+}
+
+/** Anchor used to space a production line from a multi-tile building's output edge. */
+export function facingEdgeOrigin(
+  kind: EntityKind,
+  x: number,
+  y: number,
+  dir: Dir,
+): { x: number; y: number } {
+  const { w, h } = sizeOf(kind)
+  if (dir === 'E') return { x: x + w - 1, y }
+  if (dir === 'S') return { x, y: y + h - 1 }
+  return { x, y }
 }
 
 export const EMPTY_INVENTORY = (): Inventory => ({

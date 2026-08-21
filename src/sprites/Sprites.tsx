@@ -251,25 +251,26 @@ export function DrillSprite({ dir, active, electric }: { dir: Dir; active?: bool
       viewBox="0 0 64 64"
       aria-hidden
     >
-      <rect x="8" y="18" width="48" height="36" rx="3" fill={body} stroke="#2a2620" strokeWidth="2" />
-      <rect x="12" y="22" width="20" height="14" fill="#3d3830" />
-      <rect x="34" y="22" width="18" height="28" fill={electric ? '#4a9a6a' : '#6b655c'} stroke="#2a2620" strokeWidth="1" />
-      <circle
-        className="drill-bit"
-        cx="22"
-        cy="48"
-        r="7"
-        fill="#8a8478"
-        stroke="#1a1612"
-        strokeWidth="2"
-      />
-      <circle cx="22" cy="48" r="3" fill="#1a1612" />
       <g style={{ transform: `rotate(${ROT[dir]}deg)`, transformOrigin: '32px 32px' }}>
-        <rect x="44" y="28" width="14" height="8" fill={accent} stroke="#1a1612" strokeWidth="1" />
+        <rect x="8" y="18" width="48" height="36" rx="3" fill={body} stroke="#2a2620" strokeWidth="2" />
+        <rect x="12" y="22" width="20" height="14" fill="#3d3830" />
+        <rect x="34" y="22" width="18" height="28" fill={electric ? '#4a9a6a' : '#6b655c'} stroke="#2a2620" strokeWidth="1" />
+        <circle
+          className="drill-bit"
+          cx="22"
+          cy="48"
+          r="7"
+          fill="#8a8478"
+          stroke="#1a1612"
+          strokeWidth="2"
+        />
+        <circle cx="22" cy="48" r="3" fill="#1a1612" />
+        <rect x="44" y="28" width="18" height="8" fill={accent} stroke="#1a1612" strokeWidth="1" />
+        <polygon points="62,32 50,24 50,40" fill={accent} />
+        <rect x="14" y="12" width="12" height="8" fill="#3d3830" stroke="#1a1612" strokeWidth="1" />
+        {active && <circle cx="50" cy="14" r="3" fill={accent} className="drill-lamp" />}
+        {electric && <path d="M28 8 L32 16 L29 16 L34 26 L30 18 L33 18 Z" fill="#f0e060" />}
       </g>
-      <rect x="14" y="12" width="12" height="8" fill="#3d3830" stroke="#1a1612" strokeWidth="1" />
-      {active && <circle cx="50" cy="14" r="3" fill={accent} className="drill-lamp" />}
-      {electric && <path d="M28 8 L32 16 L29 16 L34 26 L30 18 L33 18 Z" fill="#f0e060" />}
     </svg>
   )
 }

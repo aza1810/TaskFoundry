@@ -23,6 +23,7 @@ import {
   isInserterKind,
   sizeOf,
   footprintCells,
+  drillOutputCells,
   storeTotal,
   xpForLevel,
 } from '../game/data'
@@ -1119,6 +1120,19 @@ export function FactoryFloor({
       const io = inserterIoAt(e.x, e.y, e.dir, reach, width, height)
       mark(pickup, io.pickup)
       mark(drop, io.drop)
+    }
+
+    for (const e of Object.values(entities)) {
+      if (e.ghost || !isDrillKind(e.kind)) continue
+      for (const cell of drillOutputCells(e.kind, e.x, e.y, e.dir)) {
+        mark(drop, cell)
+      }
+    }
+
+    if (hover && (selected === 'drill' || selected === 'electricDrill')) {
+      for (const cell of drillOutputCells(selected, hover.x, hover.y, hoverDir)) {
+        mark(drop, cell)
+      }
     }
 
     if (

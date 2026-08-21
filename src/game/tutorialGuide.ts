@@ -1,6 +1,8 @@
 import {
   DIR_DELTA,
   DIRS,
+  drillOutputCells,
+  facingEdgeOrigin,
   idx,
   inBounds,
   isBeltKind,
@@ -235,7 +237,7 @@ export function tutorialCoachHint(
     return 'Tap or hold-drag to paint belts. They carry items the way the chevrons point.'
   }
   if (next.id === 'drill') {
-    return 'Drills only go on ore. Aim the yellow arrow at empty ground.'
+    return 'Drills only go on ore. Aim the orange port at empty ground for the belt.'
   }
   if (next.id === 'chest1') {
     return 'Place the chest on the glowing ghost. Belts cannot dump into it. Use an inserter.'
@@ -269,7 +271,8 @@ function findLineOrigin(state: GameState): { x: number; y: number; dir: Dir } | 
   const drills = Object.values(state.entities).filter((e) => isDrillKind(e.kind))
   if (drills.length) {
     const d = drills[0]
-    return { x: d.x, y: d.y, dir: d.dir }
+    const edge = facingEdgeOrigin(d.kind, d.x, d.y, d.dir)
+    return { x: edge.x, y: edge.y, dir: d.dir }
   }
 
   // The drill sits on ore; the rest of the line must be clear grass so the
@@ -428,30 +431,41 @@ export function suggestPlaceDir(
       const nEnt = entityAt(state, nx, ny)
       if (nEnt && isBeltKind(nEnt.kind) && nEnt.dir === dir) return dir
     }
-    const drill = entityAt(state, x - DIR_DELTA[state.placeDir].dx, y - DIR_DELTA[state.placeDir].dy)
-    if (drill && isDrillKind(drill.kind)) return drill.dir
+    for (const dir of DIRS) {
+      const { dx, dy } = DIR_DELTA[dir]
+      for (let i = 1; i <= 3; i++) {
+        const nEnt = entityAt(state, x - dx * i, y - dy * i)
+        if (!nEnt) continue
+        if (isDrillKind(nEnt.kind)) {
+          const drops = drillOutputCells(nEnt.kind, nEnt.x, nEnt.y, nEnt.dir)
+          if (drops.some((c) => c.x === x && c.y === y)) return nEnt.dir
+          if (nEnt.dir === dir) return nEnt.dir
+        }
+        if (!isBeltKind(nEnt.kind) && !isDrillKind(nEnt.kind)) break
+      }
+    }
     return state.placeDir
   }
 
   if (tool === 'drill' || tool === 'electricDrill') {
-    const chosenFront = entityAt(
-      state,
-      x + DIR_DELTA[state.placeDir].dx,
-      y + DIR_DELTA[state.placeDir].dy,
-    )
-    if (
-      !chosenFront ||
-      isBeltKind(chosenFront.kind) ||
-      chosenFront.kind === 'chest' ||
-      chosenFront.kind === 'undergroundBelt' ||
-      chosenFront.kind === 'splitter'
-    ) {
-      return state.placeDir
+    const outs = drillOutputCells(tool, x, y, state.placeDir)
+    const openOrSink = (cell: { x: number; y: number }) => {
+      if (!inBounds(cell.x, cell.y, state.width, state.height)) return false
+      const front = entityAt(state, cell.x, cell.y)
+      return (
+        !front ||
+        isBeltKind(front.kind) ||
+        front.kind === 'chest' ||
+        front.kind === 'undergroundBelt' ||
+        front.kind === 'splitter'
+      )
     }
+    if (outs.some(openOrSink)) return state.placeDir
     let best = state.placeDir
     let bestScore = -1
     for (const dir of DIRS) {
-      const run = emptyRun(state, x, y, dir)
+      const edge = facingEdgeOrigin(tool, x, y, dir)
+      const run = emptyRun(state, edge.x, edge.y, dir)
       const score = run * 2 + (dir === 'E' ? 0.2 : dir === 'S' ? 0.1 : 0)
       if (score > bestScore) {
         bestScore = score

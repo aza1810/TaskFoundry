@@ -20,7 +20,7 @@ import {
   POWER_DRAW,
   SMELT_MAP,
   beltSpeedFor,
-  drillOutputCells,
+  drillDropCells,
   furnaceSecondsFor,
   idx,
   inBounds,
@@ -312,14 +312,14 @@ function tryDrillEject(
   entities: Record<string, Entity>,
   drill: Entity,
 ): boolean {
-  // Multi-tile drills push out of the tile(s) just past the facing edge.
   let dest: Entity | null = null
-  for (const o of drillOutputCells(drill.kind, drill.x, drill.y, drill.dir)) {
+  for (const o of drillDropCells(drill.kind, drill.x, drill.y, drill.dir)) {
     if (!inBounds(o.x, o.y)) continue
     const t = getTile(state.tiles, o.x, o.y)
     if (!t?.entityId) continue
     const cand = entities[t.entityId]
-    if (!cand) continue
+    if (!cand || cand.ghost) continue
+    if (cand.id === drill.id) continue
     if (
       isBeltKind(cand.kind) ||
       cand.kind === 'chest' ||
