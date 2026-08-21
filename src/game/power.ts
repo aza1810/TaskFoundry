@@ -3,7 +3,6 @@ import {
   DRILL_POWER_RANGE,
   BASE_POWER_CAP,
   GEN_CAPACITY,
-  GRID_H,
   GRID_W,
   POWER_DRAW,
   POWER_PER_STEP,
@@ -21,7 +20,16 @@ export interface PowerNet {
   genCells: { x: number; y: number }[]
 }
 
-const netCache = new WeakMap<GameState, PowerNet>()
+const netCache = new WeakMap<GameState['tiles'], { sig: string; net: PowerNet }>()
+
+function generatorSig(state: GameState): string {
+  let sig = ''
+  for (const e of Object.values(state.entities)) {
+    if (e.kind !== 'generator' || e.ghost) continue
+    sig += `${e.id}:${e.x},${e.y};`
+  }
+  return sig
+}
 
 /** Built (non-ghost) generators on the floor. */
 export function generatorCount(state: GameState): number {
@@ -56,6 +64,7 @@ function computePowerNet(state: GameState): PowerNet {
   const floor = new Array<boolean>(n).fill(false)
   const visited = new Array<boolean>(n).fill(false)
   const queue: number[] = []
+  const powered: number[] = []
   const genCells: { x: number; y: number }[] = []
 
   const trySeed = (x: number, y: number) => {
@@ -66,6 +75,7 @@ function computePowerNet(state: GameState): PowerNet {
     visited[i] = true
     floor[i] = true
     queue.push(i)
+    powered.push(i)
   }
 
   for (const e of Object.values(state.entities)) {
@@ -93,14 +103,13 @@ function computePowerNet(state: GameState): PowerNet {
       visited[ni] = true
       floor[ni] = true
       queue.push(ni)
+      powered.push(ni)
     }
   }
 
   const floorCells: { x: number; y: number }[] = []
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      if (floor[idx(x, y)]) floorCells.push({ x, y })
-    }
+  for (const i of powered) {
+    floorCells.push({ x: i % GRID_W, y: Math.floor(i / GRID_W) })
   }
 
   return { floor, floorCells, genCells }
@@ -108,10 +117,11 @@ function computePowerNet(state: GameState): PowerNet {
 
 /** Flood-fill 4-connected Foundations that touch a generator (on or adjacent). */
 export function powerNet(state: GameState): PowerNet {
-  const hit = netCache.get(state)
-  if (hit) return hit
+  const sig = generatorSig(state)
+  const hit = netCache.get(state.tiles)
+  if (hit && hit.sig === sig) return hit.net
   const net = computePowerNet(state)
-  netCache.set(state, net)
+  netCache.set(state.tiles, { sig, net })
   return net
 }
 
@@ -149,13 +159,19 @@ export function drillHasRemotePower(
   state: GameState,
   net = powerNet(state),
 ): boolean {
+  if (net.genCells.length === 0) return false
   const drillCells = footprintCells(ent.kind, ent.x, ent.y)
   for (const c of drillCells) {
     if (inBounds(c.x, c.y) && net.floor[idx(c.x, c.y)]) return true
   }
-  for (const f of net.floorCells) {
-    for (const c of drillCells) {
-      if (chebyshev(c.x, c.y, f.x, f.y) <= DRILL_POWER_RANGE) return true
+  for (const c of drillCells) {
+    for (let dy = -DRILL_POWER_RANGE; dy <= DRILL_POWER_RANGE; dy++) {
+      for (let dx = -DRILL_POWER_RANGE; dx <= DRILL_POWER_RANGE; dx++) {
+        const x = c.x + dx
+        const y = c.y + dy
+        if (!inBounds(x, y)) continue
+        if (net.floor[idx(x, y)]) return true
+      }
     }
   }
   for (const g of net.genCells) {

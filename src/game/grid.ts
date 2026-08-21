@@ -122,6 +122,54 @@ export function expandLegacyTiles(old: Tile[], oldW = LEGACY_GRID_W, oldH = LEGA
   return tiles
 }
 
+/** Sparse tile dump so empty grass is not written into every save. */
+export type PackedTiles = {
+  v: 1
+  n: number
+  s: Array<[number, Tile]>
+}
+
+export function isPackedTiles(raw: unknown): raw is PackedTiles {
+  if (!raw || typeof raw !== 'object') return false
+  const pack = raw as PackedTiles
+  return pack.v === 1 && typeof pack.n === 'number' && Array.isArray(pack.s)
+}
+
+export function packTiles(tiles: Tile[] | PackedTiles): PackedTiles {
+  if (isPackedTiles(tiles)) return tiles
+  const s: PackedTiles['s'] = []
+  for (let i = 0; i < tiles.length; i++) {
+    const t = tiles[i]
+    if (t.ore != null || t.entityId != null || t.foundation || (t.amount ?? 0) > 0) {
+      s.push([i, t])
+    }
+  }
+  return { v: 1, n: tiles.length, s }
+}
+
+export function emptyTile(): Tile {
+  return { ore: null, amount: null, entityId: null, foundation: false }
+}
+
+export function unpackTiles(raw: unknown): Tile[] | null {
+  if (!raw) return null
+  if (Array.isArray(raw)) return raw as Tile[]
+  if (!isPackedTiles(raw) || raw.n <= 0) return null
+  const tiles: Tile[] = Array.from({ length: raw.n }, emptyTile)
+  for (const row of raw.s) {
+    const i = row?.[0]
+    const t = row?.[1]
+    if (typeof i !== 'number' || i < 0 || i >= tiles.length || !t) continue
+    tiles[i] = {
+      ore: t.ore ?? null,
+      amount: t.amount ?? null,
+      entityId: t.entityId ?? null,
+      foundation: t.foundation === true,
+    }
+  }
+  return tiles
+}
+
 export function createEntity(
   kind: Entity['kind'],
   x: number,

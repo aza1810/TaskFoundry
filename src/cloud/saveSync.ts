@@ -3,6 +3,7 @@
  * Hosted at https://azztech.online/apps/tf/api/
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { persistableState } from '../game/logic'
 import type { GameState } from '../game/types'
 
 const CLOUD_SESSION_KEY = 'task-foundry-cloud-session'
@@ -263,7 +264,7 @@ export async function pushCloudSave(
   session: CloudSession | null = loadCloudSession(),
 ): Promise<CloudPushResult> {
   if (!session?.token) return 'no-session'
-  const { offlineReport: _omit, ...persisted } = state
+  const persisted = persistableState(state)
   const res = await apiFetch('/save.php', {
     method: 'PUT',
     token: session.token,

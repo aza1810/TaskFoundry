@@ -2499,7 +2499,11 @@ html[data-theme='light'] .ghost-btn.is-danger {
   position: relative;
   margin: 0;
   padding: 0;
-  background: var(--ground-grid);
+  background-color: var(--ground-grid);
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.22) 1px, transparent 1px);
+  background-size: 56px 56px;
   border: 1px solid color-mix(in srgb, var(--viewport-border) 80%, #000);
   user-select: none;
   touch-action: manipulation;
@@ -2524,6 +2528,18 @@ html[data-theme='light'] .ghost-btn.is-danger {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+}
+
+.cell-ground-0 {
+  background: var(--ground-a);
+}
+
+.cell-ground-1 {
+  background: var(--ground-b);
+}
+
+.cell-ground-2 {
+  background: var(--ground-c);
 }
 
 .cell-foundation {
@@ -3766,7 +3782,11 @@ html[data-theme='light'] .ghost-btn.is-danger {
 .factory-floor .factory-grid {
   display: block;
   position: relative;
-  background: var(--ground-grid);
+  background-color: var(--ground-grid);
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.22) 1px, transparent 1px);
+  background-size: 56px 56px;
   border: 1px solid color-mix(in srgb, var(--viewport-border) 80%, #000);
   user-select: none;
   image-rendering: pixelated;

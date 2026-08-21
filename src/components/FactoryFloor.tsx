@@ -74,7 +74,6 @@ import {
   DroneSprite,
   EntitySprite,
   FoundationSprite,
-  GroundTexture,
   ItemSprite,
   OreTexture,
   ToolIcon,
@@ -1553,13 +1552,16 @@ export function FactoryFloor({
                       height: CELL,
                     }}
                   >
-                    <span className="cell-tex">
-                      {tile.ore ? (
+                    {tile.ore ? (
+                      <span className="cell-tex">
                         <OreTexture ore={tile.ore as OreId} amount={tile.amount} />
-                      ) : (
-                        <GroundTexture seed={seed} />
-                      )}
-                    </span>
+                      </span>
+                    ) : (
+                      <span
+                        className={`cell-tex cell-ground cell-ground-${seed % 3}`}
+                        aria-hidden
+                      />
+                    )}
 
                     {tile.foundation && (
                       <span className="cell-foundation" aria-hidden>
@@ -1694,7 +1696,13 @@ export function FactoryFloor({
                       />
                     )}
 
-                    <span className="cell-gridline" />
+                    {(isHover ||
+                      inHoverFoot ||
+                      showGhost ||
+                      isGhost ||
+                      isInspect ||
+                      inSelect ||
+                      planGhost) && <span className="cell-gridline" />}
                   </div>
                 )
               })
@@ -2285,6 +2293,66 @@ export function FactoryFloor({
   )
 }
 
+function paintMinimap(
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  tiles: GameState['tiles'],
+  entities: GameState['entities'],
+  theme: string,
+) {
+  const light = theme === 'light'
+  canvas.width = width
+  canvas.height = height
+  const img = ctx.createImageData(width, height)
+  const data = img.data
+  const hex = (color: string): [number, number, number] => {
+    const h = color.replace('#', '')
+    return [
+      parseInt(h.slice(0, 2), 16),
+      parseInt(h.slice(2, 4), 16),
+      parseInt(h.slice(4, 6), 16),
+    ]
+  }
+  const put = (i: number, color: string) => {
+    const [r, g, b] = hex(color)
+    const o = i * 4
+    data[o] = r
+    data[o + 1] = g
+    data[o + 2] = b
+    data[o + 3] = 255
+  }
+  const grass = light ? '#9bb262' : '#3a4a28'
+  const iron = light ? '#a09078' : '#8B7355'
+  const copper = '#C4783A'
+  const coal = light ? '#5a5a5a' : '#2A2A2A'
+  const foundation = light ? '#c4bdb2' : '#8a8478'
+  for (let i = 0; i < tiles.length; i++) {
+    const tile = tiles[i]
+    if (tile.ore === 'ironOre') put(i, iron)
+    else if (tile.ore === 'copperOre') put(i, copper)
+    else if (tile.ore === 'coal') put(i, coal)
+    else if (tile.foundation && !tile.entityId) put(i, foundation)
+    else put(i, grass)
+  }
+  ctx.putImageData(img, 0, 0)
+  for (const ent of Object.values(entities)) {
+    const kind = ent.kind
+    if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
+    else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
+    else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
+    else if (kind === 'tree') {
+      ctx.fillStyle = ent.marked ? '#e0b050' : treeVariant(ent.variant).color
+    } else if (kind === 'rock') {
+      ctx.fillStyle = ent.marked ? '#e0b050' : rockVariant(ent.variant).color
+    } else if (kind === 'roboport') ctx.fillStyle = '#3fa7c9'
+    else ctx.fillStyle = '#7b8792'
+    const { w, h } = sizeOf(kind)
+    ctx.fillRect(ent.x, ent.y, w, h)
+  }
+}
+
 function Minimap({
   width,
   height,
@@ -2306,62 +2374,25 @@ function Minimap({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [theme, setTheme] = useState(resolveTheme)
+  const drawAt = useRef(0)
 
   useEffect(() => subscribeTheme(({ resolved }) => setTheme(resolved)), [])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const light = theme === 'light'
-    canvas.width = width
-    canvas.height = height
-    const img = ctx.createImageData(width, height)
-    const data = img.data
-    const hex = (color: string): [number, number, number] => {
-      const h = color.replace('#', '')
-      return [
-        parseInt(h.slice(0, 2), 16),
-        parseInt(h.slice(2, 4), 16),
-        parseInt(h.slice(4, 6), 16),
-      ]
-    }
-    const put = (i: number, color: string) => {
-      const [r, g, b] = hex(color)
-      const o = i * 4
-      data[o] = r
-      data[o + 1] = g
-      data[o + 2] = b
-      data[o + 3] = 255
-    }
-    const grass = light ? '#9bb262' : '#3a4a28'
-    const iron = light ? '#a09078' : '#8B7355'
-    const copper = '#C4783A'
-    const coal = light ? '#5a5a5a' : '#2A2A2A'
-    const foundation = light ? '#c4bdb2' : '#8a8478'
-    for (let i = 0; i < tiles.length; i++) {
-      const tile = tiles[i]
-      if (tile.ore === 'ironOre') put(i, iron)
-      else if (tile.ore === 'copperOre') put(i, copper)
-      else if (tile.ore === 'coal') put(i, coal)
-      else if (tile.foundation && !tile.entityId) put(i, foundation)
-      else put(i, grass)
-    }
-    ctx.putImageData(img, 0, 0)
-    for (const ent of Object.values(entities)) {
-      const kind = ent.kind
-      if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
-      else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
-      else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
-      else if (kind === 'tree') {
-        ctx.fillStyle = ent.marked ? '#e0b050' : treeVariant(ent.variant).color
-      } else if (kind === 'rock') {
-        ctx.fillStyle = ent.marked ? '#e0b050' : rockVariant(ent.variant).color
-      } else if (kind === 'roboport') ctx.fillStyle = '#3fa7c9'
-      else ctx.fillStyle = '#7b8792'
-      const { w, h } = sizeOf(kind)
-      ctx.fillRect(ent.x, ent.y, w, h)
+    let cancelled = false
+    const delay = Math.max(0, 400 - (performance.now() - drawAt.current))
+    const timer = window.setTimeout(() => {
+      if (cancelled) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      drawAt.current = performance.now()
+      paintMinimap(canvas, ctx, width, height, tiles, entities, theme)
+    }, delay)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
     }
   }, [width, height, tiles, entities, theme])
 

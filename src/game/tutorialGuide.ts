@@ -1,6 +1,8 @@
 import {
   DIR_DELTA,
   DIRS,
+  LEGACY_GRID_H,
+  LEGACY_GRID_W,
   drillOutputCells,
   facingEdgeOrigin,
   idx,
@@ -290,9 +292,11 @@ function findLineOrigin(state: GameState): { x: number; y: number; dir: Dir } | 
   }
 
   const prefer: Dir[] = ['E', 'S', 'W', 'N']
+  const scanW = Math.min(state.width, LEGACY_GRID_W + 4)
+  const scanH = Math.min(state.height, LEGACY_GRID_H + 4)
   for (const dir of prefer) {
-    for (let y = 0; y < state.height; y++) {
-      for (let x = 0; x < state.width; x++) {
+    for (let y = 0; y < scanH; y++) {
+      for (let x = 0; x < scanW; x++) {
         const tile = state.tiles[idx(x, y)]
         if (tile.ore !== 'ironOre' || tile.entityId) continue
         if (tryOrigin(x, y, dir)) return { x, y, dir }
@@ -300,8 +304,8 @@ function findLineOrigin(state: GameState): { x: number; y: number; dir: Dir } | 
     }
   }
 
-  for (let y = 0; y < state.height; y++) {
-    for (let x = 0; x < state.width; x++) {
+  for (let y = 0; y < scanH; y++) {
+    for (let x = 0; x < scanW; x++) {
       const tile = state.tiles[idx(x, y)]
       if (tile.ore !== 'ironOre' || tile.entityId) continue
       return { x, y, dir: 'E' }
@@ -354,8 +358,10 @@ export function tutorialFocusCell(
   const next = ghosts.find((g) => g.next) ?? ghosts[0]
   if (next) return { x: next.x, y: next.y }
   if (step?.id === 'placeDrill') {
-    for (let y = 0; y < state.height; y++) {
-      for (let x = 0; x < state.width; x++) {
+    const scanW = Math.min(state.width, LEGACY_GRID_W + 4)
+    const scanH = Math.min(state.height, LEGACY_GRID_H + 4)
+    for (let y = 0; y < scanH; y++) {
+      for (let x = 0; x < scanW; x++) {
         const tile = state.tiles[idx(x, y)]
         if (tile.ore === 'ironOre' && !tile.entityId) return { x, y }
       }

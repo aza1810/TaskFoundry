@@ -345,14 +345,40 @@ function tryDrillEject(
   return true
 }
 
+function cloneSimEntities(src: GameState['entities']): Record<string, Entity> {
+  const entities: Record<string, Entity> = {}
+  for (const id in src) {
+    const e = src[id]
+    // Trees and rocks are static unless a drone marks them. Reuse the
+    // same object so the floor can skip re-rendering thousands of sprites.
+    if (e.kind === 'tree' || e.kind === 'rock') {
+      entities[id] = e
+      continue
+    }
+    entities[id] = {
+      ...e,
+      store: { ...e.store },
+      cargo: e.cargo ? { ...e.cargo } : null,
+    }
+  }
+  return entities
+}
+
 /** One mining cycle per drill per step - each cycle spends stored power. */
 export function runMineCycles(state: GameState, cycles: number): GameState {
   if (cycles <= 0) return state
-  const entities: Record<string, Entity> = {}
-  for (const [id, e] of Object.entries(state.entities)) {
-    entities[id] = { ...e, store: { ...e.store }, cargo: e.cargo ? { ...e.cargo } : null }
+  const entities = cloneSimEntities(state.entities)
+  let tiles = state.tiles
+  let tilesCopied = false
+  const touchTile = (i: number) => {
+    if (!tilesCopied) {
+      tiles = tiles.slice()
+      tilesCopied = true
+    }
+    const cur = tiles[i]
+    if (cur === state.tiles[i]) tiles[i] = { ...cur }
+    return tiles[i]
   }
-  const tiles = state.tiles.map((t) => ({ ...t }))
   let mined = 0
   let cyclesRun = 0
   let power = state.power
@@ -370,18 +396,19 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       if (!entityHasPower(e, state, net)) continue
 
       // A 2x2 drill can pull ore from anywhere in its 3x3 dig area.
-      let tile: (typeof tiles)[number] | null = null
+      let tileI = -1
       let ore: OreId | null = null
       for (const c of mineCells(e.x, e.y)) {
         if (!inBounds(c.x, c.y)) continue
-        const t = tiles[idx(c.x, c.y)]
+        const i = idx(c.x, c.y)
+        const t = tiles[i]
         if (t.ore && (t.amount === null || t.amount > 0)) {
-          tile = t
+          tileI = i
           ore = t.ore
           break
         }
       }
-      if (!tile || !ore) continue
+      if (tileI < 0 || !ore) continue
 
       const electric = e.kind === 'electricDrill'
       const cost =
@@ -401,11 +428,13 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
 
       power -= cost
 
+      const tile = tiles[tileI]
       if (tile.amount !== null) {
-        tile.amount -= put
-        if (tile.amount <= 0) {
-          tile.amount = 0
-          tile.ore = null
+        const next = touchTile(tileI)
+        next.amount = (next.amount ?? 0) - put
+        if (next.amount <= 0) {
+          next.amount = 0
+          next.ore = null
         }
       }
       mined += put
@@ -429,14 +458,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
 /** Continuous factory simulation: belts, inserters, furnaces, assemblers, drill eject */
 export function simTick(state: GameState, dt: number): GameState {
   if (dt <= 0) return state
-  const entities: Record<string, Entity> = {}
-  for (const [id, e] of Object.entries(state.entities)) {
-    entities[id] = {
-      ...e,
-      store: { ...e.store },
-      cargo: e.cargo ? { ...e.cargo } : null,
-    }
-  }
+  const entities = cloneSimEntities(state.entities)
   const stats: FactoryStats = { ...state.stats }
   let moved = 0
   const bonuses = skillBonuses(state.skills)

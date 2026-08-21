@@ -32,6 +32,7 @@ import {
   rotatePlaceDir as rotatePlaceDirLogic,
   flipEntityAt as flipEntityAtLogic,
   flipPlaceDir as flipPlaceDirLogic,
+  persistableState,
   saveState,
   selectTool as selectToolLogic,
   setFocusSkill as setFocusSkillLogic,
@@ -260,8 +261,7 @@ export function GameProvider({
         return
       }
       if (result.fromCloud) {
-        const { offlineReport: _o, ...persisted } = result.state
-        localStorage.setItem(saveKey, JSON.stringify(persisted))
+        localStorage.setItem(saveKey, JSON.stringify(persistableState(result.state)))
         const next = loadState(saveKey)
         dispatch({
           type: 'HYDRATE',
@@ -332,7 +332,7 @@ export function GameProvider({
       saveState(stateRef.current)
     }
     persistLocal()
-    const localId = window.setInterval(persistLocal, 1000)
+    const localId = window.setInterval(persistLocal, 4000)
 
     if (!enableCloudSync) {
       return () => window.clearInterval(localId)
@@ -352,8 +352,7 @@ export function GameProvider({
             // Server is ahead - pull it instead of pretending we uploaded.
             const hydrated = await resolveCloudHydration(saveKey, stateRef.current)
             if (hydrated.ok && hydrated.fromCloud) {
-              const { offlineReport: _o, ...persisted } = hydrated.state
-              localStorage.setItem(saveKey, JSON.stringify(persisted))
+              localStorage.setItem(saveKey, JSON.stringify(persistableState(hydrated.state)))
               const next = loadState(saveKey)
               dispatch({
                 type: 'HYDRATE',
@@ -534,8 +533,7 @@ export function GameProvider({
 
   const hydrateLoaded = useCallback(
     (nextState: GameState) => {
-      const { offlineReport: _o, ...persisted } = nextState
-      localStorage.setItem(saveKey, JSON.stringify(persisted))
+      localStorage.setItem(saveKey, JSON.stringify(persistableState(nextState)))
       const next = loadState(saveKey)
       dispatch({
         type: 'HYDRATE',

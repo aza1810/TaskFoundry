@@ -18,9 +18,16 @@ import {
   rockVariant,
   treeVariant,
 } from '../src/game/data.ts'
-import { createEntity, createTiles, expandLegacyTiles } from '../src/game/grid.ts'
+import {
+  createEntity,
+  createTiles,
+  expandLegacyTiles,
+  packTiles,
+  unpackTiles,
+} from '../src/game/grid.ts'
 import {
   createInitialState,
+  persistableState,
   placeEntity,
   tickDrones,
 } from '../src/game/logic.ts'
@@ -193,6 +200,17 @@ stock = sumChestStores(state)
 assert((stock.ironOre ?? 0) >= 4, `iron vein should drop 4 iron, got ${stock.ironOre ?? 0}`)
 assert((stock.stone ?? 0) >= 3, `iron vein should drop stone, got ${stock.stone ?? 0}`)
 
+const packed = packTiles(state.tiles)
+const unpacked = unpackTiles(packed)
+if (!unpacked) fail('unpackTiles returned null')
+assert(unpacked.length === GRID_W * GRID_H, 'packed tiles unpack to the full map')
+assert(unpacked[idx(4, 3)].ore === 'ironOre', 'packed starter iron survives a round trip')
+const fat = JSON.stringify(state.tiles).length
+const slim = JSON.stringify(packed).length
+assert(slim < fat * 0.55, `packed save should be much smaller (${slim} vs ${fat})`)
+const persisted = persistableState(state)
+assert(packTiles(persisted.tiles).n === GRID_W * GRID_H, 'persistableState packs tiles')
+
 console.log(
   JSON.stringify({
     ok: true,
@@ -205,5 +223,7 @@ console.log(
     wildernessOre,
     oakWood: stock.wood,
     veinIron: stock.ironOre,
+    saveBytes: slim,
+    fullTileBytes: fat,
   }),
 )

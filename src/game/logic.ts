@@ -54,7 +54,14 @@ import {
   xpForLevel,
 } from './data'
 import { GOALS, TIPS, emptyStats } from './goals'
-import { createEntity, createTiles, expandLegacyTiles, getTile } from './grid'
+import {
+  createEntity,
+  createTiles,
+  expandLegacyTiles,
+  getTile,
+  packTiles,
+  unpackTiles,
+} from './grid'
 import {
   canAffordStock,
   canChestsAccept,
@@ -308,15 +315,16 @@ export function loadState(accountSaveKey?: string): GameState {
     if (!parsed || typeof parsed.version !== 'number' || parsed.version < 6) {
       return createInitialState()
     }
+    const unpacked = unpackTiles(parsed.tiles)
     const legacyLen = LEGACY_GRID_W * LEGACY_GRID_H
     const fullLen = GRID_W * GRID_H
-    const parsedLen = parsed.tiles?.length ?? 0
+    const parsedLen = unpacked?.length ?? 0
     const expandedLegacy = parsedLen === legacyLen
     const tiles =
-      parsedLen === fullLen
-        ? parsed.tiles.map((t) => ({ ...t, foundation: t.foundation === true }))
-        : expandedLegacy
-          ? expandLegacyTiles(parsed.tiles)
+      parsedLen === fullLen && unpacked
+        ? unpacked.map((t) => ({ ...t, foundation: t.foundation === true }))
+        : expandedLegacy && unpacked
+          ? expandLegacyTiles(unpacked)
           : createTiles()
     let next: GameState = {
       ...emptyBaseState(tiles),
@@ -394,7 +402,7 @@ export function loadState(accountSaveKey?: string): GameState {
       }
     }
     next = ensureContracts(next)
-    localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(next))
+    saveState(next)
     return next
   } catch {
     return createInitialState()
@@ -411,9 +419,16 @@ function ensureContracts(state: GameState): GameState {
   }
 }
 
+/** Drop ephemeral fields and pack empty grass out of the tile array. */
+export function persistableState(state: GameState): Omit<GameState, 'offlineReport' | 'tiles'> & {
+  tiles: ReturnType<typeof packTiles>
+} {
+  const { offlineReport: _omit, tiles, ...rest } = state
+  return { ...rest, tiles: packTiles(tiles) }
+}
+
 export function saveState(state: GameState): void {
-  const { offlineReport: _omit, ...persisted } = state
-  localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(persisted))
+  localStorage.setItem(ACTIVE_SAVE_KEY, JSON.stringify(persistableState(state)))
 }
 
 function addXp(state: GameState, amount: number): GameState {

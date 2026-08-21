@@ -2,6 +2,7 @@
  * Move / export / import local foundry saves (guest → Google, file backup).
  */
 import { saveKeyForAccount } from '../auth/auth'
+import { persistableState } from '../game/logic'
 import type { GameState } from '../game/types'
 import { bumpLocalSavedAt, writeSaveMeta } from './saveSync'
 
@@ -77,13 +78,12 @@ export function adoptRicherLocalSave(targetSaveKey: string): boolean {
 }
 
 export function exportSavePayload(state: GameState): string {
-  const { offlineReport: _omit, ...persisted } = state
   return JSON.stringify(
     {
       format: 'task-foundry-save',
       version: 1,
       exportedAt: Date.now(),
-      state: persisted,
+      state: persistableState(state),
     },
     null,
     2,
@@ -111,8 +111,7 @@ export function parseImportedSave(raw: string): GameState {
 }
 
 export function applyImportedSave(saveKey: string, state: GameState): void {
-  const { offlineReport: _omit, ...persisted } = state
-  localStorage.setItem(saveKey, JSON.stringify(persisted))
+  localStorage.setItem(saveKey, JSON.stringify(persistableState(state)))
   writeSaveMeta(saveKey, {
     savedAt: Date.now(),
     lastError: undefined,
