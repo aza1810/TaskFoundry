@@ -370,7 +370,6 @@ export function FactoryFloor({
     rotateDir,
     fuelDrills,
     fuelAt,
-    buildStarter,
     selected,
     placeDir,
   } = useGame()
@@ -1750,15 +1749,6 @@ export function FactoryFloor({
                 >
                   Fuel
                 </button>
-                {!state.tutorialComplete && (
-                  <button
-                    type="button"
-                    className="rail-chip"
-                    onClick={() => buildStarter()}
-                  >
-                    Starter
-                  </button>
-                )}
               </div>
             </div>
           )}

@@ -47,14 +47,14 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'You start with no resources - you gather them. Construction drones do all your building, so first you place a Roboport. Then everything you place is a blueprint a drone builds. Walking charges your power grid, and powered drills mine ore into chests.',
+    body: 'You start with nothing and build up from scratch. Drones do the work: place a Roboport and its drones build every blueprint you lay down and chop any tree you mark into wood. You just design the factory - your real-world steps charge the power grid that runs the drills, and the drills mine ore into your chests to smelt into plates.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },
   {
     id: 'placeRoboport',
-    title: 'Deploy a roboport',
-    body: 'Drones build everything for you. Open Build, pick Roboport, and place it on open ground - it deploys a construction drone. Nothing gets built without one.',
+    title: 'Deploy a roboport first',
+    body: 'Everything starts with the roboport. Open Build, pick Roboport, and place it on open ground - it deploys a construction drone. That drone builds every blueprint you place and chops any tree you mark for wood. Nothing gets built without a roboport.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place a roboport on open ground',
@@ -66,7 +66,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'placeDrill',
     title: 'Blueprint a mining drill',
-    body: 'Pick Drill and tap a glowing brown iron tile. It drops as a blueprint and your drone flies over to build it. Face the yellow arrow toward empty ground so ore can leave the drill.',
+    body: 'Pick Drill and tap a glowing brown iron tile. It drops as a blueprint and your drone flies over to build it - watch it work. Face the yellow arrow toward empty ground so ore can leave the drill.',
     mode: 'coach',
     tab: 'factory',
     action: 'Tap a glowing iron-ore tile',
@@ -136,7 +136,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'done',
     title: 'Leave the line running',
-    body: 'When you go offline, your steps keep powering drills. Ore fills the first chest, plates fill the second. Come back to the away report to see what your chests gathered. Craft, Lab, and Skills are unlocked.',
+    body: 'When you go offline, your steps keep charging power and the drills keep mining. Ore fills the first chest, plates fill the second. Come back to the away report to see what you gathered. Need fuel? Mark a tree with Demolish and a drone chops it into wood to burn. Craft, Lab, and Skills are now unlocked.',
     mode: 'modal',
     unlockTabs: [
       'factory',

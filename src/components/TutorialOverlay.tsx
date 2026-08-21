@@ -23,7 +23,6 @@ export function TutorialOverlay({
     state,
     advanceTutorial,
     skipTutorial,
-    quickStartTutorial,
     selectTool,
   } = useGame()
   const stepIndex = state.tutorialStep
@@ -89,14 +88,8 @@ export function TutorialOverlay({
           {step.id === 'welcome' ? (
             <div className="tutorial-actions tutorial-actions-stack">
               <button type="button" className="primary-btn" onClick={advanceTutorial}>
-                I will build the line
+                Deploy my first roboport
               </button>
-              <button type="button" className="primary-btn tutorial-quick" onClick={quickStartTutorial}>
-                Plant starter line
-              </button>
-              <p className="tutorial-quick-hint">
-                Starter plants drill → chest → furnace → plate chest, then asks you to walk.
-              </p>
               <button type="button" className="ghost-btn" onClick={skipTutorial}>
                 Skip - I will explore
               </button>
