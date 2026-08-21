@@ -7,11 +7,13 @@ import type {
   ItemId,
   OreId,
   Placeable,
+  RockVariantId,
   ToolId,
+  TreeVariantId,
 } from './types'
 
 export const SAVE_KEY = 'task-foundry-v9'
-export const GAME_VERSION = 10
+export const GAME_VERSION = 11
 export const APP_NAME = 'Task Foundry'
 export const APP_TAGLINE = 'Walk. Task. Automate.'
 /** Overridden per signed-in account at runtime */
@@ -20,8 +22,12 @@ export let ACTIVE_SAVE_KEY = SAVE_KEY
 export function setActiveSaveKey(key: string): void {
   ACTIVE_SAVE_KEY = key
 }
-export const GRID_W = 24
-export const GRID_H = 16
+/** Pre-v11 factory size. Old saves blit into the top-left of the new map. */
+export const LEGACY_GRID_W = 24
+export const LEGACY_GRID_H = 16
+/** 10x the original 24x16 factory in each direction. */
+export const GRID_W = 240
+export const GRID_H = 160
 export const MAX_CRAFT_QUEUE = 8
 /** Factory keeps running while away (seconds) - max 24 hours */
 export const OFFLINE_CAP_SECONDS = 24 * 60 * 60
@@ -449,22 +455,184 @@ export const POWER_DRAW: Record<EntityKind, number> = {
   rock: 0,
   generator: 0,
 }
-/** Seconds a drone spends chopping a marked tree. */
-export const TREE_CUT_SECONDS = 2
-/** Wood dropped into a chest when a drone fells a tree. */
-export const WOOD_PER_TREE = 4
-/** How many trees to scatter across the map. */
-export const TREE_COUNT = 22
+export interface TreeVariantDef {
+  id: TreeVariantId
+  label: string
+  cutSeconds: number
+  wood: number
+  weight: number
+  color: string
+}
 
-/** Seconds a drone spends excavating a marked rock. */
-export const ROCK_MINE_SECONDS = 3
-/** How many rocks to scatter across the map. */
-export const ROCK_COUNT = 16
-/** Excavating a rock yields mostly stone, a little iron, and rarely coal. */
+export interface RockDrop {
+  item: ItemId
+  amount: number
+  chance?: number
+}
+
+export interface RockVariantDef {
+  id: RockVariantId
+  label: string
+  mineSeconds: number
+  primary: ItemId
+  drops: RockDrop[]
+  weight: number
+  color: string
+}
+
+export const TREE_VARIANTS: Record<TreeVariantId, TreeVariantDef> = {
+  pine: {
+    id: 'pine',
+    label: 'Pine',
+    cutSeconds: 2,
+    wood: 4,
+    weight: 40,
+    color: '#2f6b32',
+  },
+  oak: {
+    id: 'oak',
+    label: 'Oak',
+    cutSeconds: 3.5,
+    wood: 7,
+    weight: 25,
+    color: '#3d5c28',
+  },
+  birch: {
+    id: 'birch',
+    label: 'Birch',
+    cutSeconds: 1.5,
+    wood: 3,
+    weight: 22,
+    color: '#8aaa4a',
+  },
+  deadwood: {
+    id: 'deadwood',
+    label: 'Deadwood',
+    cutSeconds: 1.2,
+    wood: 2,
+    weight: 13,
+    color: '#6a5a40',
+  },
+}
+
+export const ROCK_VARIANTS: Record<RockVariantId, RockVariantDef> = {
+  stone: {
+    id: 'stone',
+    label: 'Stone',
+    mineSeconds: 3,
+    primary: 'stone',
+    drops: [
+      { item: 'stone', amount: 6 },
+      { item: 'ironOre', amount: 1 },
+      { item: 'coal', amount: 1, chance: 0.3 },
+    ],
+    weight: 34,
+    color: '#8f867a',
+  },
+  boulder: {
+    id: 'boulder',
+    label: 'Boulder',
+    mineSeconds: 5.5,
+    primary: 'stone',
+    drops: [
+      { item: 'stone', amount: 12 },
+      { item: 'ironOre', amount: 2 },
+      { item: 'coal', amount: 1, chance: 0.2 },
+    ],
+    weight: 14,
+    color: '#5c564e',
+  },
+  pebble: {
+    id: 'pebble',
+    label: 'Pebbles',
+    mineSeconds: 1.5,
+    primary: 'stone',
+    drops: [{ item: 'stone', amount: 2 }],
+    weight: 18,
+    color: '#c4bdb2',
+  },
+  ironVein: {
+    id: 'ironVein',
+    label: 'Iron vein',
+    mineSeconds: 4,
+    primary: 'ironOre',
+    drops: [
+      { item: 'stone', amount: 3 },
+      { item: 'ironOre', amount: 4 },
+    ],
+    weight: 13,
+    color: '#8B7355',
+  },
+  copperVein: {
+    id: 'copperVein',
+    label: 'Copper vein',
+    mineSeconds: 4,
+    primary: 'copperOre',
+    drops: [
+      { item: 'stone', amount: 3 },
+      { item: 'copperOre', amount: 4 },
+    ],
+    weight: 11,
+    color: '#C4783A',
+  },
+  coalSeam: {
+    id: 'coalSeam',
+    label: 'Coal seam',
+    mineSeconds: 3.5,
+    primary: 'coal',
+    drops: [
+      { item: 'stone', amount: 2 },
+      { item: 'coal', amount: 5 },
+    ],
+    weight: 10,
+    color: '#2A2A2A',
+  },
+}
+
+export const TREE_VARIANT_LIST = Object.values(TREE_VARIANTS)
+export const ROCK_VARIANT_LIST = Object.values(ROCK_VARIANTS)
+
+/** Pine defaults, used when a tree has no variant (legacy saves). */
+export const TREE_CUT_SECONDS = TREE_VARIANTS.pine.cutSeconds
+export const WOOD_PER_TREE = TREE_VARIANTS.pine.wood
+/** How many trees to scatter across the map. */
+export const TREE_COUNT = 1600
+
+/** Stone-rock defaults, used when a rock has no variant (legacy saves). */
+export const ROCK_MINE_SECONDS = ROCK_VARIANTS.stone.mineSeconds
+export const ROCK_COUNT = 720
 export const STONE_PER_ROCK = 6
 export const IRON_PER_ROCK = 1
-/** Probability a rock also yields 1 coal (rarer than iron). */
 export const ROCK_COAL_CHANCE = 0.3
+
+export function pickWeighted<T extends { weight: number }>(
+  list: readonly T[],
+  rand: () => number = Math.random,
+): T {
+  const total = list.reduce((sum, item) => sum + item.weight, 0)
+  let roll = rand() * total
+  for (const item of list) {
+    roll -= item.weight
+    if (roll <= 0) return item
+  }
+  return list[list.length - 1]
+}
+
+export function treeVariant(id?: string | null): TreeVariantDef {
+  if (id && id in TREE_VARIANTS) return TREE_VARIANTS[id as TreeVariantId]
+  return TREE_VARIANTS.pine
+}
+
+export function rockVariant(id?: string | null): RockVariantDef {
+  if (id && id in ROCK_VARIANTS) return ROCK_VARIANTS[id as RockVariantId]
+  return ROCK_VARIANTS.stone
+}
+
+export type WorldRect = { x: number; y: number; w: number; h: number }
+
+export function inWorldRect(x: number, y: number, rect: WorldRect): boolean {
+  return x >= rect.x && y >= rect.y && x < rect.x + rect.w && y < rect.y + rect.h
+}
 
 /* ---- Multi-tile building footprints ---- */
 /** Grass kept clear so the first 3x3 roboport always has room to land. */

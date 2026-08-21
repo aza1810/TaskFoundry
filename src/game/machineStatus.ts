@@ -11,6 +11,8 @@ import {
   isDrillKind,
   isFurnaceKind,
   mineCells,
+  rockVariant,
+  treeVariant,
 } from './data'
 import { MACHINE_CAP } from './sim'
 import {
@@ -46,27 +48,39 @@ export function machineStatus(
   }
 
   if (ent.kind === 'tree') {
+    const def = treeVariant(ent.variant)
     if (ent.marked) {
       const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
       return {
-        label: pct > 0 ? `Drone chopping ${pct}%` : 'Marked - waiting for a drone',
+        label: pct > 0 ? `Drone chopping ${def.label.toLowerCase()} ${pct}%` : `Marked ${def.label.toLowerCase()} - waiting for a drone`,
         tone: pct > 0 ? 'work' : 'idle',
         floorClass: 'is-waiting',
       }
     }
-    return { label: 'Tree - Demolish to mark for drones', tone: 'idle' }
+    return {
+      label: `${def.label} - Demolish to mark. ${def.cutSeconds}s, ${def.wood} wood`,
+      tone: 'idle',
+    }
   }
 
   if (ent.kind === 'rock') {
+    const def = rockVariant(ent.variant)
+    const loot = def.drops
+      .filter((d) => d.chance == null)
+      .map((d) => `${d.amount} ${d.item === 'ironOre' ? 'iron' : d.item === 'copperOre' ? 'copper' : d.item}`)
+      .join(', ')
     if (ent.marked) {
       const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
       return {
-        label: pct > 0 ? `Drone excavating ${pct}%` : 'Marked - waiting for a drone',
+        label: pct > 0 ? `Drone excavating ${def.label.toLowerCase()} ${pct}%` : `Marked ${def.label.toLowerCase()} - waiting for a drone`,
         tone: pct > 0 ? 'work' : 'idle',
         floorClass: 'is-waiting',
       }
     }
-    return { label: 'Rock - Demolish to excavate for stone', tone: 'idle' }
+    return {
+      label: `${def.label} - Demolish to excavate. ${def.mineSeconds}s, ${loot}`,
+      tone: 'idle',
+    }
   }
 
   if (ent.kind === 'roboport') {

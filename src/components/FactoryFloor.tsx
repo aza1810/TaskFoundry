@@ -22,7 +22,10 @@ import {
   isEntityPlaceable,
   isFurnaceKind,
   isInserterKind,
+  rockVariant,
   sizeOf,
+  STARTER_PAD,
+  treeVariant,
   footprintCells,
   drillOutputCells,
   storeTotal,
@@ -84,6 +87,8 @@ import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '.
 const CELL = 56
 const ZOOM_MIN = 0.45
 const ZOOM_MAX = 2.2
+/** Extra tiles rendered past the viewport so trees and 3x3 buildings do not pop. */
+const CULL_PAD = 4
 /** Touch browsers often report movementX/Y as 0 - use client deltas instead. */
 const PAN_SLOP = 10
 
@@ -121,6 +126,23 @@ function clampPan(
     y = Math.min(slack, Math.max(vh - worldH - slack, pan.y))
   }
   return { x, y }
+}
+
+function visibleCellRange(
+  pan: { x: number; y: number },
+  zoom: number,
+  viewport: { width: number; height: number },
+  mapW: number,
+  mapH: number,
+): { x0: number; y0: number; x1: number; y1: number } {
+  const cell = CELL * zoom
+  const vw = viewport.width > 0 ? viewport.width : 1024
+  const vh = viewport.height > 0 ? viewport.height : 768
+  const x0 = Math.max(0, Math.floor(-pan.x / cell) - CULL_PAD)
+  const y0 = Math.max(0, Math.floor(-pan.y / cell) - CULL_PAD)
+  const x1 = Math.min(mapW - 1, Math.ceil((vw - pan.x) / cell) + CULL_PAD)
+  const y1 = Math.min(mapH - 1, Math.ceil((vh - pan.y) / cell) + CULL_PAD)
+  return { x0, y0, x1: Math.max(x0, x1), y1: Math.max(y0, y1) }
 }
 const HUD_RESOURCES: ItemId[] = [
   'ironOre',
@@ -445,6 +467,7 @@ export function FactoryFloor({
   const [toolTab, setToolTab] = useState<ToolTab>('build')
   const [zoom, setZoom] = useState(0.85)
   const [pan, setPan] = useState({ x: 12, y: 48 })
+  const [viewSize, setViewSize] = useState({ width: 1024, height: 768 })
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
   const [inspect, setInspect] = useState<{ x: number; y: number } | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -652,6 +675,7 @@ export function FactoryFloor({
     const sync = () => {
       const rect = el.getBoundingClientRect()
       viewportSize.current = { width: rect.width, height: rect.height }
+      setViewSize({ width: rect.width, height: rect.height })
       setPan((p) => clampCamera(p))
     }
     sync()
@@ -833,8 +857,11 @@ export function FactoryFloor({
       centerOn(ax, ay)
       return
     }
-    centerOn(width / 2, height / 2)
-  }, [entities, width, height, centerOn])
+    centerOn(
+      STARTER_PAD.x + (STARTER_PAD.w - 1) / 2,
+      STARTER_PAD.y + (STARTER_PAD.h - 1) / 2,
+    )
+  }, [entities, centerOn])
 
   /** Zoom around a viewport-local focal point, adjusting pan so that point stays put. */
   const zoomAt = useCallback(
@@ -1217,6 +1244,11 @@ export function FactoryFloor({
     return map
   }, [entities, tiles, width, height, active])
 
+  const vis = useMemo(
+    () => visibleCellRange(pan, zoom, viewSize, width, height),
+    [pan, zoom, viewSize, width, height],
+  )
+
   return (
     <section className="factory-floor is-playable">
       <div className="game-hud">
@@ -1395,15 +1427,16 @@ export function FactoryFloor({
           <div
             className="factory-grid"
             style={{
-              gridTemplateColumns: `repeat(${width}, ${CELL}px)`,
-              gridTemplateRows: `repeat(${height}, ${CELL}px)`,
               width: width * CELL,
               height: height * CELL,
             }}
           >
-            {Array.from({ length: height }, (_, y) =>
-              Array.from({ length: width }, (_, x) => {
+            {Array.from({ length: vis.y1 - vis.y0 + 1 }, (_, iy) => {
+              const y = vis.y0 + iy
+              return Array.from({ length: vis.x1 - vis.x0 + 1 }, (_, ix) => {
+                const x = vis.x0 + ix
                 const tile = tiles[idx(x, y)]
+                if (!tile) return null
                 const ent = tile.entityId ? entities[tile.entityId] : null
                 // Multi-tile buildings register on every tile they cover, but
                 // only the top-left anchor tile draws the (oversized) sprite.
@@ -1513,6 +1546,12 @@ export function FactoryFloor({
                     ]
                       .filter(Boolean)
                       .join(' ')}
+                    style={{
+                      left: x * CELL,
+                      top: y * CELL,
+                      width: CELL,
+                      height: CELL,
+                    }}
                   >
                     <span className="cell-tex">
                       {tile.ore ? (
@@ -1545,6 +1584,7 @@ export function FactoryFloor({
                           cooldown={inserterCd}
                           turn={beltBend?.turn}
                           flip={ent.flip}
+                          variant={ent.variant}
                         />
                       </span>
                     )}
@@ -1657,8 +1697,8 @@ export function FactoryFloor({
                     <span className="cell-gridline" />
                   </div>
                 )
-              }),
-            )}
+              })
+            })}
           </div>
 
           {floaters.map((f) => (
@@ -1756,7 +1796,6 @@ export function FactoryFloor({
             height={height}
             tiles={tiles}
             entities={entities}
-            state={state}
             pan={pan}
             zoom={zoom}
             viewportRef={viewportRef}
@@ -1990,7 +2029,11 @@ export function FactoryFloor({
                   <>
                     <ToolIcon kind={inspectEnt.kind as Placeable} />
                     <strong>
-                      {PLACEABLE_META[inspectEnt.kind as Placeable]?.label ?? inspectEnt.kind}
+                      {inspectEnt.kind === 'tree'
+                        ? treeVariant(inspectEnt.variant).label
+                        : inspectEnt.kind === 'rock'
+                          ? rockVariant(inspectEnt.variant).label
+                          : (PLACEABLE_META[inspectEnt.kind as Placeable]?.label ?? inspectEnt.kind)}
                     </strong>
                     <span className="inspect-card-dir" aria-hidden>
                       {dirArrow(inspectEnt.dir)}
@@ -2059,10 +2102,24 @@ export function FactoryFloor({
             {inspectEnt ? (
               <>
                 <p className="inspect-card-desc">
-                  {PLACEABLE_META[inspectEnt.kind as Placeable]?.hint ??
-                    (inspectEnt.kind === 'assembler'
-                      ? 'Crafts gears from iron plates.'
-                      : 'Use Turn or Flip in the header; Demolish to remove.')}
+                  {inspectEnt.kind === 'tree'
+                    ? (() => {
+                        const def = treeVariant(inspectEnt.variant)
+                        return `${def.label} takes ${def.cutSeconds}s to chop and yields ${def.wood} wood.`
+                      })()
+                    : inspectEnt.kind === 'rock'
+                      ? (() => {
+                          const def = rockVariant(inspectEnt.variant)
+                          const loot = def.drops
+                            .filter((d) => d.chance == null)
+                            .map((d) => `${d.amount} ${ITEM_META[d.item].label.toLowerCase()}`)
+                            .join(', ')
+                          return `${def.label} takes ${def.mineSeconds}s to excavate. Drops ${loot}.`
+                        })()
+                      : (PLACEABLE_META[inspectEnt.kind as Placeable]?.hint ??
+                        (inspectEnt.kind === 'assembler'
+                          ? 'Crafts gears from iron plates.'
+                          : 'Use Turn or Flip in the header; Demolish to remove.'))}
                 </p>
                 {(() => {
                   const status = machineStatus(inspectEnt, inspectTile, state)
@@ -2233,7 +2290,6 @@ function Minimap({
   height,
   tiles,
   entities,
-  state,
   pan,
   zoom,
   viewportRef,
@@ -2243,7 +2299,6 @@ function Minimap({
   height: number
   tiles: GameState['tiles']
   entities: GameState['entities']
-  state: GameState
   pan: { x: number; y: number }
   zoom: number
   viewportRef: RefObject<HTMLDivElement | null>
@@ -2251,7 +2306,6 @@ function Minimap({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [theme, setTheme] = useState(resolveTheme)
-  const scale = 3
 
   useEffect(() => subscribeTheme(({ resolved }) => setTheme(resolved)), [])
 
@@ -2261,43 +2315,55 @@ function Minimap({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     const light = theme === 'light'
-    canvas.width = width * scale
-    canvas.height = height * scale
-    ctx.fillStyle = light ? '#d4c8b0' : '#1a2214'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const tile = tiles[idx(x, y)]
-        if (tile.ore === 'ironOre') ctx.fillStyle = light ? '#a09078' : '#8B7355'
-        else if (tile.ore === 'copperOre') ctx.fillStyle = '#C4783A'
-        else if (tile.ore === 'coal') ctx.fillStyle = light ? '#5a5a5a' : '#2A2A2A'
-        else ctx.fillStyle = light ? '#9bb262' : '#3a4a28'
-        ctx.fillRect(x * scale, y * scale, scale, scale)
-        if (tile.foundation && !tile.entityId) {
-          ctx.fillStyle = light ? '#c4bdb2' : '#8a8478'
-          ctx.fillRect(x * scale, y * scale, scale, scale)
-        }
-        if (tile.entityId && entities[tile.entityId]) {
-          const ent = entities[tile.entityId]
-          const kind = ent.kind
-          if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
-          else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
-          else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
-          else if (kind === 'tree') ctx.fillStyle = ent.marked ? '#e0b050' : '#2f6b32'
-          else if (kind === 'rock') ctx.fillStyle = ent.marked ? '#e0b050' : '#8f867a'
-          else if (kind === 'roboport') ctx.fillStyle = '#3fa7c9'
-          else ctx.fillStyle = '#7b8792'
-          ctx.fillRect(x * scale, y * scale, scale, scale)
-
-          const status = machineStatus(ent, tile, state)
-          if (status.floorClass === 'is-needs-fuel' || status.floorClass === 'is-blocked') {
-            ctx.fillStyle = status.floorClass === 'is-needs-fuel' ? '#e05030' : '#f0a020'
-            ctx.fillRect(x * scale + 1, y * scale + 1, Math.max(1, scale - 2), Math.max(1, scale - 2))
-          }
-        }
-      }
+    canvas.width = width
+    canvas.height = height
+    const img = ctx.createImageData(width, height)
+    const data = img.data
+    const hex = (color: string): [number, number, number] => {
+      const h = color.replace('#', '')
+      return [
+        parseInt(h.slice(0, 2), 16),
+        parseInt(h.slice(2, 4), 16),
+        parseInt(h.slice(4, 6), 16),
+      ]
     }
-  }, [width, height, tiles, entities, state, theme])
+    const put = (i: number, color: string) => {
+      const [r, g, b] = hex(color)
+      const o = i * 4
+      data[o] = r
+      data[o + 1] = g
+      data[o + 2] = b
+      data[o + 3] = 255
+    }
+    const grass = light ? '#9bb262' : '#3a4a28'
+    const iron = light ? '#a09078' : '#8B7355'
+    const copper = '#C4783A'
+    const coal = light ? '#5a5a5a' : '#2A2A2A'
+    const foundation = light ? '#c4bdb2' : '#8a8478'
+    for (let i = 0; i < tiles.length; i++) {
+      const tile = tiles[i]
+      if (tile.ore === 'ironOre') put(i, iron)
+      else if (tile.ore === 'copperOre') put(i, copper)
+      else if (tile.ore === 'coal') put(i, coal)
+      else if (tile.foundation && !tile.entityId) put(i, foundation)
+      else put(i, grass)
+    }
+    ctx.putImageData(img, 0, 0)
+    for (const ent of Object.values(entities)) {
+      const kind = ent.kind
+      if (kind.includes('belt') || kind === 'splitter') ctx.fillStyle = '#f0a020'
+      else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
+      else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
+      else if (kind === 'tree') {
+        ctx.fillStyle = ent.marked ? '#e0b050' : treeVariant(ent.variant).color
+      } else if (kind === 'rock') {
+        ctx.fillStyle = ent.marked ? '#e0b050' : rockVariant(ent.variant).color
+      } else if (kind === 'roboport') ctx.fillStyle = '#3fa7c9'
+      else ctx.fillStyle = '#7b8792'
+      const { w, h } = sizeOf(kind)
+      ctx.fillRect(ent.x, ent.y, w, h)
+    }
+  }, [width, height, tiles, entities, theme])
 
   const view = useMemo(() => {
     const vp = viewportRef.current

@@ -1,7 +1,7 @@
 import { memo, useId } from 'react'
 import { INSERTER_COOLDOWN } from '../game/data'
 import type { BeltTurn } from '../game/beltShape'
-import type { Dir, EntityKind, ItemId, OreId } from '../game/types'
+import type { Dir, EntityKind, ItemId, OreId, RockVariantId, TreeVariantId } from '../game/types'
 
 const ROT: Record<Dir, number> = { N: -90, E: 0, S: 90, W: 180 }
 
@@ -663,9 +663,70 @@ export const GeneratorSprite = memo(function GeneratorSprite({
   )
 })
 
-export const TreeSprite = memo(function TreeSprite() {
+export const TreeSprite = memo(function TreeSprite({
+  variant = 'pine',
+}: {
+  variant?: TreeVariantId | string
+}) {
   // Tall viewBox, bottom-aligned so the trunk sits on its tile while the
   // canopy rises ~1.5 tiles above it (the tree still occupies one tile).
+  if (variant === 'oak') {
+    return (
+      <svg
+        className="sprite sprite-tree"
+        viewBox="0 0 64 96"
+        preserveAspectRatio="xMidYMax meet"
+        aria-hidden
+      >
+        <ellipse cx="32" cy="90" rx="18" ry="4.5" fill="rgba(0,0,0,0.3)" />
+        <rect x="25" y="58" width="14" height="33" rx="4" fill="#5a3a1c" stroke="#2f1c0c" strokeWidth="1.5" />
+        <circle cx="32" cy="36" r="24" fill="#3d5c28" stroke="#243618" strokeWidth="2" />
+        <circle cx="16" cy="46" r="14" fill="#4a6e30" stroke="#243618" strokeWidth="1.5" />
+        <circle cx="48" cy="46" r="14" fill="#4a6e30" stroke="#243618" strokeWidth="1.5" />
+        <circle cx="32" cy="22" r="10" fill="#5a8a38" opacity="0.85" />
+      </svg>
+    )
+  }
+  if (variant === 'birch') {
+    return (
+      <svg
+        className="sprite sprite-tree"
+        viewBox="0 0 64 96"
+        preserveAspectRatio="xMidYMax meet"
+        aria-hidden
+      >
+        <ellipse cx="32" cy="90" rx="13" ry="4" fill="rgba(0,0,0,0.28)" />
+        <rect x="28" y="58" width="8" height="33" rx="2" fill="#e8e0d4" stroke="#6a6458" strokeWidth="1.4" />
+        <path d="M30 64 h4 M29 72 h5 M31 80 h3" stroke="#3a342c" strokeWidth="1.4" />
+        <circle cx="32" cy="38" r="18" fill="#8aaa4a" stroke="#5a7030" strokeWidth="2" />
+        <circle cx="20" cy="46" r="11" fill="#9bbb55" stroke="#5a7030" strokeWidth="1.4" />
+        <circle cx="44" cy="46" r="11" fill="#9bbb55" stroke="#5a7030" strokeWidth="1.4" />
+        <circle cx="32" cy="26" r="6" fill="#c4d878" opacity="0.8" />
+      </svg>
+    )
+  }
+  if (variant === 'deadwood') {
+    return (
+      <svg
+        className="sprite sprite-tree"
+        viewBox="0 0 64 96"
+        preserveAspectRatio="xMidYMax meet"
+        aria-hidden
+      >
+        <ellipse cx="32" cy="90" rx="12" ry="3.5" fill="rgba(0,0,0,0.28)" />
+        <rect x="29" y="52" width="6" height="39" rx="2" fill="#6a5a40" stroke="#3a3020" strokeWidth="1.4" />
+        <path
+          d="M32 58 L18 42 M32 62 L48 46 M32 70 L22 56 M32 54 L40 40"
+          fill="none"
+          stroke="#6a5a40"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <circle cx="18" cy="42" r="3" fill="#7a6a50" />
+        <circle cx="48" cy="46" r="2.5" fill="#7a6a50" />
+      </svg>
+    )
+  }
   return (
     <svg
       className="sprite sprite-tree"
@@ -685,7 +746,85 @@ export const TreeSprite = memo(function TreeSprite() {
   )
 })
 
-export const RockSprite = memo(function RockSprite() {
+export const RockSprite = memo(function RockSprite({
+  variant = 'stone',
+}: {
+  variant?: RockVariantId | string
+}) {
+  if (variant === 'boulder') {
+    return (
+      <svg className="sprite sprite-rock" viewBox="0 0 32 32" aria-hidden>
+        <ellipse cx="16" cy="27" rx="13" ry="3.6" fill="rgba(0,0,0,0.32)" />
+        <path
+          d="M3 24 L7 10 L16 6 L26 11 L29 22 L24 28 L6 28 Z"
+          fill="#5c564e"
+          stroke="#2f2b26"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path d="M7 10 L16 6 L18 16 L10 20 Z" fill="#7a7268" opacity="0.9" />
+        <path d="M18 16 L26 11 L29 22 L22 24 Z" fill="#4a453e" opacity="0.95" />
+      </svg>
+    )
+  }
+  if (variant === 'pebble') {
+    return (
+      <svg className="sprite sprite-rock" viewBox="0 0 32 32" aria-hidden>
+        <ellipse cx="16" cy="27" rx="10" ry="2.8" fill="rgba(0,0,0,0.22)" />
+        <ellipse cx="12" cy="22" rx="5" ry="3.6" fill="#c4bdb2" stroke="#8a8478" strokeWidth="1.2" />
+        <ellipse cx="20" cy="23" rx="4.2" ry="3" fill="#b8b0a4" stroke="#8a8478" strokeWidth="1.1" />
+        <ellipse cx="16" cy="20" rx="3.2" ry="2.4" fill="#d4cdc2" stroke="#8a8478" strokeWidth="1" />
+      </svg>
+    )
+  }
+  if (variant === 'ironVein') {
+    return (
+      <svg className="sprite sprite-rock" viewBox="0 0 32 32" aria-hidden>
+        <ellipse cx="16" cy="27" rx="12" ry="3.5" fill="rgba(0,0,0,0.28)" />
+        <path
+          d="M5 24 L8 13 L15 9 L23 12 L27 20 L24 26 L9 27 Z"
+          fill="#8B7355"
+          stroke="#5a4a38"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path d="M10 16 L18 12 L22 18" fill="none" stroke="#c4a070" strokeWidth="2" />
+        <path d="M12 21 L20 17" fill="none" stroke="#a08058" strokeWidth="1.6" />
+      </svg>
+    )
+  }
+  if (variant === 'copperVein') {
+    return (
+      <svg className="sprite sprite-rock" viewBox="0 0 32 32" aria-hidden>
+        <ellipse cx="16" cy="27" rx="12" ry="3.5" fill="rgba(0,0,0,0.28)" />
+        <path
+          d="M5 24 L8 13 L15 9 L23 12 L27 20 L24 26 L9 27 Z"
+          fill="#8a6a4a"
+          stroke="#5a4030"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path d="M11 15 L19 11 L24 18" fill="none" stroke="#C4783A" strokeWidth="2.2" />
+        <path d="M10 21 L18 17" fill="none" stroke="#e8913a" strokeWidth="1.6" />
+      </svg>
+    )
+  }
+  if (variant === 'coalSeam') {
+    return (
+      <svg className="sprite sprite-rock" viewBox="0 0 32 32" aria-hidden>
+        <ellipse cx="16" cy="27" rx="12" ry="3.5" fill="rgba(0,0,0,0.28)" />
+        <path
+          d="M5 24 L8 13 L15 9 L23 12 L27 20 L24 26 L9 27 Z"
+          fill="#2A2A2A"
+          stroke="#111"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path d="M9 18 L16 12 L22 19" fill="none" stroke="#4a4a4a" strokeWidth="1.8" />
+        <ellipse cx="14" cy="16" rx="1.6" ry="1" fill="#5a5a5a" />
+      </svg>
+    )
+  }
   return (
     <svg className="sprite sprite-rock" viewBox="0 0 32 32" aria-hidden>
       <ellipse cx="16" cy="27" rx="12" ry="3.5" fill="rgba(0,0,0,0.28)" />
@@ -877,6 +1016,7 @@ export const EntitySprite = memo(function EntitySprite({
   cooldown,
   turn,
   flip,
+  variant,
 }: {
   kind: EntityKind
   dir: Dir
@@ -889,6 +1029,7 @@ export const EntitySprite = memo(function EntitySprite({
   cooldown?: number
   turn?: BeltTurn | null
   flip?: boolean
+  variant?: string
 }) {
   switch (kind) {
     case 'belt':
@@ -933,9 +1074,9 @@ export const EntitySprite = memo(function EntitySprite({
     case 'roboport':
       return <RoboportSprite active={active} />
     case 'tree':
-      return <TreeSprite />
+      return <TreeSprite variant={variant} />
     case 'rock':
-      return <RockSprite />
+      return <RockSprite variant={variant} />
     case 'generator':
       return <GeneratorSprite active={active} />
   }

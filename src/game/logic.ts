@@ -8,17 +8,19 @@ import {
   GAME_VERSION,
   GRID_H,
   GRID_W,
+  LEGACY_GRID_H,
+  LEGACY_GRID_W,
   TREE_COUNT,
-  TREE_CUT_SECONDS,
-  WOOD_PER_TREE,
   ROCK_COUNT,
-  ROCK_MINE_SECONDS,
-  STONE_PER_ROCK,
-  IRON_PER_ROCK,
-  ROCK_COAL_CHANCE,
+  ROCK_VARIANT_LIST,
+  TREE_VARIANT_LIST,
+  pickWeighted,
+  rockVariant,
+  treeVariant,
   entityCenter,
   footprintCells,
   inStarterPad,
+  inWorldRect,
   mineCells,
   HABIT_REWARDS,
   HAND_RECIPES,
@@ -52,7 +54,7 @@ import {
   xpForLevel,
 } from './data'
 import { GOALS, TIPS, emptyStats } from './goals'
-import { createEntity, createTiles, getTile } from './grid'
+import { createEntity, createTiles, expandLegacyTiles, getTile } from './grid'
 import {
   canAffordStock,
   canChestsAccept,
@@ -98,34 +100,67 @@ import type {
   ItemId,
   OfflineReport,
   Placeable,
+  RockVariantId,
   SkillId,
   TechId,
+  TreeVariantId,
 } from './types'
 
+export type ScatterOpts = {
+  count?: number
+  /** Skip tiles inside this rect (used when expanding an old 24x16 save). */
+  exclude?: { x: number; y: number; w: number; h: number }
+}
+
+function oreNear(tiles: GameState['tiles'], x: number, y: number): ItemId | null {
+  for (let dy = -3; dy <= 3; dy++) {
+    for (let dx = -3; dx <= 3; dx++) {
+      if (!inBounds(x + dx, y + dy)) continue
+      const ore = tiles[idx(x + dx, y + dy)].ore
+      if (ore) return ore
+    }
+  }
+  return null
+}
+
+function pickRockVariant(tiles: GameState['tiles'], x: number, y: number): RockVariantId {
+  const near = oreNear(tiles, x, y)
+  const roll = Math.random()
+  if (near === 'ironOre' && roll < 0.55) return 'ironVein'
+  if (near === 'copperOre' && roll < 0.55) return 'copperVein'
+  if (near === 'coal' && roll < 0.55) return 'coalSeam'
+  return pickWeighted(ROCK_VARIANT_LIST).id
+}
+
 /** Scatter natural trees on empty (non-ore) tiles in loose clusters. */
-export function scatterTrees(state: GameState, count = TREE_COUNT): GameState {
+export function scatterTrees(state: GameState, opts: ScatterOpts | number = {}): GameState {
+  const count = typeof opts === 'number' ? opts : (opts.count ?? TREE_COUNT)
+  const exclude = typeof opts === 'number' ? undefined : opts.exclude
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
   const free = (x: number, y: number) => {
     if (!inBounds(x, y)) return false
     if (inStarterPad(x, y)) return false
+    if (exclude && inWorldRect(x, y, exclude)) return false
     const t = tiles[idx(x, y)]
     return !t.entityId && !t.ore
   }
-  const clusters = Math.max(1, Math.round(count / 4))
+  const clusters = Math.max(1, Math.round(count / 8))
   const centers = Array.from({ length: clusters }, () => ({
     x: Math.floor(Math.random() * GRID_W),
     y: Math.floor(Math.random() * GRID_H),
+    variant: pickWeighted(TREE_VARIANT_LIST).id as TreeVariantId,
   }))
   let placed = 0
   let attempts = 0
   while (placed < count && attempts < count * 40) {
     attempts++
     const c = centers[Math.floor(Math.random() * centers.length)]
-    const x = c.x + Math.round((Math.random() - 0.5) * 6)
-    const y = c.y + Math.round((Math.random() - 0.5) * 6)
+    const x = c.x + Math.round((Math.random() - 0.5) * 14)
+    const y = c.y + Math.round((Math.random() - 0.5) * 14)
     if (!free(x, y)) continue
     const ent = createEntity('tree', x, y, 'N')
+    ent.variant = Math.random() < 0.85 ? c.variant : pickWeighted(TREE_VARIANT_LIST).id
     tiles[idx(x, y)].entityId = ent.id
     entities[ent.id] = ent
     placed++
@@ -134,12 +169,15 @@ export function scatterTrees(state: GameState, count = TREE_COUNT): GameState {
 }
 
 /** Scatter excavatable rocks across open ground (single-tile, like trees). */
-export function scatterRocks(state: GameState, count = ROCK_COUNT): GameState {
+export function scatterRocks(state: GameState, opts: ScatterOpts | number = {}): GameState {
+  const count = typeof opts === 'number' ? opts : (opts.count ?? ROCK_COUNT)
+  const exclude = typeof opts === 'number' ? undefined : opts.exclude
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
   const free = (x: number, y: number) => {
     if (!inBounds(x, y)) return false
     if (inStarterPad(x, y)) return false
+    if (exclude && inWorldRect(x, y, exclude)) return false
     const t = tiles[idx(x, y)]
     return !t.entityId && !t.ore
   }
@@ -151,6 +189,7 @@ export function scatterRocks(state: GameState, count = ROCK_COUNT): GameState {
     const y = Math.floor(Math.random() * GRID_H)
     if (!free(x, y)) continue
     const ent = createEntity('rock', x, y, 'N')
+    ent.variant = pickRockVariant(tiles, x, y)
     tiles[idx(x, y)].entityId = ent.id
     entities[ent.id] = ent
     placed++
@@ -158,15 +197,15 @@ export function scatterRocks(state: GameState, count = ROCK_COUNT): GameState {
   return { ...state, tiles, entities, rocksSeeded: true }
 }
 
-export function createInitialState(): GameState {
-  const base: GameState = {
+function emptyBaseState(tiles: GameState['tiles'] = []): GameState {
+  return {
     version: GAME_VERSION,
     playerName: 'Operator',
     level: 1,
     xp: 0,
     width: GRID_W,
     height: GRID_H,
-    tiles: createTiles(),
+    tiles,
     entities: {},
     drones: [],
     inventory: EMPTY_INVENTORY(),
@@ -203,7 +242,10 @@ export function createInitialState(): GameState {
     rocksSeeded: false,
     power: BASE_POWER_CAP,
   }
-  return scatterRocks(scatterTrees(base))
+}
+
+export function createInitialState(): GameState {
+  return scatterRocks(scatterTrees(emptyBaseState(createTiles())))
 }
 
 /** Make sure multi-tile buildings occupy every tile of their footprint. */
@@ -266,16 +308,25 @@ export function loadState(accountSaveKey?: string): GameState {
     if (!parsed || typeof parsed.version !== 'number' || parsed.version < 6) {
       return createInitialState()
     }
+    const legacyLen = LEGACY_GRID_W * LEGACY_GRID_H
+    const fullLen = GRID_W * GRID_H
+    const parsedLen = parsed.tiles?.length ?? 0
+    const expandedLegacy = parsedLen === legacyLen
+    const tiles =
+      parsedLen === fullLen
+        ? parsed.tiles.map((t) => ({ ...t, foundation: t.foundation === true }))
+        : expandedLegacy
+          ? expandLegacyTiles(parsed.tiles)
+          : createTiles()
     let next: GameState = {
-      ...createInitialState(),
+      ...emptyBaseState(tiles),
       ...parsed,
       version: GAME_VERSION,
+      width: GRID_W,
+      height: GRID_H,
       inventory: sanitizeInventory({ ...EMPTY_INVENTORY(), ...parsed.inventory }),
       stats: { ...emptyStats(), ...parsed.stats },
-      tiles:
-        parsed.tiles?.length === GRID_W * GRID_H
-          ? parsed.tiles.map((t) => ({ ...t, foundation: t.foundation === true }))
-          : createTiles(),
+      tiles,
       entities: parsed.entities ?? {},
       drones: Array.isArray(parsed.drones) ? parsed.drones : [],
       habits: parsed.habits?.length ? parsed.habits : DEFAULT_HABITS(),
@@ -315,8 +366,14 @@ export function loadState(accountSaveKey?: string): GameState {
     next = stampFootprints(next)
     next = scrubChestsToWarehouse(next)
     next = sweepPackToChests(next)
-    if (!next.treesSeeded) next = scatterTrees(next)
-    if (!next.rocksSeeded) next = scatterRocks(next)
+    const oldMap = { x: 0, y: 0, w: LEGACY_GRID_W, h: LEGACY_GRID_H }
+    if (expandedLegacy) {
+      next = scatterTrees(next, { exclude: oldMap })
+      next = scatterRocks(next, { exclude: oldMap })
+    } else {
+      if (!next.treesSeeded) next = scatterTrees(next)
+      if (!next.rocksSeeded) next = scatterRocks(next)
+    }
     next = reconcileDrones(next)
     // Clamp/default stored power to the current battery capacity.
     next = {
@@ -738,42 +795,46 @@ function finishGhost(state: GameState, id: string): GameState {
 function fellTree(state: GameState, id: string): GameState {
   const tree = state.entities[id]
   if (!tree || tree.kind !== 'tree') return state
+  const def = treeVariant(tree.variant)
   // Requires a chest with space - otherwise leave the tree standing to retry.
   if (!canChestsAccept(state, 'wood')) return state
   const entities = { ...state.entities }
   delete entities[id]
   const tiles = state.tiles.map((t) => ({ ...t }))
   tiles[idx(tree.x, tree.y)].entityId = null
-  return depositToChests({ ...state, entities, tiles }, 'wood', WOOD_PER_TREE)
+  return depositToChests({ ...state, entities, tiles }, 'wood', def.wood)
 }
 
-/** A drone finished a rock: clear the tile and stack stone (+ trace ore) in chests. */
+/** A drone finished a rock: clear the tile and stack stone / ore in chests. */
 function excavateRock(state: GameState, id: string): GameState {
   const rock = state.entities[id]
   if (!rock || rock.kind !== 'rock') return state
-  // Needs chest space for the stone - otherwise leave the rock to retry.
-  if (!canChestsAccept(state, 'stone')) return state
+  const def = rockVariant(rock.variant)
+  if (!canChestsAccept(state, def.primary)) return state
   const entities = { ...state.entities }
   delete entities[id]
   const tiles = state.tiles.map((t) => ({ ...t }))
   tiles[idx(rock.x, rock.y)].entityId = null
-  let next = depositToChests({ ...state, entities, tiles }, 'stone', STONE_PER_ROCK)
-  // Trace iron, and rarely a little coal - deposited best-effort.
-  next = depositToChests(next, 'ironOre', IRON_PER_ROCK)
-  if (Math.random() < ROCK_COAL_CHANCE) next = depositToChests(next, 'coal', 1)
+  let next: GameState = { ...state, entities, tiles }
+  for (const drop of def.drops) {
+    if (drop.chance != null && Math.random() >= drop.chance) continue
+    next = depositToChests(next, drop.item, drop.amount)
+  }
   return next
 }
 
 /** A ghost to build, or a marked tree/rock a drone can harvest (needs chest space). */
 function isDroneJob(
   ent: Entity | undefined,
-  woodOk: boolean,
-  stoneOk: boolean,
+  chestOk: Partial<Record<ItemId, boolean>>,
 ): boolean {
   if (!ent) return false
   if (ent.ghost) return true
-  if (ent.kind === 'tree') return Boolean(ent.marked) && woodOk
-  if (ent.kind === 'rock') return Boolean(ent.marked) && stoneOk
+  if (ent.kind === 'tree') return Boolean(ent.marked) && chestOk.wood === true
+  if (ent.kind === 'rock') {
+    const primary = rockVariant(ent.variant).primary
+    return Boolean(ent.marked) && chestOk[primary] === true
+  }
   return false
 }
 
@@ -781,16 +842,19 @@ function isDroneJob(
 export function tickDrones(state: GameState, dt: number): GameState {
   if (dt <= 0 || state.drones.length === 0) return state
 
-  const woodOk = canChestsAccept(state, 'wood')
-  const stoneOk = canChestsAccept(state, 'stone')
-  const jobs = Object.values(state.entities).filter((e) =>
-    isDroneJob(e, woodOk, stoneOk),
-  )
+  const chestOk: Partial<Record<ItemId, boolean>> = {
+    wood: canChestsAccept(state, 'wood'),
+    stone: canChestsAccept(state, 'stone'),
+    ironOre: canChestsAccept(state, 'ironOre'),
+    copperOre: canChestsAccept(state, 'copperOre'),
+    coal: canChestsAccept(state, 'coal'),
+  }
+  const jobs = Object.values(state.entities).filter((e) => isDroneJob(e, chestOk))
   const drones = state.drones.map((d) => ({ ...d }))
   // Jobs already claimed by a still-valid drone.
   const claimed = new Set<string>()
   for (const d of drones) {
-    if (d.targetId && isDroneJob(state.entities[d.targetId], woodOk, stoneOk)) {
+    if (d.targetId && isDroneJob(state.entities[d.targetId], chestOk)) {
       claimed.add(d.targetId)
     }
   }
@@ -815,7 +879,7 @@ export function tickDrones(state: GameState, dt: number): GameState {
 
   for (const d of drones) {
     // Drop targets that were finished, demolished, or lost their chest space.
-    if (d.targetId && !isDroneJob(state.entities[d.targetId], woodOk, stoneOk)) {
+    if (d.targetId && !isDroneJob(state.entities[d.targetId], chestOk)) {
       claimed.delete(d.targetId)
       d.targetId = null
       d.buildProgress = 0
@@ -849,9 +913,9 @@ export function tickDrones(state: GameState, dt: number): GameState {
       const job = state.entities[d.targetId]
       const dur =
         job?.kind === 'tree'
-          ? TREE_CUT_SECONDS
+          ? treeVariant(job.variant).cutSeconds
           : job?.kind === 'rock'
-            ? ROCK_MINE_SECONDS
+            ? rockVariant(job.variant).mineSeconds
             : DRONE_BUILD_SECONDS
       d.buildProgress += dt / dur
       if (d.buildProgress >= 1) {
@@ -899,11 +963,14 @@ export function tickDrones(state: GameState, dt: number): GameState {
   for (const id of completed) {
     const done = next.entities[id]
     if (done?.kind === 'tree') {
+      const label = treeVariant(done.variant).label.toLowerCase()
+      const wood = treeVariant(done.variant).wood
       next = fellTree(next, id)
-      lastLabel = 'a tree'
+      lastLabel = `a ${label} (+${wood} wood)`
     } else if (done?.kind === 'rock') {
+      const def = rockVariant(done.variant)
       next = excavateRock(next, id)
-      lastLabel = 'a rock'
+      lastLabel = `a ${def.label.toLowerCase()}`
     } else {
       next = finishGhost(next, id)
       lastLabel = PLACEABLE_META[done?.kind as Placeable]?.label ?? 'building'
@@ -915,11 +982,9 @@ export function tickDrones(state: GameState, dt: number): GameState {
       unlockedToast:
         completed.length > 1
           ? `Drones finished ${completed.length} jobs`
-          : lastLabel === 'a tree'
-            ? 'Drone chopped a tree (+wood)'
-            : lastLabel === 'a rock'
-              ? 'Drone excavated a rock (+stone)'
-              : `Drone finished ${lastLabel}`,
+          : lastLabel.startsWith('a ')
+            ? `Drone finished ${lastLabel}`
+            : `Drone finished ${lastLabel}`,
     }
   }
   return next
@@ -966,7 +1031,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     // Trees/rocks are harvested by drones, not the player. Demolish toggles the order.
     if (ent.kind === 'tree' || ent.kind === 'rock') {
       const isRock = ent.kind === 'rock'
-      const item = isRock ? 'stone' : 'wood'
+      const item = isRock ? rockVariant(ent.variant).primary : 'wood'
       const entities = { ...state.entities }
       if (ent.marked) {
         entities[ent.id] = { ...ent, marked: false, buildProgress: 0 }
@@ -986,7 +1051,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
         return {
           ...state,
           unlockedToast: isRock
-            ? 'Place a chest with a free slot so drones can stack the stone'
+            ? `Place a chest with a free slot so drones can stack the ${ITEM_META[item].label.toLowerCase()}`
             : 'Place a chest with a free slot so drones can stack the wood',
         }
       }

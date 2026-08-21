@@ -153,13 +153,28 @@ if (!chest) fail('chest did not place')
 state = tick(state, 12)
 assert(!state.entities[chest.id]?.ghost, 'drone should construct the chest')
 
-const rock = Object.values(state.entities).find((e) => e.kind === 'rock')
-if (!rock) fail('no rock to excavate')
+let rockSpot: { x: number; y: number } | null = null
+outerRock: for (let y = chest.y - 2; y <= chest.y + 2; y++) {
+  for (let x = chest.x - 2; x <= chest.x + 2; x++) {
+    if (!inBounds(x, y)) continue
+    if (state.tiles[idx(x, y)].entityId) continue
+    rockSpot = { x, y }
+    break outerRock
+  }
+}
+if (!rockSpot) fail('no tile to plant a test rock')
+const planted = createEntity('rock', rockSpot.x, rockSpot.y, 'N')
+planted.variant = 'stone'
+{
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  tiles[idx(rockSpot.x, rockSpot.y)].entityId = planted.id
+  state = { ...state, tiles, entities: { ...state.entities, [planted.id]: planted } }
+}
 state = { ...state, selected: 'remove' }
-state = placeEntity(state, rock.x, rock.y)
-assert(state.entities[rock.id]?.marked, 'rock should be marked for excavation')
-state = tick(state, 20)
-assert(!state.entities[rock.id], 'drone should excavate the marked rock')
+state = placeEntity(state, planted.x, planted.y)
+assert(state.entities[planted.id]?.marked, 'rock should be marked for excavation')
+state = tick(state, 12)
+assert(!state.entities[planted.id], 'drone should excavate the marked rock')
 const stock = sumChestStores(state)
 assert((stock.stone ?? 0) >= 6, `expected 6+ stone, got ${stock.stone ?? 0}`)
 assert((stock.ironOre ?? 0) >= 1, `expected trace iron from rock, got ${stock.ironOre ?? 0}`)

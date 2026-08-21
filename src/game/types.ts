@@ -28,6 +28,15 @@ export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
 export type Dir = 'N' | 'E' | 'S' | 'W'
 
+export type TreeVariantId = 'pine' | 'oak' | 'birch' | 'deadwood'
+export type RockVariantId =
+  | 'stone'
+  | 'boulder'
+  | 'ironVein'
+  | 'copperVein'
+  | 'coalSeam'
+  | 'pebble'
+
 export type EntityKind =
   | 'drill'
   | 'electricDrill'
@@ -94,6 +103,8 @@ export interface Entity {
   buildProgress?: number
   /** Tree/rock: flagged for a drone to chop down / excavate. */
   marked?: boolean
+  /** Tree or rock variety. Missing means pine / stone (legacy saves). */
+  variant?: TreeVariantId | RockVariantId
 }
 
 export type DroneState = 'idle' | 'toSite' | 'building' | 'returning'

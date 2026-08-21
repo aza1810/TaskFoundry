@@ -62,7 +62,7 @@ function cell(x: number, y: number): { x: number; y: number } {
     state.tiles.every((t) => !t.foundation),
     'new maps should not be pre-paved',
   )
-  assert(state.version === 10, `GAME_VERSION should be 10, got ${state.version}`)
+  assert(state.version >= 10, `GAME_VERSION should be 10+, got ${state.version}`)
 
   const next = placeEntity({ ...state, selected: 'foundation' }, 8, 8)
   assert(next.tiles[idx(8, 8)].foundation === true, 'foundation should paint instantly')

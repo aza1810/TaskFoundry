@@ -2495,8 +2495,8 @@ html[data-theme='light'] .ghost-btn.is-danger {
 }
 
 .factory-grid {
-  display: grid;
-  gap: 0;
+  display: block;
+  position: relative;
   margin: 0;
   padding: 0;
   background: var(--ground-grid);
@@ -2507,7 +2507,8 @@ html[data-theme='light'] .ghost-btn.is-danger {
 }
 
 .cell {
-  position: relative;
+  position: absolute;
+  box-sizing: border-box;
   aspect-ratio: 1;
   min-height: 0;
   border: none;
@@ -3763,8 +3764,8 @@ html[data-theme='light'] .ghost-btn.is-danger {
 }
 
 .factory-floor .factory-grid {
-  display: grid;
-  gap: 0;
+  display: block;
+  position: relative;
   background: var(--ground-grid);
   border: 1px solid color-mix(in srgb, var(--viewport-border) 80%, #000);
   user-select: none;
@@ -3772,7 +3773,8 @@ html[data-theme='light'] .ghost-btn.is-danger {
 }
 
 .factory-floor .cell {
-  position: relative;
+  position: absolute;
+  box-sizing: border-box;
   width: 56px;
   height: 56px;
   border: none;
@@ -4028,8 +4030,8 @@ html[data-theme='light'] .ghost-btn.is-danger {
   left: 0.4rem;
   bottom: calc(var(--rail-clearance) + 0.35rem);
   z-index: 4;
-  width: 76px;
-  height: 50px;
+  width: 144px;
+  height: 96px;
   padding: 0;
   border: 1px solid #c9a227;
   background: var(--minimap-bg);
