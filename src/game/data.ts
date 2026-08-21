@@ -72,7 +72,7 @@ export const ITEM_META: Record<
   roboport: { label: 'Roboport', short: '❖', color: '#3fa7c9' },
   wood: { label: 'Wood', short: 'Wd', color: '#7a5230' },
   generator: { label: 'Generator', short: '⚡', color: '#f5d020' },
-  stone: { label: 'Stone', short: 'St', color: '#9a9184' },
+  stone: { label: 'Stone', short: 'Sto', color: '#9a9184' },
 }
 
 export const PLACEABLE_META: Record<
@@ -82,12 +82,12 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: 'Place on ore. Each step = one mine cycle. Needs coal.',
+    hint: '2x2 building that mines a 3x3 ore patch. Steps charge the power it uses.',
   },
   electricDrill: {
     label: 'Electric Drill',
     inventoryKey: 'electricDrill',
-    hint: 'No coal. Mines 2 ore per step cycle.',
+    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle.',
   },
   belt: {
     label: 'Transport Belt',
@@ -142,7 +142,7 @@ export const PLACEABLE_META: Record<
   roboport: {
     label: 'Roboport',
     inventoryKey: 'roboport',
-    hint: 'Drone hub. Each roboport deploys one construction drone that builds everything you place.',
+    hint: '3x3 drone hub. Place it first: its drone builds every blueprint and excavates marked trees and rocks.',
   },
   generator: {
     label: 'Generator',
@@ -448,11 +448,33 @@ export const IRON_PER_ROCK = 1
 export const ROCK_COAL_CHANCE = 0.3
 
 /* ---- Multi-tile building footprints ---- */
-/** Tile footprint (w × h, anchored at the entity's top-left x/y). */
+/** Grass kept clear so the first 3x3 roboport always has room to land. */
+export const STARTER_PAD = { x: 7, y: 6, w: 5, h: 5 }
+
+export function inStarterPad(x: number, y: number): boolean {
+  return (
+    x >= STARTER_PAD.x &&
+    x < STARTER_PAD.x + STARTER_PAD.w &&
+    y >= STARTER_PAD.y &&
+    y < STARTER_PAD.y + STARTER_PAD.h
+  )
+}
+
+/** Tile footprint (width x height, anchored at the entity's top-left x/y). */
 export function sizeOf(kind: EntityKind): { w: number; h: number } {
   if (kind === 'roboport') return { w: 3, h: 3 }
   if (kind === 'drill' || kind === 'electricDrill') return { w: 2, h: 2 }
   return { w: 1, h: 1 }
+}
+
+/** Center tile of a building, used as the drone pad. */
+export function entityCenter(
+  kind: EntityKind,
+  x: number,
+  y: number,
+): { x: number; y: number } {
+  const { w, h } = sizeOf(kind)
+  return { x: x + (w - 1) / 2, y: y + (h - 1) / 2 }
 }
 
 /** All tiles a building at (x,y) occupies. */
@@ -469,10 +491,10 @@ export function footprintCells(
   return out
 }
 
-/** Side length of the square a drill mines (2×2 drill reaches a 3×3 patch). */
+/** Side length of the square a drill mines (2x2 drill reaches a 3x3 patch). */
 export const DRILL_MINE_SPAN = 3
 
-/** The 3×3 block of tiles a drill at (x,y) can pull ore from. */
+/** The 3x3 block of tiles a drill at (x,y) can pull ore from. */
 export function mineCells(x: number, y: number): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = []
   for (let dy = 0; dy < DRILL_MINE_SPAN; dy++) {

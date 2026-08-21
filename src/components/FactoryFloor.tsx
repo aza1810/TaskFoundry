@@ -22,6 +22,7 @@ import {
   isFurnaceKind,
   isInserterKind,
   sizeOf,
+  footprintCells,
   storeTotal,
   xpForLevel,
 } from '../game/data'
@@ -444,6 +445,16 @@ export function FactoryFloor({
     hover && selected && !isEditMetaTool(selected)
       ? suggestPlaceDir(state, selected, hover.x, hover.y)
       : placeDir
+
+  const hoverFootprint = useMemo(() => {
+    if (!hover || !selected || isEditMetaTool(selected)) return null
+    const cells = footprintCells(selected as EntityKind, hover.x, hover.y)
+    const valid = canPlaceAt(selected, hover.x, hover.y, state)
+    return {
+      valid,
+      keys: new Set(cells.map((c) => `${c.x},${c.y}`)),
+    }
+  }, [hover, selected, state])
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -1342,6 +1353,7 @@ export function FactoryFloor({
                 })
                 const seed = x * 13 + y * 29
                 const isHover = hover?.x === x && hover?.y === y
+                const inHoverFoot = Boolean(hoverFootprint?.keys.has(`${x},${y}`))
                 const inSelect =
                   selectionRect &&
                   x >= selectionRect.x0 &&
@@ -1409,6 +1421,11 @@ export function FactoryFloor({
                       planGhost ? 'is-plan-ghost' : '',
                       planGhost?.next ? 'is-plan-next' : '',
                       showGhost ? (valid ? 'is-valid-ghost' : 'is-invalid-ghost') : '',
+                      inHoverFoot
+                        ? hoverFootprint?.valid
+                          ? 'is-footprint-ok'
+                          : 'is-footprint-bad'
+                        : '',
                       isInspect ? 'is-inspect' : '',
                       isFlash ? 'is-flash' : '',
                       active ? 'is-active-machine' : '',

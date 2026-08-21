@@ -16,7 +16,9 @@ import {
   STONE_PER_ROCK,
   IRON_PER_ROCK,
   ROCK_COAL_CHANCE,
+  entityCenter,
   footprintCells,
+  inStarterPad,
   mineCells,
   HABIT_REWARDS,
   HAND_RECIPES,
@@ -103,6 +105,7 @@ export function scatterTrees(state: GameState, count = TREE_COUNT): GameState {
   const entities = { ...state.entities }
   const free = (x: number, y: number) => {
     if (!inBounds(x, y)) return false
+    if (inStarterPad(x, y)) return false
     const t = tiles[idx(x, y)]
     return !t.entityId && !t.ore
   }
@@ -133,6 +136,7 @@ export function scatterRocks(state: GameState, count = ROCK_COUNT): GameState {
   const entities = { ...state.entities }
   const free = (x: number, y: number) => {
     if (!inBounds(x, y)) return false
+    if (inStarterPad(x, y)) return false
     const t = tiles[idx(x, y)]
     return !t.entityId && !t.ore
   }
@@ -198,6 +202,19 @@ export function createInitialState(): GameState {
   return scatterRocks(scatterTrees(base))
 }
 
+/** Make sure multi-tile buildings occupy every tile of their footprint. */
+function stampFootprints(state: GameState): GameState {
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  for (const ent of Object.values(state.entities)) {
+    for (const c of footprintCells(ent.kind, ent.x, ent.y)) {
+      if (!inBounds(c.x, c.y)) continue
+      const t = tiles[idx(c.x, c.y)]
+      if (!t.entityId) t.entityId = ent.id
+    }
+  }
+  return { ...state, tiles }
+}
+
 export function loadState(accountSaveKey?: string): GameState {
   if (accountSaveKey) setActiveSaveKey(accountSaveKey)
   try {
@@ -254,6 +271,7 @@ export function loadState(accountSaveKey?: string): GameState {
       rocksSeeded: parsed.rocksSeeded === true,
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
+    next = stampFootprints(next)
     next = scrubChestsToWarehouse(next)
     next = sweepPackToChests(next)
     if (!next.treesSeeded) next = scatterTrees(next)
@@ -595,11 +613,12 @@ export function drillHasOre(state: GameState, x: number, y: number): boolean {
 }
 
 function makeDrone(roboport: Entity, seq: number): Drone {
+  const pad = entityCenter(roboport.kind, roboport.x, roboport.y)
   return {
     id: `drone-${roboport.id}-${seq}-${Math.random().toString(36).slice(2, 6)}`,
     homeId: roboport.id,
-    x: roboport.x,
-    y: roboport.y,
+    x: pad.x,
+    y: pad.y,
     state: 'idle',
     targetId: null,
     buildProgress: 0,
@@ -803,15 +822,17 @@ export function tickDrones(state: GameState, dt: number): GameState {
     } else if (d.state === 'returning') {
       const home = state.entities[d.homeId]
       if (home) {
-        if (moveToward(d, home.x, home.y)) d.state = 'idle'
+        const pad = entityCenter(home.kind, home.x, home.y)
+        if (moveToward(d, pad.x, pad.y)) d.state = 'idle'
       } else {
         d.state = 'idle'
       }
     } else if (d.state === 'idle') {
       const home = state.entities[d.homeId]
       if (home) {
-        d.x = home.x
-        d.y = home.y
+        const pad = entityCenter(home.kind, home.x, home.y)
+        d.x = pad.x
+        d.y = pad.y
       }
     }
   }

@@ -88,7 +88,7 @@ export function TutorialOverlay({
           {step.id === 'welcome' ? (
             <div className="tutorial-actions tutorial-actions-stack">
               <button type="button" className="primary-btn" onClick={advanceTutorial}>
-                Deploy my first roboport
+                Construct my first roboport
               </button>
               <button type="button" className="ghost-btn" onClick={skipTutorial}>
                 Skip - I will explore

@@ -47,14 +47,14 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'You start with nothing and build up from scratch. Drones do the work: place a Roboport and its drones build every blueprint you lay down and chop any tree you mark into wood. You just design the factory - your real-world steps charge the power grid that runs the drills, and the drills mine ore into your chests to smelt into plates.',
+    body: 'You start with nothing and build up from scratch. Drones do the work: place a Roboport and its drones build every blueprint you lay down, chop any tree you mark into wood, and excavate rocks for stone (with a little iron and rare coal). You just design the factory - your real-world steps charge the power grid that runs the drills, and the drills mine ore into your chests to smelt into plates.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },
   {
     id: 'placeRoboport',
     title: 'Deploy a roboport first',
-    body: 'Everything starts with the roboport. Open Build, pick Roboport, and place it on open ground - it deploys a construction drone. That drone builds every blueprint you place and chops any tree you mark for wood. Nothing gets built without a roboport.',
+    body: 'Everything starts with the roboport. Open Build, pick Roboport, and place the 3x3 hub on the clear grass near the iron patch - it deploys a construction drone. That drone builds every blueprint you place, chops marked trees for wood, and excavates marked rocks for stone. Nothing gets built without a roboport.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place a roboport on open ground',
@@ -66,7 +66,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'placeDrill',
     title: 'Blueprint a mining drill',
-    body: 'Pick Drill and tap a glowing brown iron tile. It drops as a blueprint and your drone flies over to build it - watch it work. Face the yellow arrow toward empty ground so ore can leave the drill.',
+    body: 'Pick Drill and tap a glowing brown iron tile. The drill is 2x2 and mines a 3x3 patch around its top-left. It drops as a blueprint and your drone flies over to build it - watch it work. Face the yellow arrow toward empty ground so ore can leave the drill.',
     mode: 'coach',
     tab: 'factory',
     action: 'Tap a glowing iron-ore tile',

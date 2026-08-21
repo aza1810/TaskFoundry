@@ -13,6 +13,7 @@ const MATERIALS: ItemId[] = [
   'steel',
   'gear',
   'wood',
+  'stone',
 ]
 
 const BUILDINGS: ItemId[] = [

@@ -3746,6 +3746,18 @@ html[data-theme='light'] .ghost-btn.is-danger {
   overflow: hidden;
 }
 
+/* Trees and multi-tile sprites must overflow their anchor cell. The rule
+   above would otherwise clip them back to 1x1. */
+.factory-floor .cell.has-tree {
+  overflow: visible;
+  z-index: 3;
+}
+
+.factory-floor .cell.is-big {
+  overflow: visible;
+  z-index: 6;
+}
+
 .factory-floor .cell.is-valid-ghost .cell-gridline {
   box-shadow:
     inset 0 0 0 2px rgba(125, 255, 154, 0.9),
@@ -3756,6 +3768,18 @@ html[data-theme='light'] .ghost-btn.is-danger {
   box-shadow:
     inset 0 0 0 2px rgba(224, 112, 96, 0.95),
     0 0 10px rgba(224, 112, 96, 0.35);
+}
+
+.factory-floor .cell.is-footprint-ok .cell-gridline {
+  box-shadow:
+    inset 0 0 0 2px rgba(125, 255, 154, 0.7),
+    0 0 8px rgba(125, 255, 154, 0.25);
+}
+
+.factory-floor .cell.is-footprint-bad .cell-gridline {
+  box-shadow:
+    inset 0 0 0 2px rgba(224, 112, 96, 0.75),
+    0 0 8px rgba(224, 112, 96, 0.25);
 }
 
 /* Inserter pickup (behind) / drop (front) tiles */
