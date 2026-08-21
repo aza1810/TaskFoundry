@@ -884,9 +884,10 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     ent.toggle = resolveUgToggle(state, x, y, placeDir)
   }
 
-  // Roboports are the drone hub, so they are always built by hand.
-  // Everything else becomes a construction ghost once a roboport is online.
-  const useGhost = tool !== 'roboport' && hasActiveRoboport(state)
+  // Roboports are the drone hub, so they are always built by hand. Everything
+  // else is placed as a construction ghost that a drone must build - so nothing
+  // gets built without a roboport on the floor.
+  const useGhost = tool !== 'roboport'
   if (useGhost) {
     ent.ghost = true
     ent.buildProgress = 0
@@ -904,18 +905,15 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
   if (useGhost) {
     return claimGoals({
       ...next,
-      unlockedToast: `${meta.label} queued - drone dispatched`,
+      unlockedToast: hasActiveRoboport(state)
+        ? `${meta.label} queued - drone dispatched`
+        : `${meta.label} blueprint placed - build a roboport so a drone can construct it`,
     })
   }
 
-  if (isFurnaceKind(tool)) next = addFurnaceFuel(next, ent.id)
-  if (tool === 'roboport') {
-    next = reconcileDrones(next)
-    next = { ...next, unlockedToast: 'Roboport online - construction drone deployed' }
-  }
-  if (tool === 'generator') {
-    next = { ...next, unlockedToast: 'Generator online - your steps now store more power' }
-  }
+  // Only the roboport reaches here (everything else is placed as a ghost above).
+  next = reconcileDrones(next)
+  next = { ...next, unlockedToast: 'Roboport online - construction drone deployed' }
 
   return claimGoals(next)
 }
@@ -1064,8 +1062,6 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
   let inventory = { ...state.inventory }
   const tiles = state.tiles.map((t) => ({ ...t }))
   const entities = { ...state.entities }
-  const furnaceIds: string[] = []
-  const useGhost = hasActiveRoboport(state)
 
   for (const piece of bp) {
     const x = ox + piece.dx
@@ -1074,37 +1070,22 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     const ent = createEntity(piece.kind, x, y, piece.dir)
     if (piece.toggle !== undefined) ent.toggle = piece.toggle
     if (piece.kind === 'splitter' && ent.toggle === undefined) ent.toggle = 0
-    if (useGhost) {
-      ent.ghost = true
-      ent.buildProgress = 0
-    }
+    // Pasted layouts are always blueprints - a drone builds them.
+    ent.ghost = true
+    ent.buildProgress = 0
     tiles[idx(x, y)].entityId = ent.id
     entities[ent.id] = ent
-    if (!useGhost && isFurnaceKind(piece.kind)) furnaceIds.push(ent.id)
   }
 
-  if (useGhost) {
-    return claimGoals({
-      ...state,
-      inventory,
-      tiles,
-      entities,
-      unlockedToast: `${bp.length} buildings queued for drones`,
-    })
-  }
-
-  let next: GameState = {
+  return claimGoals({
     ...state,
     inventory,
     tiles,
     entities,
-    unlockedToast: `Pasted ${bp.length} buildings`,
-  }
-  for (const id of furnaceIds) {
-    next = addFurnaceFuel(next, id)
-  }
-
-  return claimGoals(next)
+    unlockedToast: hasActiveRoboport(state)
+      ? `${bp.length} buildings queued for drones`
+      : `${bp.length} blueprints placed - build a roboport to construct them`,
+  })
 }
 
 export function rotateEntityAt(state: GameState, x: number, y: number): GameState {

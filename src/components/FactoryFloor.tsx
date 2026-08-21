@@ -125,6 +125,7 @@ const HUD_RESOURCES: ItemId[] = [
 
 type Highlight =
   | 'ore'
+  | 'roboportTool'
   | 'drillTool'
   | 'beltTool'
   | 'inserterTool'
@@ -583,6 +584,7 @@ export function FactoryFloor({
     }
     if (
       highlight === 'ore' ||
+      highlight === 'roboportTool' ||
       highlight === 'drillTool' ||
       highlight === 'chestTool' ||
       highlight === 'furnaceTool'
@@ -1664,6 +1666,7 @@ export function FactoryFloor({
                       : null
                     : state.inventory[PLACEABLE_META[tool].inventoryKey]
                   const pulse =
+                    (highlight === 'roboportTool' && tool === 'roboport') ||
                     (highlight === 'drillTool' && tool === 'drill') ||
                     (highlight === 'ore' && tool === 'drill') ||
                     (highlight === 'beltTool' && tool === 'belt') ||

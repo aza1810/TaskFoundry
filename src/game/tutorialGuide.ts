@@ -134,6 +134,10 @@ function matchingInserters(
 
 function evalCheck(id: string, state: GameState, c: KindCounts): boolean {
   switch (id) {
+    case 'roboport':
+      return Object.values(state.entities).some(
+        (e) => e.kind === 'roboport' && !e.ghost,
+      )
     case 'drill':
       return c.drills >= 1
     case 'belt':
@@ -196,6 +200,7 @@ export function tutorialHighlightFor(
   recommended: ToolId | null,
 ): TutorialHighlight {
   if (!step) return null
+  if (recommended === 'roboport') return 'roboportTool'
   if (recommended === 'drill' || recommended === 'electricDrill') return 'ore'
   if (recommended === 'belt' || recommended === 'fastBelt') return 'beltTool'
   if (recommended === 'inserter' || recommended === 'longInserter') {
@@ -365,8 +370,10 @@ export function tutorialToolsFor(
 ): ToolId[] {
   if (!step || step.mode !== 'coach') return full
   const allow: ToolId[] =
-    step.id === 'placeDrill'
-      ? ['drill']
+    step.id === 'placeRoboport'
+      ? ['roboport']
+      : step.id === 'placeDrill'
+        ? ['drill']
       : step.id === 'oreToChest'
         ? ['chest', 'belt', 'inserter']
         : step.id === 'chestToFurnace'

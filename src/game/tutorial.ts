@@ -2,6 +2,7 @@ import type { TabId, ToolId } from './types'
 
 export type TutorialStepId =
   | 'welcome'
+  | 'placeRoboport'
   | 'placeDrill'
   | 'oreToChest'
   | 'logSteps'
@@ -11,6 +12,7 @@ export type TutorialStepId =
 
 export type TutorialHighlight =
   | 'ore'
+  | 'roboportTool'
   | 'drillTool'
   | 'beltTool'
   | 'inserterTool'
@@ -45,14 +47,26 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'You start with no resources - you gather them. Walking in the real world charges your power grid, powered drills mine ore into floor chests (your warehouse), and you smelt plates from there. Let us set up your first miner.',
+    body: 'You start with no resources - you gather them. Construction drones do all your building, so first you place a Roboport. Then everything you place is a blueprint a drone builds. Walking charges your power grid, and powered drills mine ore into chests.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },
   {
+    id: 'placeRoboport',
+    title: 'Deploy a roboport',
+    body: 'Drones build everything for you. Open Build, pick Roboport, and place it on open ground - it deploys a construction drone. Nothing gets built without one.',
+    mode: 'coach',
+    tab: 'factory',
+    action: 'Place a roboport on open ground',
+    autoSelect: 'roboport',
+    highlight: 'roboportTool',
+    checks: [{ id: 'roboport', label: 'Place a roboport', tool: 'roboport' }],
+    unlockTabs: ['factory'],
+  },
+  {
     id: 'placeDrill',
-    title: 'Plant a mining drill',
-    body: 'Open Build, pick Drill, and tap a glowing brown iron tile. Face the yellow arrow toward empty ground so ore can leave the drill.',
+    title: 'Blueprint a mining drill',
+    body: 'Pick Drill and tap a glowing brown iron tile. It drops as a blueprint and your drone flies over to build it. Face the yellow arrow toward empty ground so ore can leave the drill.',
     mode: 'coach',
     tab: 'factory',
     action: 'Tap a glowing iron-ore tile',
