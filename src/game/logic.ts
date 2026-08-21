@@ -326,7 +326,7 @@ export function loadState(accountSaveKey?: string): GameState {
         typeof parsed.power === 'number' ? Math.max(0, parsed.power) : powerCapacity(next),
       ),
     }
-    // Existing saves with a furnace already placed keep the 2nd chest unlock.
+    // Existing saves with a furnace already placed keep the place-furnace goal.
     const hasFurnace = Object.values(next.entities).some(
       (e) => e.kind === 'furnace' || e.kind === 'steelFurnace',
     )
@@ -414,10 +414,7 @@ export function claimGoals(state: GameState): GameState {
     next = {
       ...next,
       completedGoals: [...next.completedGoals, goal.id],
-      unlockedToast:
-        goal.id === 'place-furnace'
-          ? `Achievement: ${goal.title} - 2nd chest unlocked!`
-          : `Objective complete: ${goal.title} - ${goal.rewardLabel}`,
+      unlockedToast: `Objective complete: ${goal.title} - ${goal.rewardLabel}`,
       tipIndex: (next.tipIndex + 1) % TIPS.length,
     }
     next = depositStock(next, goal.reward)
@@ -1065,6 +1062,21 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
       return { ...state, unlockedToast: `${meta.label} needs clear space here` }
     }
   }
+
+  if (tool === 'chest') {
+    const placed = countPlacedChests(state.entities)
+    const max = maxChestsFor(state.researched, state.completedGoals)
+    if (placed >= max) {
+      return {
+        ...state,
+        unlockedToast:
+          max < 6
+            ? `Chest limit ${placed}/${max} - research Factory storage to raise it`
+            : `Chest limit reached (${max} on the floor)`,
+      }
+    }
+  }
+
   if (asItemCount(state.inventory[meta.inventoryKey]) < 1) {
     return { ...state, unlockedToast: `No ${meta.label} in inventory - craft one` }
   }
@@ -1074,22 +1086,6 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     !drillHasOre(state, x, y)
   ) {
     return { ...state, unlockedToast: 'Drills need ore within their 3x3 dig area' }
-  }
-
-  if (tool === 'chest') {
-    const placed = countPlacedChests(state.entities)
-    const max = maxChestsFor(state.researched, state.completedGoals)
-    if (placed >= max) {
-      return {
-        ...state,
-        unlockedToast:
-          max < 2
-            ? `Chest limit ${placed}/${max} - place a furnace to unlock a 2nd chest`
-            : max < 6
-              ? `Chest limit ${placed}/${max} - research Factory storage to raise it`
-              : `Chest limit reached (${max} on the floor)`,
-      }
-    }
   }
 
   const placeDir = suggestPlaceDir(state, tool, x, y)
@@ -1929,7 +1925,7 @@ export function buildStarterLine(state: GameState): GameState {
     }
   }
 
-  // Unlock 2nd chest via place-furnace goal, then finish the plate buffer.
+  // Furnace claims the place-furnace goal, then finish the plate buffer.
   next = claimGoals(next)
   inventory = { ...next.inventory }
   const tiles2 = next.tiles.map((t) => ({ ...t }))

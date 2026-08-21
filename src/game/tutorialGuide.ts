@@ -243,7 +243,7 @@ export function tutorialCoachHint(
     return 'Place the chest on the glowing ghost. Belts cannot dump into it. Use an inserter.'
   }
   if (next.id === 'chest2') {
-    return 'Second chest unlocked. Catch plates coming out of the furnace.'
+    return 'Place the second chest by the furnace. Catch plates coming out.'
   }
   if (next.id === 'furnace') {
     return 'Furnaces need ore and coal. Place it on the glowing tile.'

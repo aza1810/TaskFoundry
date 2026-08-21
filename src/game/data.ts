@@ -398,9 +398,9 @@ export const ASSEMBLER_SLOT_CAP = 12
 export const CHEST_SLOT_COUNT = 4
 /** Max count per item type in a chest slot. */
 export const CHEST_STACK_SIZE = 100
-/** Floor chests allowed before furnace unlock / storage research. */
-export const BASE_MAX_CHESTS = 1
-/** After placing a furnace (goal), you may place this many chests. */
+/** Floor chests allowed at the start, before storage research. */
+export const BASE_MAX_CHESTS = 2
+/** After placing a furnace (goal). Same as the starting cap; kept for older saves. */
 export const FURNACE_UNLOCK_MAX_CHESTS = 2
 export const BELT_SPEED = 1.8 // tiles per second
 export const FAST_BELT_SPEED = BELT_SPEED * FAST_BELT_MULT

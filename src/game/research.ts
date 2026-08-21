@@ -110,7 +110,7 @@ export const TECHS: TechDef[] = [
     name: 'Factory storage',
     detail: 'Expand floor logistics. Raise the chest placement cap to 4.',
     cost: { ironPlate: 20, gear: 10, chest: 1 },
-    unlocks: 'Max 4 chests on the floor (after furnace unlock)',
+    unlocks: 'Max 4 chests on the floor',
     prerequisites: ['logistics'],
     icon: 'chest',
     col: 2,
@@ -138,7 +138,7 @@ export const TECH_TREE_ROWS = 3
 
 /**
  * How many chests may sit on the floor.
- * Base 1 → 2 after place-furnace goal → 4/6 via storage research.
+ * Base 2 → 4/6 via storage research. The furnace goal still reports 2.
  */
 export function maxChestsFor(
   researched: readonly string[],

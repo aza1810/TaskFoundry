@@ -105,7 +105,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'chestToFurnace',
     title: 'Feed a furnace from the chest',
-    body: 'Pull ore out of the chest onto a belt, then into a furnace. Placing the furnace unlocks your second chest.',
+    body: 'Pull ore out of the chest onto a belt, then into a furnace. You start with two chest slots, so you can plant a plate buffer whenever you are ready.',
     mode: 'coach',
     tab: 'factory',
     action: 'Furnace fed from the ore chest',
@@ -121,7 +121,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'plateChest',
     title: 'Catch the plates',
-    body: 'You unlocked a second chest. Pull iron plates out of the furnace with an inserter into chest #2. That is your plate stockpile.',
+    body: 'Place a second chest and pull iron plates out of the furnace with an inserter. That is your plate stockpile.',
     mode: 'coach',
     tab: 'factory',
     action: 'Inserter from furnace into chest #2',
