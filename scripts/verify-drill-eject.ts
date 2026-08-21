@@ -1,6 +1,6 @@
 /**
- * 2x2 drills dump onto exactly one facing-edge tile (the orange port).
- * Default is the primary / "top" square; flip picks the other square.
+ * 2x2 drills prefer the orange-port square, then the other facing square,
+ * then the old 1-tile neighbor so existing lines keep working.
  */
 import {
   drillDropCells,
@@ -54,16 +54,27 @@ const at = (x: number, y: number, dir: Dir, flip = false) =>
   drillOutputCells('drill', x, y, dir, flip)
 
 const eDefault = at(2, 4, 'E')
-assert(eDefault.length === 1, 'E dump is a single tile')
-assert(sameCell(eDefault[0], 4, 4), 'E default dumps the top cell (4,4)')
+assert(eDefault.length === 1, 'E dump port is a single tile')
+assert(sameCell(eDefault[0], 4, 4), 'E default port is the top cell (4,4)')
 assert(
   sameCell(at(2, 4, 'E', true)[0], 4, 5),
-  'E flipped dumps the bottom cell (4,5)',
+  'E flipped port is the bottom cell (4,5)',
+)
+
+const eDrops = drillDropCells('drill', 2, 4, 'E')
+assert(
+  eDrops.some((c) => c.x === 4 && c.y === 4),
+  'E drops include the top outside cell',
 )
 assert(
-  !drillDropCells('drill', 2, 4, 'E').some((c) => c.x === 3 && c.y === 4),
-  'interior neighbor is not a dump tile',
+  eDrops.some((c) => c.x === 4 && c.y === 5),
+  'E drops include the other facing square',
 )
+assert(
+  eDrops.some((c) => c.x === 3 && c.y === 4),
+  'E drops include the legacy 1-tile neighbor',
+)
+assert(sameCell(eDrops[0], 4, 4), 'port cell is tried first')
 
 assert(sameCell(at(2, 4, 'S')[0], 3, 6), 'S default dumps the east cell')
 assert(sameCell(at(2, 4, 'S', true)[0], 2, 6), 'S flipped dumps the west cell')
@@ -97,23 +108,31 @@ function ejectCase(
   assert(left === 2, `${label}: drill should have 2 ore left, got ${left}`)
 }
 
-ejectCase('2x2 default dumps onto the top east belt', { x: 4, y: 4 })
-ejectCase('2x2 flipped dumps onto the bottom east belt', { x: 4, y: 5 }, true)
+ejectCase('port square', { x: 4, y: 4 })
+ejectCase('other facing square as fallback', { x: 4, y: 5 })
+ejectCase('legacy 1-tile neighbor', { x: 3, y: 4 })
+ejectCase('flipped port square', { x: 4, y: 5 }, true)
 
 {
   const drillCells = footprintCells('drill', 2, 4)
   let state = createInitialState()
-  state = clearCells(state, [...drillCells, { x: 4, y: 5 }])
+  state = clearCells(state, [...drillCells, { x: 4, y: 4 }, { x: 4, y: 5 }])
   const drill = createEntity('drill', 2, 4, 'E')
   drill.store = { ironOre: 3 }
-  const belt = createEntity('belt', 4, 5, 'E')
+  const portBelt = createEntity('belt', 4, 4, 'E')
+  const otherBelt = createEntity('belt', 4, 5, 'E')
   state = stamp(state, drill, drillCells)
-  state = stamp(state, belt, [{ x: 4, y: 5 }])
+  state = stamp(state, portBelt, [{ x: 4, y: 4 }])
+  state = stamp(state, otherBelt, [{ x: 4, y: 5 }])
   state = simTick(state, 0.2)
   assert(
-    !state.entities[belt.id]?.cargo,
-    'unflipped drill must not dump onto the other facing square',
+    state.entities[portBelt.id]?.cargo?.item === 'ironOre',
+    'when both squares have belts, the port square is used',
+  )
+  assert(
+    !state.entities[otherBelt.id]?.cargo,
+    'the other facing square is not used while the port is free',
   )
 }
 
-console.log('OK: drills dump onto one rotatable / flippable belt square')
+console.log('OK: drills dump onto the port square, then the other facing square')

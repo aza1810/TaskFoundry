@@ -3,9 +3,11 @@ import {
   CHEST_SLOT_COUNT,
   CHEST_STACK_SIZE,
   FURNACE_COAL_PER_SMELT,
+  drillDropCells,
   fuelUnits,
   idx,
   inBounds,
+  isBeltKind,
   isDrillKind,
   isFurnaceKind,
   mineCells,
@@ -104,6 +106,36 @@ export function machineStatus(
     const oreHeld = Object.entries(ent.store)
       .filter(([k]) => k !== 'coal')
       .reduce((s, [, n]) => s + (n ?? 0), 0)
+    let dumpGhost = false
+    let dumpReady = false
+    for (const o of drillDropCells(ent.kind, ent.x, ent.y, ent.dir, ent.flip === true)) {
+      if (!inBounds(o.x, o.y, _state.width, _state.height)) continue
+      const t = _state.tiles[idx(o.x, o.y)]
+      const cand = t?.entityId ? _state.entities[t.entityId] : null
+      if (!cand || cand.id === ent.id) continue
+      const sink =
+        isBeltKind(cand.kind) ||
+        cand.kind === 'chest' ||
+        isFurnaceKind(cand.kind) ||
+        cand.kind === 'splitter' ||
+        cand.kind === 'undergroundBelt'
+      if (!sink) continue
+      if (cand.ghost) {
+        dumpGhost = true
+        continue
+      }
+      dumpReady = true
+      break
+    }
+    if (!dumpReady) {
+      return {
+        label: dumpGhost
+          ? 'Belt in front is still a blueprint'
+          : 'No belt in front of the orange port (Flip picks the other square)',
+        tone: 'warn',
+        floorClass: 'is-blocked',
+      }
+    }
     if (oreHeld >= cap - 0.01) {
       return { label: 'Output full - clear the belt', tone: 'warn', floorClass: 'is-blocked' }
     }

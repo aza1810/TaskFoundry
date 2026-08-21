@@ -85,12 +85,12 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto one belt in front of the orange port. Rotate to turn, Flip to pick the other output square. Needs a generator or powered Foundation within 5 tiles.',
+    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto a belt in front of the orange port. Flip picks the other square if that one is empty. Needs a generator or powered Foundation within 5 tiles.',
   },
   electricDrill: {
     label: 'Electric Drill',
     inventoryKey: 'electricDrill',
-    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle. Rotate and Flip to choose the output square. Needs a generator or powered Foundation within 5 tiles.',
+    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle. Drops onto a belt in front of the orange port. Flip picks the other square. Needs a generator or powered Foundation within 5 tiles.',
   },
   belt: {
     label: 'Transport Belt',
@@ -522,7 +522,33 @@ export function mineCells(x: number, y: number): { x: number; y: number }[] {
   return out
 }
 
-/** The single tile a drill dumps onto (one square on the facing edge). */
+/** The two tiles just outside a 2x2 drill's facing edge (one if 1x1). */
+export function drillFacingOutsideCells(
+  kind: EntityKind,
+  x: number,
+  y: number,
+  dir: Dir,
+): { x: number; y: number }[] {
+  const { w, h } = sizeOf(kind)
+  if (w < 2 && h < 2) {
+    const { dx, dy } = DIR_DELTA[dir]
+    return [{ x: x + dx, y: y + dy }]
+  }
+  if (dir === 'E') return [{ x: x + w, y }, { x: x + w, y: y + h - 1 }]
+  if (dir === 'S') return [{ x: x + w - 1, y: y + h }, { x, y: y + h }]
+  if (dir === 'W') return [{ x: x - 1, y: y + h - 1 }, { x: x - 1, y }]
+  return [{ x, y: y - 1 }, { x: x + w - 1, y: y - 1 }]
+}
+
+function pushUniqueCell(
+  out: { x: number; y: number }[],
+  cell: { x: number; y: number },
+): void {
+  if (out.some((c) => c.x === cell.x && c.y === cell.y)) return
+  out.push(cell)
+}
+
+/** The single tile the orange port aims at (Flip picks which facing square). */
 export function drillOutputCells(
   kind: EntityKind,
   x: number,
@@ -542,7 +568,10 @@ export function drillOutputCells(
   return [{ x: x + slot, y: y - 1 }]
 }
 
-/** Same as drillOutputCells: one dump tile, matching the orange port. */
+/**
+ * Tiles a drill may dump onto: the orange port first, then the other facing
+ * square, then the old 1-tile neighbor (pre-2x2 lines).
+ */
 export function drillDropCells(
   kind: EntityKind,
   x: number,
@@ -550,7 +579,22 @@ export function drillDropCells(
   dir: Dir,
   flip = false,
 ): { x: number; y: number }[] {
-  return drillOutputCells(kind, x, y, dir, flip)
+  const { w, h } = sizeOf(kind)
+  const out: { x: number; y: number }[] = []
+  for (const c of drillOutputCells(kind, x, y, dir, flip)) pushUniqueCell(out, c)
+  for (const c of drillFacingOutsideCells(kind, x, y, dir)) pushUniqueCell(out, c)
+  if (dir === 'E') {
+    for (let i = 0; i < h; i++) pushUniqueCell(out, { x: x + w - 1, y: y + i })
+  } else if (dir === 'W') {
+    for (let i = 0; i < h; i++) pushUniqueCell(out, { x, y: y + i })
+  } else if (dir === 'S') {
+    for (let i = 0; i < w; i++) pushUniqueCell(out, { x: x + i, y: y + h - 1 })
+  } else {
+    for (let i = 0; i < w; i++) pushUniqueCell(out, { x: x + i, y })
+  }
+  const { dx, dy } = DIR_DELTA[dir]
+  pushUniqueCell(out, { x: x + dx, y: y + dy })
+  return out
 }
 
 /** Anchor used to space a production line from a multi-tile building's output edge. */
