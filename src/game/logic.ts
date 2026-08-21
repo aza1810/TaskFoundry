@@ -1691,13 +1691,37 @@ export function buildStarterLine(state: GameState): GameState {
   put2('inserter', x + 8, y, 'E') // furnace → plate chest
   put2('chest', x + 9, y, 'E')
 
+  // Drop a roboport near the line so the player has a construction drone for
+  // everything they build next (nothing gets built without a roboport).
+  let hasRoboport = false
+  if ((inventory.roboport ?? 0) >= 1) {
+    const spots: Array<[number, number]> = [
+      [x, y + 1],
+      [x, y - 1],
+      [x + 1, y + 1],
+    ]
+    for (const [rx, ry] of spots) {
+      if (rx < 0 || ry < 0 || rx >= next.width || ry >= next.height) continue
+      if (tiles2[idx(rx, ry)].entityId) continue
+      inventory = spend(inventory, { roboport: 1 })
+      const rEnt = createEntity('roboport', rx, ry, 'E')
+      tiles2[idx(rx, ry)].entityId = rEnt.id
+      entities2[rEnt.id] = rEnt
+      hasRoboport = true
+      break
+    }
+  }
+
   next = {
     ...next,
     inventory,
     tiles: tiles2,
     entities: entities2,
-    unlockedToast: 'Starter line planted - walk to stockpile ore and plates',
+    unlockedToast: hasRoboport
+      ? 'Starter line planted - roboport online, walk to stockpile ore and plates'
+      : 'Starter line planted - walk to stockpile ore and plates',
   }
+  if (hasRoboport) next = reconcileDrones(next)
   return claimGoals(next)
 }
 
