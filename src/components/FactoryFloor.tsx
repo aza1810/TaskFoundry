@@ -2062,12 +2062,17 @@ export function FactoryFloor({
                 </p>
                 <p className="inspect-card-meta">
                   ({inspect.x},{inspect.y})
+                  {inspectTile.foundation
+                    ? tileIsPoweredFloor(state, inspect.x, inspect.y, floorNet)
+                      ? ' · powered Foundation'
+                      : ' · Foundation (no generator)'
+                    : ''}
                   {inspectTile.ore
                     ? inspectTile.amount == null
-                      ? ' · Rich patch'
-                      : ` · ${formatNum(inspectTile.amount)} remaining`
+                      ? ` · ${ITEM_META[inspectTile.ore].label}`
+                      : ` · ${ITEM_META[inspectTile.ore].label} (${formatNum(inspectTile.amount)} left)`
                     : inspectTile.foundation
-                      ? ' · paved tile'
+                      ? ''
                       : ' · buildable tile'}
                 </p>
                 <div className="inspect-card-actions">
