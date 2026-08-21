@@ -687,6 +687,7 @@ export function FactoryFloor({
       kind: p.kind,
       dir: p.dir,
       toggle: p.toggle,
+      flip: p.flip,
     }))
   }, [selected, blueprint, hover])
 
