@@ -72,6 +72,7 @@ export const ITEM_META: Record<
   roboport: { label: 'Roboport', short: '❖', color: '#3fa7c9' },
   wood: { label: 'Wood', short: 'Wd', color: '#7a5230' },
   generator: { label: 'Generator', short: '⚡', color: '#f5d020' },
+  stone: { label: 'Stone', short: 'St', color: '#9a9184' },
 }
 
 export const PLACEABLE_META: Record<
@@ -426,6 +427,7 @@ export const POWER_DRAW: Record<EntityKind, number> = {
   splitter: 0.6,
   roboport: 0,
   tree: 0,
+  rock: 0,
   generator: 0,
 }
 /** Seconds a drone spends chopping a marked tree. */
@@ -434,6 +436,64 @@ export const TREE_CUT_SECONDS = 2
 export const WOOD_PER_TREE = 4
 /** How many trees to scatter across the map. */
 export const TREE_COUNT = 22
+
+/** Seconds a drone spends excavating a marked rock. */
+export const ROCK_MINE_SECONDS = 3
+/** How many rocks to scatter across the map. */
+export const ROCK_COUNT = 16
+/** Excavating a rock yields mostly stone, a little iron, and rarely coal. */
+export const STONE_PER_ROCK = 6
+export const IRON_PER_ROCK = 1
+/** Probability a rock also yields 1 coal (rarer than iron). */
+export const ROCK_COAL_CHANCE = 0.3
+
+/* ---- Multi-tile building footprints ---- */
+/** Tile footprint (w × h, anchored at the entity's top-left x/y). */
+export function sizeOf(kind: EntityKind): { w: number; h: number } {
+  if (kind === 'roboport') return { w: 3, h: 3 }
+  if (kind === 'drill' || kind === 'electricDrill') return { w: 2, h: 2 }
+  return { w: 1, h: 1 }
+}
+
+/** All tiles a building at (x,y) occupies. */
+export function footprintCells(
+  kind: EntityKind,
+  x: number,
+  y: number,
+): { x: number; y: number }[] {
+  const { w, h } = sizeOf(kind)
+  const out: { x: number; y: number }[] = []
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) out.push({ x: x + dx, y: y + dy })
+  }
+  return out
+}
+
+/** Side length of the square a drill mines (2×2 drill reaches a 3×3 patch). */
+export const DRILL_MINE_SPAN = 3
+
+/** The 3×3 block of tiles a drill at (x,y) can pull ore from. */
+export function mineCells(x: number, y: number): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = []
+  for (let dy = 0; dy < DRILL_MINE_SPAN; dy++) {
+    for (let dx = 0; dx < DRILL_MINE_SPAN; dx++) out.push({ x: x + dx, y: y + dy })
+  }
+  return out
+}
+
+/** Tiles just outside a drill's footprint on its facing side (belt drop cells). */
+export function drillOutputCells(
+  kind: EntityKind,
+  x: number,
+  y: number,
+  dir: Dir,
+): { x: number; y: number }[] {
+  const { w, h } = sizeOf(kind)
+  if (dir === 'E') return [{ x: x + w, y }, { x: x + w, y: y + 1 }].slice(0, h)
+  if (dir === 'W') return [{ x: x - 1, y }, { x: x - 1, y: y + 1 }].slice(0, h)
+  if (dir === 'S') return [{ x, y: y + h }, { x: x + 1, y: y + h }].slice(0, w)
+  return [{ x, y: y - 1 }, { x: x + 1, y: y - 1 }].slice(0, w)
+}
 
 export const EMPTY_INVENTORY = (): Inventory => ({
   // Raw materials start at zero - you gather them by mining into a chest.
@@ -460,6 +520,7 @@ export const EMPTY_INVENTORY = (): Inventory => ({
   splitter: 0,
   roboport: 1,
   generator: 2,
+  stone: 0,
 })
 
 export const DEFAULT_HABITS = (): Habit[] => [
@@ -604,6 +665,7 @@ export function entityGlyph(kind: EntityKind, dir: Dir): string {
   if (kind === 'splitter') return '⇔'
   if (kind === 'roboport') return '❖'
   if (kind === 'tree') return '♣'
+  if (kind === 'rock') return '◆'
   if (kind === 'generator') return '⚡'
   return '▣'
 }

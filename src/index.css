@@ -2879,6 +2879,21 @@ html[data-theme='light'] .ghost-btn.is-danger {
   overflow: visible;
 }
 
+/* Multi-tile buildings (roboport 3x3, drills 2x2): sprite drawn from the
+   anchor cell overflows across its whole footprint. */
+.cell.is-big {
+  overflow: visible;
+  z-index: 6;
+}
+
+.cell.is-big .cell-ent,
+.cell.is-big .cell-ghost {
+  inset: auto;
+  z-index: 6;
+  overflow: visible;
+  padding: 3px;
+}
+
 /* Construction drones fly between the roboport and build sites. */
 .construction-drone {
   position: absolute;
@@ -5370,6 +5385,39 @@ html[data-theme='light'] .machine-progress-track {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   color: #e8e0d4;
+  text-align: center;
+}
+
+.tutorial-card .tutorial-loop {
+  justify-content: center;
+}
+
+/* Welcome / finish modal: a clearly-tappable primary button, centered stack. */
+.tutorial-card .tutorial-actions-stack {
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.tutorial-card .tutorial-actions .primary-btn {
+  background: linear-gradient(180deg, #f4d06a, #d9b23a);
+  color: #1a1612;
+  border: 1px solid #c9a227;
+  border-radius: 10px;
+  padding: 0.72rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  box-shadow: 0 6px 16px rgba(201, 162, 39, 0.3);
+}
+
+.tutorial-card .tutorial-actions .primary-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffdd80, #e6bf46);
+  color: #1a1612;
+  transform: translateY(-1px);
+}
+
+.tutorial-card .tutorial-actions .ghost-btn {
+  align-self: center;
+  justify-self: center;
 }
 
 .tutorial-coach {

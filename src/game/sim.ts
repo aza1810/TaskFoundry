@@ -20,9 +20,11 @@ import {
   POWER_DRAW,
   SMELT_MAP,
   beltSpeedFor,
+  drillOutputCells,
   furnaceSecondsFor,
   idx,
   inBounds,
+  mineCells,
   isBeltKind,
   isDrillKind,
   isFurnaceKind,
@@ -310,25 +312,29 @@ function tryDrillEject(
   entities: Record<string, Entity>,
   drill: Entity,
 ): boolean {
-  const front = neighbor(state, drill.x, drill.y, drill.dir)
-  if (!front.entity) return false
-  const dest = entities[front.entity.id]
-  if (!dest) return false
-  if (
-    !isBeltKind(dest.kind) &&
-    dest.kind !== 'chest' &&
-    !isFurnaceKind(dest.kind) &&
-    dest.kind !== 'splitter' &&
-    dest.kind !== 'undergroundBelt'
-  ) {
-    return false
+  // Multi-tile drills push out of the tile(s) just past the facing edge.
+  let dest: Entity | null = null
+  for (const o of drillOutputCells(drill.kind, drill.x, drill.y, drill.dir)) {
+    if (!inBounds(o.x, o.y)) continue
+    const t = getTile(state.tiles, o.x, o.y)
+    if (!t?.entityId) continue
+    const cand = entities[t.entityId]
+    if (!cand) continue
+    if (
+      isBeltKind(cand.kind) ||
+      cand.kind === 'chest' ||
+      isFurnaceKind(cand.kind) ||
+      cand.kind === 'splitter' ||
+      cand.kind === 'undergroundBelt'
+    ) {
+      dest = cand
+      break
+    }
   }
+  if (!dest) return false
 
-  const tile = getTile(state.tiles, drill.x, drill.y)
-  // Never dump burner fuel - only eject the resource being mined
-  const prefer: ItemId[] =
-    tile?.ore === 'coal' ? ['coal'] : ['ironOre', 'copperOre']
-
+  // Drills only hold mined ore (fuel lives elsewhere), so eject any ore present.
+  const prefer: ItemId[] = ['ironOre', 'copperOre', 'coal']
   const item = tryExtractItem(drill, prefer)
   if (!item) return false
   if (!tryAcceptItem(dest, item)) {
@@ -360,11 +366,19 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       if (e.ghost) continue
       if (!isDrillKind(e.kind)) continue
 
-      const tile = tiles[idx(e.x, e.y)]
-      if (!tile?.ore || (tile.amount !== null && tile.amount <= 0)) {
-        if (tile && tile.amount !== null && tile.amount <= 0) tile.ore = null
-        continue
+      // A 2x2 drill can pull ore from anywhere in its 3x3 dig area.
+      let tile: (typeof tiles)[number] | null = null
+      let ore: OreId | null = null
+      for (const c of mineCells(e.x, e.y)) {
+        if (!inBounds(c.x, c.y)) continue
+        const t = tiles[idx(c.x, c.y)]
+        if (t.ore && (t.amount === null || t.amount > 0)) {
+          tile = t
+          ore = t.ore
+          break
+        }
       }
+      if (!tile || !ore) continue
 
       const electric = e.kind === 'electricDrill'
       const cost =
@@ -379,7 +393,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
       const frac = raw - whole
       const yieldAmt = Math.max(1, whole + (Math.random() < frac ? 1 : 0))
 
-      const put = addToStore(e.store, tile.ore, yieldAmt, MACHINE_CAP[e.kind] ?? 5, ['coal'])
+      const put = addToStore(e.store, ore, yieldAmt, MACHINE_CAP[e.kind] ?? 5, ['coal'])
       if (put <= 0) continue
 
       power -= cost

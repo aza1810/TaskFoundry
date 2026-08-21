@@ -21,6 +21,7 @@ export type ItemId =
   | 'roboport'
   | 'wood'
   | 'generator'
+  | 'stone'
 
 export type OreId = 'ironOre' | 'copperOre' | 'coal'
 
@@ -41,6 +42,7 @@ export type EntityKind =
   | 'splitter'
   | 'roboport'
   | 'tree'
+  | 'rock'
   | 'generator'
 
 export type TechId =
@@ -87,7 +89,7 @@ export interface Entity {
   ghost?: boolean
   /** Drone build progress 0..1 while a ghost is being assembled (or a tree cut). */
   buildProgress?: number
-  /** Tree only: flagged for a drone to chop down. */
+  /** Tree/rock: flagged for a drone to chop down / excavate. */
   marked?: boolean
 }
 
@@ -137,6 +139,7 @@ export interface Inventory {
   roboport: number
   wood: number
   generator: number
+  stone: number
 }
 
 export type Placeable = Extract<
@@ -275,6 +278,8 @@ export interface GameState {
   tutorialComplete: boolean
   /** One-time flag so map trees are scattered once (and not respawned each load). */
   treesSeeded: boolean
+  /** One-time flag so map rocks are scattered once (and not respawned each load). */
+  rocksSeeded: boolean
   /** Stored electrical energy. Steps charge it; electric machines drain it. */
   power: number
 }

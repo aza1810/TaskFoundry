@@ -669,6 +669,25 @@ export const TreeSprite = memo(function TreeSprite() {
   )
 })
 
+export const RockSprite = memo(function RockSprite() {
+  return (
+    <svg className="sprite sprite-rock" viewBox="0 0 32 32" aria-hidden>
+      <ellipse cx="16" cy="27" rx="12" ry="3.5" fill="rgba(0,0,0,0.28)" />
+      <path
+        d="M5 24 L8 13 L15 9 L23 12 L27 20 L24 26 L9 27 Z"
+        fill="#8f867a"
+        stroke="#4f4842"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M8 13 L15 9 L18 16 L11 20 Z" fill="#a8a094" opacity="0.9" />
+      <path d="M18 16 L23 12 L27 20 L22 22 Z" fill="#7a7268" opacity="0.9" />
+      <path d="M11 20 L18 16 L22 22 L13 25 Z" fill="#6f6860" opacity="0.85" />
+      <ellipse cx="12" cy="14" rx="1.8" ry="1.2" fill="#c4bdb2" opacity="0.7" />
+    </svg>
+  )
+})
+
 const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   ironOre: { fill: '#8B7355', edge: '#5a4a38' },
   copperOre: { fill: '#C4783A', edge: '#8a4a28' },
@@ -692,6 +711,7 @@ const ITEM_COLORS: Record<ItemId, { fill: string; edge: string }> = {
   roboport: { fill: '#3fa7c9', edge: '#1a5060' },
   wood: { fill: '#8a5a30', edge: '#4a2f18' },
   generator: { fill: '#f5d020', edge: '#8a6a10' },
+  stone: { fill: '#9a9184', edge: '#5f5850' },
 }
 
 const PLACEABLE_ITEMS = new Set<ItemId>([
@@ -798,6 +818,17 @@ export const ItemSprite = memo(function ItemSprite({ item }: { item: ItemId }) {
       </svg>
     )
   }
+  if (item === 'stone') {
+    return (
+      <svg className="sprite sprite-item" viewBox="0 0 32 32" aria-hidden>
+        <rect x="2" y="2" width="28" height="28" rx="3" fill="#1a1612" opacity="0.28" />
+        <path d="M7 21 L10 12 L17 10 L23 15 L22 23 L11 25 Z" fill="#9a9184" stroke="#5f5850" strokeWidth="1.6" />
+        <path d="M12 13 L17 15 L15 21" fill="none" stroke="#7a7268" strokeWidth="1.2" />
+        <ellipse cx="12" cy="14" rx="2" ry="1.3" fill="#c4bdb2" opacity="0.7" />
+        <ellipse cx="20" cy="19" rx="1.6" ry="1" fill="#c4bdb2" opacity="0.5" />
+      </svg>
+    )
+  }
   if (PLACEABLE_ITEMS.has(item)) {
     return (
       <span className="sprite sprite-item sprite-item-entity" aria-hidden>
@@ -881,6 +912,8 @@ export const EntitySprite = memo(function EntitySprite({
       return <RoboportSprite active={active} />
     case 'tree':
       return <TreeSprite />
+    case 'rock':
+      return <RockSprite />
     case 'generator':
       return <GeneratorSprite active={active} />
   }

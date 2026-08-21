@@ -21,6 +21,7 @@ export const WAREHOUSE_ITEMS: ItemId[] = [
   'steel',
   'gear',
   'wood',
+  'stone',
 ]
 
 const WAREHOUSE_SET = new Set<ItemId>(WAREHOUSE_ITEMS)

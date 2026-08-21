@@ -4,8 +4,11 @@ import {
   CHEST_STACK_SIZE,
   FURNACE_COAL_PER_SMELT,
   fuelUnits,
+  idx,
+  inBounds,
   isDrillKind,
   isFurnaceKind,
+  mineCells,
 } from './data'
 import { MACHINE_CAP } from './sim'
 import type { Entity, GameState, Tile } from './types'
@@ -21,7 +24,7 @@ export interface MachineStatus {
 
 export function machineStatus(
   ent: Entity,
-  tile: Tile | undefined,
+  _tile: Tile | undefined,
   _state: GameState,
 ): MachineStatus {
   if (ent.ghost) {
@@ -45,6 +48,18 @@ export function machineStatus(
     return { label: 'Tree - Demolish to mark for drones', tone: 'idle' }
   }
 
+  if (ent.kind === 'rock') {
+    if (ent.marked) {
+      const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
+      return {
+        label: pct > 0 ? `Drone excavating ${pct}%` : 'Marked - waiting for a drone',
+        tone: pct > 0 ? 'work' : 'idle',
+        floorClass: 'is-waiting',
+      }
+    }
+    return { label: 'Rock - Demolish to excavate for stone', tone: 'idle' }
+  }
+
   if (ent.kind === 'roboport') {
     const drones = _state.drones.filter((d) => d.homeId === ent.id)
     const busy = drones.filter((d) => d.state !== 'idle').length
@@ -62,7 +77,12 @@ export function machineStatus(
   }
 
   if (isDrillKind(ent.kind)) {
-    if (!tile?.ore) return { label: 'No ore under drill', tone: 'idle', floorClass: 'is-waiting' }
+    const hasOre = mineCells(ent.x, ent.y).some((c) => {
+      if (!inBounds(c.x, c.y)) return false
+      const t = _state.tiles[idx(c.x, c.y)]
+      return !!t.ore && (t.amount === null || t.amount > 0)
+    })
+    if (!hasOre) return { label: 'No ore in dig area', tone: 'idle', floorClass: 'is-waiting' }
     if (_state.power <= 0) {
       return { label: 'No power - walk to charge the grid', tone: 'warn', floorClass: 'is-needs-fuel' }
     }

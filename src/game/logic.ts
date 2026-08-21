@@ -11,6 +11,13 @@ import {
   TREE_COUNT,
   TREE_CUT_SECONDS,
   WOOD_PER_TREE,
+  ROCK_COUNT,
+  ROCK_MINE_SECONDS,
+  STONE_PER_ROCK,
+  IRON_PER_ROCK,
+  ROCK_COAL_CHANCE,
+  footprintCells,
+  mineCells,
   HABIT_REWARDS,
   HAND_RECIPES,
   ITEM_META,
@@ -78,6 +85,7 @@ import type {
   Dir,
   Drone,
   Entity,
+  EntityKind,
   GameState,
   Habit,
   HabitCategory,
@@ -117,6 +125,30 @@ export function scatterTrees(state: GameState, count = TREE_COUNT): GameState {
     placed++
   }
   return { ...state, tiles, entities, treesSeeded: true }
+}
+
+/** Scatter excavatable rocks across open ground (single-tile, like trees). */
+export function scatterRocks(state: GameState, count = ROCK_COUNT): GameState {
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  const entities = { ...state.entities }
+  const free = (x: number, y: number) => {
+    if (!inBounds(x, y)) return false
+    const t = tiles[idx(x, y)]
+    return !t.entityId && !t.ore
+  }
+  let placed = 0
+  let attempts = 0
+  while (placed < count && attempts < count * 40) {
+    attempts++
+    const x = Math.floor(Math.random() * GRID_W)
+    const y = Math.floor(Math.random() * GRID_H)
+    if (!free(x, y)) continue
+    const ent = createEntity('rock', x, y, 'N')
+    tiles[idx(x, y)].entityId = ent.id
+    entities[ent.id] = ent
+    placed++
+  }
+  return { ...state, tiles, entities, rocksSeeded: true }
 }
 
 export function createInitialState(): GameState {
@@ -160,9 +192,10 @@ export function createInitialState(): GameState {
     tutorialStep: 0,
     tutorialComplete: false,
     treesSeeded: false,
+    rocksSeeded: false,
     power: BASE_POWER_CAP,
   }
-  return scatterTrees(base)
+  return scatterRocks(scatterTrees(base))
 }
 
 export function loadState(accountSaveKey?: string): GameState {
@@ -218,11 +251,13 @@ export function loadState(accountSaveKey?: string): GameState {
         (typeof parsed.tutorialStep === 'number' &&
           parsed.tutorialStep >= TUTORIAL_STEP_COUNT),
       treesSeeded: parsed.treesSeeded === true,
+      rocksSeeded: parsed.rocksSeeded === true,
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
     next = scrubChestsToWarehouse(next)
     next = sweepPackToChests(next)
     if (!next.treesSeeded) next = scatterTrees(next)
+    if (!next.rocksSeeded) next = scatterRocks(next)
     next = reconcileDrones(next)
     // Clamp/default stored power to the current battery capacity.
     next = {
@@ -536,6 +571,29 @@ function hasActiveRoboport(state: GameState): boolean {
   )
 }
 
+/** True when every tile a building at (x,y) would occupy is on-map and empty. */
+export function canPlaceFootprint(
+  state: GameState,
+  kind: EntityKind,
+  x: number,
+  y: number,
+): boolean {
+  for (const c of footprintCells(kind, x, y)) {
+    if (!inBounds(c.x, c.y)) return false
+    if (state.tiles[idx(c.x, c.y)].entityId) return false
+  }
+  return true
+}
+
+/** True when a drill at (x,y) has minable ore somewhere in its 3x3 dig area. */
+export function drillHasOre(state: GameState, x: number, y: number): boolean {
+  return mineCells(x, y).some((c) => {
+    if (!inBounds(c.x, c.y)) return false
+    const t = state.tiles[idx(c.x, c.y)]
+    return !!t.ore && (t.amount === null || t.amount > 0)
+  })
+}
+
 function makeDrone(roboport: Entity, seq: number): Drone {
   return {
     id: `drone-${roboport.id}-${seq}-${Math.random().toString(36).slice(2, 6)}`,
@@ -628,11 +686,34 @@ function fellTree(state: GameState, id: string): GameState {
   return depositToChests({ ...state, entities, tiles }, 'wood', WOOD_PER_TREE)
 }
 
-/** A ghost to build, or a marked tree a drone can chop (needs chest space). */
-function isDroneJob(ent: Entity | undefined, woodOk: boolean): boolean {
+/** A drone finished a rock: clear the tile and stack stone (+ trace ore) in chests. */
+function excavateRock(state: GameState, id: string): GameState {
+  const rock = state.entities[id]
+  if (!rock || rock.kind !== 'rock') return state
+  // Needs chest space for the stone - otherwise leave the rock to retry.
+  if (!canChestsAccept(state, 'stone')) return state
+  const entities = { ...state.entities }
+  delete entities[id]
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  tiles[idx(rock.x, rock.y)].entityId = null
+  let next = depositToChests({ ...state, entities, tiles }, 'stone', STONE_PER_ROCK)
+  // Trace iron, and rarely a little coal - deposited best-effort.
+  next = depositToChests(next, 'ironOre', IRON_PER_ROCK)
+  if (Math.random() < ROCK_COAL_CHANCE) next = depositToChests(next, 'coal', 1)
+  return next
+}
+
+/** A ghost to build, or a marked tree/rock a drone can harvest (needs chest space). */
+function isDroneJob(
+  ent: Entity | undefined,
+  woodOk: boolean,
+  stoneOk: boolean,
+): boolean {
   if (!ent) return false
   if (ent.ghost) return true
-  return ent.kind === 'tree' && Boolean(ent.marked) && woodOk
+  if (ent.kind === 'tree') return Boolean(ent.marked) && woodOk
+  if (ent.kind === 'rock') return Boolean(ent.marked) && stoneOk
+  return false
 }
 
 /** Advance construction drones: assign ghosts, fly, build, return home. */
@@ -640,14 +721,15 @@ export function tickDrones(state: GameState, dt: number): GameState {
   if (dt <= 0 || state.drones.length === 0) return state
 
   const woodOk = canChestsAccept(state, 'wood')
+  const stoneOk = canChestsAccept(state, 'stone')
   const jobs = Object.values(state.entities).filter((e) =>
-    isDroneJob(e, woodOk),
+    isDroneJob(e, woodOk, stoneOk),
   )
   const drones = state.drones.map((d) => ({ ...d }))
   // Jobs already claimed by a still-valid drone.
   const claimed = new Set<string>()
   for (const d of drones) {
-    if (d.targetId && isDroneJob(state.entities[d.targetId], woodOk)) {
+    if (d.targetId && isDroneJob(state.entities[d.targetId], woodOk, stoneOk)) {
       claimed.add(d.targetId)
     }
   }
@@ -672,7 +754,7 @@ export function tickDrones(state: GameState, dt: number): GameState {
 
   for (const d of drones) {
     // Drop targets that were finished, demolished, or lost their chest space.
-    if (d.targetId && !isDroneJob(state.entities[d.targetId], woodOk)) {
+    if (d.targetId && !isDroneJob(state.entities[d.targetId], woodOk, stoneOk)) {
       claimed.delete(d.targetId)
       d.targetId = null
       d.buildProgress = 0
@@ -704,7 +786,12 @@ export function tickDrones(state: GameState, dt: number): GameState {
       if (g && moveToward(d, g.x, g.y)) d.state = 'building'
     } else if (d.state === 'building' && d.targetId) {
       const job = state.entities[d.targetId]
-      const dur = job?.kind === 'tree' ? TREE_CUT_SECONDS : DRONE_BUILD_SECONDS
+      const dur =
+        job?.kind === 'tree'
+          ? TREE_CUT_SECONDS
+          : job?.kind === 'rock'
+            ? ROCK_MINE_SECONDS
+            : DRONE_BUILD_SECONDS
       d.buildProgress += dt / dur
       if (d.buildProgress >= 1) {
         completed.push(d.targetId)
@@ -751,6 +838,9 @@ export function tickDrones(state: GameState, dt: number): GameState {
     if (done?.kind === 'tree') {
       next = fellTree(next, id)
       lastLabel = 'a tree'
+    } else if (done?.kind === 'rock') {
+      next = excavateRock(next, id)
+      lastLabel = 'a rock'
     } else {
       next = finishGhost(next, id)
       lastLabel = PLACEABLE_META[done?.kind as Placeable]?.label ?? 'building'
@@ -764,7 +854,9 @@ export function tickDrones(state: GameState, dt: number): GameState {
           ? `Drones finished ${completed.length} jobs`
           : lastLabel === 'a tree'
             ? 'Drone chopped a tree (+wood)'
-            : `Drone finished ${lastLabel}`,
+            : lastLabel === 'a rock'
+              ? 'Drone excavated a rock (+stone)'
+              : `Drone finished ${lastLabel}`,
     }
   }
   return next
@@ -795,8 +887,10 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     const ent = state.entities[tile.entityId]
     if (!ent) return state
 
-    // Trees are chopped by drones, not the player. Demolish toggles a cut order.
-    if (ent.kind === 'tree') {
+    // Trees/rocks are harvested by drones, not the player. Demolish toggles the order.
+    if (ent.kind === 'tree' || ent.kind === 'rock') {
+      const isRock = ent.kind === 'rock'
+      const item = isRock ? 'stone' : 'wood'
       const entities = { ...state.entities }
       if (ent.marked) {
         entities[ent.id] = { ...ent, marked: false, buildProgress: 0 }
@@ -805,27 +899,42 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
             ? { ...d, targetId: null, buildProgress: 0, state: 'returning' as const }
             : d,
         )
-        return { ...state, entities, drones, unlockedToast: 'Cut order cancelled' }
-      }
-      if (!canChestsAccept(state, 'wood')) {
         return {
           ...state,
-          unlockedToast: 'Place a chest with a free slot so drones can stack the wood',
+          entities,
+          drones,
+          unlockedToast: isRock ? 'Excavation cancelled' : 'Cut order cancelled',
+        }
+      }
+      if (!canChestsAccept(state, item)) {
+        return {
+          ...state,
+          unlockedToast: isRock
+            ? 'Place a chest with a free slot so drones can stack the stone'
+            : 'Place a chest with a free slot so drones can stack the wood',
         }
       }
       entities[ent.id] = { ...ent, marked: true }
+      const bot = hasActiveRoboport(state)
       return {
         ...state,
         entities,
-        unlockedToast: hasActiveRoboport(state)
-          ? 'Tree marked - a drone will chop it'
-          : 'Tree marked - build a roboport so a drone can chop it',
+        unlockedToast: isRock
+          ? bot
+            ? 'Rock marked - a drone will excavate it'
+            : 'Rock marked - build a roboport so a drone can excavate it'
+          : bot
+            ? 'Tree marked - a drone will chop it'
+            : 'Tree marked - build a roboport so a drone can chop it',
       }
     }
 
     const entities = { ...state.entities }
     delete entities[ent.id]
-    tile.entityId = null
+    // Free every tile the (possibly multi-tile) building occupied.
+    for (const c of footprintCells(ent.kind, ent.x, ent.y)) {
+      if (inBounds(c.x, c.y)) tiles[idx(c.x, c.y)].entityId = null
+    }
 
     const invKey = ent.kind as Placeable
     let inventory = gain(state.inventory, { [invKey]: 1 })
@@ -846,14 +955,26 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     return claimGoals(next)
   }
 
-  if (tile.entityId) return state
   const meta = PLACEABLE_META[tool]
+  // Multi-tile buildings need their whole footprint clear and on the map.
+  const cells = footprintCells(tool, x, y)
+  for (const c of cells) {
+    if (!inBounds(c.x, c.y)) {
+      return { ...state, unlockedToast: `${meta.label} does not fit here` }
+    }
+    if (tiles[idx(c.x, c.y)].entityId) {
+      return { ...state, unlockedToast: `${meta.label} needs clear space here` }
+    }
+  }
   if (asItemCount(state.inventory[meta.inventoryKey]) < 1) {
     return { ...state, unlockedToast: `No ${meta.label} in inventory - craft one` }
   }
 
-  if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) {
-    return { ...state, unlockedToast: 'Drills must be placed on an ore patch' }
+  if (
+    (tool === 'drill' || tool === 'electricDrill') &&
+    !drillHasOre(state, x, y)
+  ) {
+    return { ...state, unlockedToast: 'Drills need ore within their 3x3 dig area' }
   }
 
   if (tool === 'chest') {
@@ -893,7 +1014,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     ent.buildProgress = 0
   }
 
-  tile.entityId = ent.id
+  for (const c of cells) tiles[idx(c.x, c.y)].entityId = ent.id
   let next: GameState = {
     ...state,
     tiles,
@@ -980,7 +1101,9 @@ function handleCopyClick(state: GameState, x: number, y: number): GameState {
     for (let cx = x0; cx <= x1; cx++) {
       const tile = state.tiles[idx(cx, cy)]
       const ent = tile.entityId ? state.entities[tile.entityId] : null
-      if (!ent || ent.kind === 'tree') continue
+      if (!ent || ent.kind === 'tree' || ent.kind === 'rock') continue
+      // Multi-tile buildings register on many tiles - only capture the anchor.
+      if (ent.x !== cx || ent.y !== cy) continue
       blueprint.push({
         kind: ent.kind as Placeable,
         dx: cx - x0,
@@ -1032,17 +1155,18 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
   for (const piece of bp) {
     const x = ox + piece.dx
     const y = oy + piece.dy
-    if (!inBounds(x, y)) {
-      return { ...state, unlockedToast: 'Blueprint does not fit on the map' }
+    for (const c of footprintCells(piece.kind, x, y)) {
+      if (!inBounds(c.x, c.y)) {
+        return { ...state, unlockedToast: 'Blueprint does not fit on the map' }
+      }
+      if (state.tiles[idx(c.x, c.y)].entityId) {
+        return { ...state, unlockedToast: 'Paste area is blocked - clear tiles first' }
+      }
     }
-    const tile = state.tiles[idx(x, y)]
-    if (tile.entityId) {
-      return { ...state, unlockedToast: 'Paste area is blocked - clear tiles first' }
-    }
-    if (isDrillKind(piece.kind) && !tile.ore) {
+    if (isDrillKind(piece.kind) && !drillHasOre(state, x, y)) {
       return {
         ...state,
-        unlockedToast: 'Paste needs ore under every drill in the blueprint',
+        unlockedToast: 'Paste needs ore in every drill\u2019s dig area',
       }
     }
   }
@@ -1073,7 +1197,9 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     // Pasted layouts are always blueprints - a drone builds them.
     ent.ghost = true
     ent.buildProgress = 0
-    tiles[idx(x, y)].entityId = ent.id
+    for (const c of footprintCells(piece.kind, x, y)) {
+      tiles[idx(c.x, c.y)].entityId = ent.id
+    }
     entities[ent.id] = ent
   }
 

@@ -21,6 +21,7 @@ import {
   isDrillKind,
   isFurnaceKind,
   isInserterKind,
+  sizeOf,
   storeTotal,
   xpForLevel,
 } from '../game/data'
@@ -30,6 +31,8 @@ import { inserterIoAt } from '../game/grid'
 import { activeGoal } from '../game/goals'
 import { contractComplete } from '../game/contracts'
 import {
+  canPlaceFootprint,
+  drillHasOre,
   fuelAllDrills,
   fuelDrillAt,
   placeEntity,
@@ -69,7 +72,7 @@ import {
 import { useProductionRates } from '../hooks/useProductionRates'
 import { MachineInventory, hasMachineInventory } from './MachineInventory'
 import { resolveTheme, subscribeTheme } from '../theme'
-import type { Dir, Entity, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
+import type { Dir, Entity, EntityKind, GameState, ItemId, OreId, Placeable, ToolId } from '../game/types'
 
 const CELL = 56
 const ZOOM_MIN = 0.45
@@ -121,6 +124,7 @@ const HUD_RESOURCES: ItemId[] = [
   'gear',
   'steel',
   'wood',
+  'stone',
 ]
 
 type Highlight =
@@ -320,9 +324,9 @@ function needsPlaceDir(tool: ToolId | null): boolean {
 function canPlaceAt(tool: ToolId | null, x: number, y: number, state: GameState): boolean {
   if (!tool || isEditMetaTool(tool)) return false
   if (x < 0 || y < 0 || x >= state.width || y >= state.height) return false
-  const tile = state.tiles[idx(x, y)]
-  if (tile.entityId) return false
-  if ((tool === 'drill' || tool === 'electricDrill') && !tile.ore) return false
+  if (!canPlaceFootprint(state, tool, x, y)) return false
+  if ((tool === 'drill' || tool === 'electricDrill') && !drillHasOre(state, x, y))
+    return false
   if (tool === 'chest') {
     if (countPlacedChests(state.entities) >= maxChestsFor(state.researched, state.completedGoals)) return false
   }
@@ -1317,6 +1321,25 @@ export function FactoryFloor({
               Array.from({ length: width }, (_, x) => {
                 const tile = tiles[idx(x, y)]
                 const ent = tile.entityId ? entities[tile.entityId] : null
+                // Multi-tile buildings register on every tile they cover, but
+                // only the top-left anchor tile draws the (oversized) sprite.
+                const entSize = ent ? sizeOf(ent.kind) : { w: 1, h: 1 }
+                const isAnchor = !ent || (ent.x === x && ent.y === y)
+                const drawEnt = !!ent && isAnchor
+                const entBig = entSize.w > 1 || entSize.h > 1
+                const selSize =
+                  selected && !isEditMetaTool(selected)
+                    ? sizeOf(selected as EntityKind)
+                    : { w: 1, h: 1 }
+                const selBig = selSize.w > 1 || selSize.h > 1
+                const bigStyle = (w: number, h: number): CSSProperties => ({
+                  left: 0,
+                  top: 0,
+                  right: 'auto',
+                  bottom: 'auto',
+                  width: w * CELL,
+                  height: h * CELL,
+                })
                 const seed = x * 13 + y * 29
                 const isHover = hover?.x === x && hover?.y === y
                 const inSelect =
@@ -1333,7 +1356,9 @@ export function FactoryFloor({
                   isHover && !!selected && !isEditMetaTool(selected)
 
                 const isGhost = Boolean(ent?.ghost)
-                const isMarkedTree = ent?.kind === 'tree' && Boolean(ent.marked)
+                const isMarkedTree =
+                  (ent?.kind === 'tree' || ent?.kind === 'rock') &&
+                  Boolean(ent.marked)
                 const lit = Boolean(
                   ent &&
                     !isGhost &&
@@ -1342,7 +1367,10 @@ export function FactoryFloor({
                 )
                 const active = Boolean(
                   !isGhost &&
-                    ((isDrillKind(ent?.kind ?? 'belt') && tile.ore && state.power > 0) ||
+                    ((ent &&
+                      isDrillKind(ent.kind) &&
+                      drillHasOre(state, ent.x, ent.y) &&
+                      state.power > 0) ||
                       (ent?.kind === 'generator' && state.power > 0) ||
                       (ent?.kind === 'roboport' &&
                         state.drones.some((d) => d.homeId === ent.id && d.state !== 'idle'))),
@@ -1370,6 +1398,7 @@ export function FactoryFloor({
                       'cell',
                       tile.ore ? `ore-${tile.ore}` : 'ore-none',
                       ent ? `has-${ent.kind}` : '',
+                      (drawEnt && entBig) || (showGhost && selBig) ? 'is-big' : '',
                       isHover ? 'is-hover' : '',
                       inSelect ? 'is-select' : '',
                       isCopyCorner ? 'is-copy-corner' : '',
@@ -1399,8 +1428,11 @@ export function FactoryFloor({
                       )}
                     </span>
 
-                    {ent && (
-                      <span className="cell-ent">
+                    {drawEnt && ent && (
+                      <span
+                        className="cell-ent"
+                        style={entBig ? bigStyle(entSize.w, entSize.h) : undefined}
+                      >
                         <EntitySprite
                           kind={ent.kind}
                           dir={ent.dir}
@@ -1416,7 +1448,7 @@ export function FactoryFloor({
                       </span>
                     )}
 
-                    {ent && isInserterKind(ent.kind) && (
+                    {drawEnt && ent && isInserterKind(ent.kind) && (
                       <InserterDirOverlay dir={ent.dir} />
                     )}
 
@@ -1430,7 +1462,10 @@ export function FactoryFloor({
                     )}
 
                     {showGhost && (
-                      <span className="cell-ghost">
+                      <span
+                        className="cell-ghost"
+                        style={selBig ? bigStyle(selSize.w, selSize.h) : undefined}
+                      >
                         <EntitySprite kind={selected as Placeable} dir={hoverDir} />
                       </span>
                     )}
@@ -1468,7 +1503,7 @@ export function FactoryFloor({
                         </span>
                       )}
 
-                    {ent &&
+                    {drawEnt && ent &&
                       (ent.kind === 'drill' ||
                         ent.kind === 'electricDrill' ||
                         isFurnaceKind(ent.kind) ||
@@ -1487,7 +1522,7 @@ export function FactoryFloor({
                       />
                     )}
 
-                    {ent && (isGhost || isMarkedTree) && (
+                    {drawEnt && ent && (isGhost || isMarkedTree || (ent.kind === 'rock' && ent.marked)) && (
                       <span
                         className="build-bar"
                         style={{
@@ -2048,6 +2083,8 @@ function Minimap({
           else if (kind.includes('drill')) ctx.fillStyle = light ? '#3d9e5f' : '#7dff9a'
           else if (kind.includes('furnace') || kind === 'assembler') ctx.fillStyle = '#e07040'
           else if (kind === 'tree') ctx.fillStyle = ent.marked ? '#e0b050' : '#2f6b32'
+          else if (kind === 'rock') ctx.fillStyle = ent.marked ? '#e0b050' : '#8f867a'
+          else if (kind === 'roboport') ctx.fillStyle = '#3fa7c9'
           else ctx.fillStyle = '#7b8792'
           ctx.fillRect(x * scale, y * scale, scale, scale)
 
