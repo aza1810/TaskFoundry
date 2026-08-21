@@ -1631,22 +1631,6 @@ export function FactoryFloor({
           )}
           {railOpen && selected && (
             <div className="build-rail-tray" role="toolbar" aria-label="Build tools">
-              <div className="build-rail-cat">
-                <strong>
-                  {toolTab === 'build'
-                    ? 'Build'
-                    : toolTab === 'logistics'
-                      ? 'Logistics'
-                      : 'Edit'}
-                </strong>
-                <span>
-                  {toolTab === 'build'
-                    ? 'Machines & storage'
-                    : toolTab === 'logistics'
-                      ? 'Move items around'
-                      : 'Demolish · rotate · copy'}
-                </span>
-              </div>
               <div className="build-rail-tools">
                 {toolsForTab.map((tool) => {
                   const unlocked = isUnlocked(tool, state.researched)

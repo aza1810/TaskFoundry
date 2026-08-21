@@ -4360,8 +4360,8 @@ html[data-theme='light'] .machine-progress-track {
 
 .build-rail-tray {
   display: grid;
-  gap: 0.28rem;
-  padding: 0.4rem 0.32rem 0.32rem;
+  gap: 0.2rem;
+  padding: 0.28rem 0.3rem 0.24rem;
   border: 1px solid rgba(201, 162, 39, 0.35);
   border-radius: 12px;
   background: rgba(12, 11, 9, 0.78);
@@ -4402,18 +4402,21 @@ html[data-theme='light'] .machine-progress-track {
 }
 
 .build-rail-tools {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr));
-  gap: 0.32rem;
-  max-height: 42vh;
-  overflow-y: auto;
-  padding: 0.1rem;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.06rem 0.06rem 0.2rem;
   scrollbar-width: thin;
   scrollbar-color: rgba(201, 162, 39, 0.45) transparent;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
 }
 
 .build-rail-tools::-webkit-scrollbar {
-  width: 5px;
+  height: 5px;
 }
 
 .build-rail-tools::-webkit-scrollbar-thumb {
@@ -4423,17 +4426,20 @@ html[data-theme='light'] .machine-progress-track {
 
 .rail-tool {
   position: relative;
+  flex: 0 0 auto;
+  width: 3.5rem;
   display: grid;
   grid-template-rows: auto auto;
   justify-items: center;
   align-content: center;
-  gap: 0.22rem;
-  padding: 0.45rem 0.3rem 0.38rem;
-  min-height: 4.3rem;
+  gap: 0.14rem;
+  padding: 0.32rem 0.18rem 0.28rem;
+  min-height: 3.6rem;
+  scroll-snap-align: start;
   border: 1px solid rgba(96, 82, 54, 0.9);
   background: linear-gradient(180deg, rgba(46, 40, 28, 0.96), rgba(24, 20, 14, 0.96));
   color: #ece4d6;
-  border-radius: 11px;
+  border-radius: 10px;
   transition:
     border-color 0.12s ease,
     box-shadow 0.12s ease,
@@ -4445,8 +4451,8 @@ html[data-theme='light'] .machine-progress-track {
 }
 
 .rail-tool-icon {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
 }
 
@@ -4457,26 +4463,25 @@ html[data-theme='light'] .machine-progress-track {
 }
 
 .rail-tool-name {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 700;
   line-height: 1.05;
   text-align: center;
   max-width: 100%;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
   color: #d8cdb6;
 }
 
 .rail-tool-count {
   position: absolute;
-  top: 0.2rem;
-  right: 0.2rem;
-  min-width: 1rem;
-  padding: 0.02rem 0.2rem;
+  top: 0.15rem;
+  right: 0.15rem;
+  min-width: 0.9rem;
+  padding: 0.01rem 0.18rem;
   font-family: var(--font-mono);
-  font-size: 0.54rem;
+  font-size: 0.5rem;
   font-weight: 700;
   line-height: 1.25;
   color: #1a1612;
@@ -4488,9 +4493,9 @@ html[data-theme='light'] .machine-progress-track {
 
 .rail-tool-lock {
   position: absolute;
-  top: 0.15rem;
-  left: 0.2rem;
-  font-size: 0.6rem;
+  top: 0.12rem;
+  left: 0.15rem;
+  font-size: 0.55rem;
   line-height: 1;
 }
 
@@ -5606,26 +5611,6 @@ html[data-theme='light'] .machine-progress-track {
   text-transform: uppercase;
   color: #a89878;
   padding-right: 0.12rem;
-}
-
-.rail-tool.is-named {
-  width: 3.05rem;
-  height: 3.15rem;
-  padding-bottom: 0.15rem;
-}
-
-.rail-tool-name {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0.08rem;
-  font-size: 0.48rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #f0e0a0;
-  line-height: 1;
-  pointer-events: none;
 }
 
 @keyframes ore-hint-pulse {
