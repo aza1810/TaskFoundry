@@ -66,7 +66,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'placeDrill',
     title: 'Blueprint a mining drill',
-    body: 'Pick Drill and tap a glowing brown iron tile. The drill is 2x2 and mines a 3x3 patch around its top-left. It drops as a blueprint and your drone flies over to build it. Face the orange port toward empty ground: ore dumps onto the two tiles in front of the drill, so put the belt there, not on the drill itself. Place a generator within 5 tiles, or pave Foundation toward one, so the drill can run.',
+    body: 'Pick Drill and tap a glowing brown iron tile. The drill is 2x2 and mines a 3x3 patch around its top-left. It drops as a blueprint and your drone flies over to build it. Face the orange port toward empty ground: ore dumps onto one belt square in front of that port (the top square by default). Rotate to turn the drill, Flip to pick the other square. Place a generator within 5 tiles, or pave Foundation toward one, so the drill can run.',
     mode: 'coach',
     tab: 'factory',
     action: 'Tap a glowing iron-ore tile',

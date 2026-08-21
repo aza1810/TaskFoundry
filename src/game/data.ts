@@ -85,12 +85,12 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto belts in front of the orange port. Needs a generator or powered Foundation within 5 tiles.',
+    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto one belt in front of the orange port. Rotate to turn, Flip to pick the other output square. Needs a generator or powered Foundation within 5 tiles.',
   },
   electricDrill: {
     label: 'Electric Drill',
     inventoryKey: 'electricDrill',
-    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle. Needs a generator or powered Foundation within 5 tiles.',
+    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle. Rotate and Flip to choose the output square. Needs a generator or powered Foundation within 5 tiles.',
   },
   belt: {
     label: 'Transport Belt',
@@ -522,35 +522,35 @@ export function mineCells(x: number, y: number): { x: number; y: number }[] {
   return out
 }
 
-/** Tiles just outside a drill's footprint on its facing side (belt drop cells). */
+/** The single tile a drill dumps onto (one square on the facing edge). */
 export function drillOutputCells(
   kind: EntityKind,
   x: number,
   y: number,
   dir: Dir,
+  flip = false,
 ): { x: number; y: number }[] {
   const { w, h } = sizeOf(kind)
-  if (dir === 'E') return [{ x: x + w, y }, { x: x + w, y: y + 1 }].slice(0, h)
-  if (dir === 'W') return [{ x: x - 1, y }, { x: x - 1, y: y + 1 }].slice(0, h)
-  if (dir === 'S') return [{ x, y: y + h }, { x: x + 1, y: y + h }].slice(0, w)
-  return [{ x, y: y - 1 }, { x: x + 1, y: y - 1 }].slice(0, w)
+  const slot = flip ? 1 : 0
+  if (w < 2 && h < 2) {
+    const { dx, dy } = DIR_DELTA[dir]
+    return [{ x: x + dx, y: y + dy }]
+  }
+  if (dir === 'E') return [{ x: x + w, y: y + slot }]
+  if (dir === 'S') return [{ x: x + (slot ? 0 : w - 1), y: y + h }]
+  if (dir === 'W') return [{ x: x - 1, y: y + (slot ? 0 : h - 1) }]
+  return [{ x: x + slot, y: y - 1 }]
 }
 
-/**
- * Every tile a drill may drop onto: the facing edge of the current
- * footprint, plus the old 1-tile neighbor so pre-2x2 lines still work.
- */
+/** Same as drillOutputCells: one dump tile, matching the orange port. */
 export function drillDropCells(
   kind: EntityKind,
   x: number,
   y: number,
   dir: Dir,
+  flip = false,
 ): { x: number; y: number }[] {
-  const cells = drillOutputCells(kind, x, y, dir)
-  const { dx, dy } = DIR_DELTA[dir]
-  const legacy = { x: x + dx, y: y + dy }
-  if (!cells.some((c) => c.x === legacy.x && c.y === legacy.y)) cells.push(legacy)
-  return cells
+  return drillOutputCells(kind, x, y, dir, flip)
 }
 
 /** Anchor used to space a production line from a multi-tile building's output edge. */
@@ -766,7 +766,8 @@ export function isEntityPlaceable(tool: ToolId | null): tool is EntityPlaceable 
     tool !== 'remove' &&
     tool !== 'copy' &&
     tool !== 'paste' &&
-    tool !== 'rotate'
+    tool !== 'rotate' &&
+    tool !== 'flip'
   )
 }
 

@@ -30,6 +30,8 @@ import {
   resetGame,
   rotateEntityAt as rotateEntityAtLogic,
   rotatePlaceDir as rotatePlaceDirLogic,
+  flipEntityAt as flipEntityAtLogic,
+  flipPlaceDir as flipPlaceDirLogic,
   saveState,
   selectTool as selectToolLogic,
   setFocusSkill as setFocusSkillLogic,
@@ -58,8 +60,10 @@ type Action =
   | { type: 'TICK'; now: number }
   | { type: 'SELECT'; tool: GameState['selected'] }
   | { type: 'ROTATE_DIR' }
+  | { type: 'FLIP_DIR' }
   | { type: 'PLACE'; x: number; y: number }
   | { type: 'ROTATE_AT'; x: number; y: number }
+  | { type: 'FLIP_AT'; x: number; y: number }
   | { type: 'LOG_STEPS'; amount: number }
   | { type: 'IMPORT_HEALTH_STEPS'; healthStepsToday: number; quiet?: boolean }
   | { type: 'COMPLETE_HABIT'; id: string }
@@ -92,10 +96,14 @@ function reducer(state: GameState, action: Action): GameState {
       return selectToolLogic(state, action.tool)
     case 'ROTATE_DIR':
       return rotatePlaceDirLogic(state)
+    case 'FLIP_DIR':
+      return flipPlaceDirLogic(state)
     case 'PLACE':
       return placeEntityLogic(state, action.x, action.y)
     case 'ROTATE_AT':
       return rotateEntityAtLogic(state, action.x, action.y)
+    case 'FLIP_AT':
+      return flipEntityAtLogic(state, action.x, action.y)
     case 'LOG_STEPS':
       return logStepsLogic(state, action.amount)
     case 'IMPORT_HEALTH_STEPS':
@@ -154,8 +162,10 @@ interface GameContextValue {
   cloudSync: CloudSyncStatus
   selectTool: (tool: GameState['selected']) => void
   rotateDir: () => void
+  flipDir: () => void
   place: (x: number, y: number) => void
   rotateAt: (x: number, y: number) => void
+  flipAt: (x: number, y: number) => void
   logSteps: (amount: number) => void
   importHealthSteps: (healthStepsToday: number, options?: { quiet?: boolean }) => void
   completeHabit: (id: string) => void
@@ -181,6 +191,7 @@ interface GameContextValue {
   exportSaveFile: () => void
   importSaveFile: (file: File) => Promise<string | null>
   placeDir: Dir
+  placeFlip: boolean
   selected: GameState['selected']
 }
 
@@ -415,6 +426,7 @@ export function GameProvider({
       }
       const key = e.key.toLowerCase()
       if (key === 'r') dispatch({ type: 'ROTATE_DIR' })
+      if (key === 'f') dispatch({ type: 'FLIP_DIR' })
       if (key === 'q' || key === 'x') dispatch({ type: 'SELECT', tool: 'remove' })
       if (key === '1') dispatch({ type: 'SELECT', tool: 'drill' })
       if (key === '2') dispatch({ type: 'SELECT', tool: 'belt' })
@@ -435,12 +447,17 @@ export function GameProvider({
     [],
   )
   const rotateDir = useCallback(() => dispatch({ type: 'ROTATE_DIR' }), [])
+  const flipDir = useCallback(() => dispatch({ type: 'FLIP_DIR' }), [])
   const place = useCallback(
     (x: number, y: number) => dispatch({ type: 'PLACE', x, y }),
     [],
   )
   const rotateAt = useCallback(
     (x: number, y: number) => dispatch({ type: 'ROTATE_AT', x, y }),
+    [],
+  )
+  const flipAt = useCallback(
+    (x: number, y: number) => dispatch({ type: 'FLIP_AT', x, y }),
     [],
   )
   const logSteps = useCallback(
@@ -613,8 +630,10 @@ export function GameProvider({
       cloudSync,
       selectTool,
       rotateDir,
+      flipDir,
       place,
       rotateAt,
+      flipAt,
       logSteps,
       importHealthSteps,
       completeHabit,
@@ -640,6 +659,7 @@ export function GameProvider({
       exportSaveFile,
       importSaveFile,
       placeDir: state.placeDir,
+      placeFlip: state.placeFlip,
       selected: state.selected,
     }),
     [
@@ -647,8 +667,10 @@ export function GameProvider({
       cloudSync,
       selectTool,
       rotateDir,
+      flipDir,
       place,
       rotateAt,
+      flipAt,
       logSteps,
       importHealthSteps,
       completeHabit,

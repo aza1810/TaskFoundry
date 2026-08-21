@@ -27,6 +27,7 @@ import {
   MAX_UNDERGROUND,
   OFFLINE_CAP_SECONDS,
   OFFLINE_REPORT_SECONDS,
+  OPPOSITE,
   PLACEABLE_META,
   RECIPE_MAP,
   SAVE_KEY,
@@ -178,6 +179,7 @@ export function createInitialState(): GameState {
     mineCycles: 0,
     selected: null,
     placeDir: 'E',
+    placeFlip: false,
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
@@ -309,6 +311,7 @@ export function loadState(accountSaveKey?: string): GameState {
     }
     next = { ...next, inventory: sanitizeInventory(next.inventory) }
     if (parsed.version < 10) next = migrateToFoundations(next)
+    if (typeof next.placeFlip !== 'boolean') next = { ...next, placeFlip: false }
     next = stampFootprints(next)
     next = scrubChestsToWarehouse(next)
     next = sweepPackToChests(next)
@@ -614,6 +617,10 @@ export function selectTool(state: GameState, tool: GameState['selected']): GameS
 
 export function rotatePlaceDir(state: GameState): GameState {
   return { ...state, placeDir: rotateDir(state.placeDir) }
+}
+
+export function flipPlaceDir(state: GameState): GameState {
+  return { ...state, placeFlip: !state.placeFlip }
 }
 
 export function setPlaceDir(state: GameState, dir: Dir): GameState {
@@ -937,6 +944,11 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
     if (!tile?.entityId) return state
     return rotateEntityAt(state, x, y)
   }
+  if (tool === 'flip') {
+    const tile = getTile(state.tiles, x, y)
+    if (!tile?.entityId) return state
+    return flipEntityAt(state, x, y)
+  }
 
   const tiles = state.tiles.map((t) => ({ ...t }))
   const tile = tiles[idx(x, y)]
@@ -1084,6 +1096,7 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
 
   const inventory = spend(state.inventory, { [meta.inventoryKey]: 1 })
   const ent = createEntity(tool, x, y, placeDir)
+  if (isDrillKind(tool)) ent.flip = state.placeFlip
 
   if (tool === 'splitter') {
     ent.toggle = 0
@@ -1197,6 +1210,7 @@ function handleCopyClick(state: GameState, x: number, y: number): GameState {
         dy: cy - y0,
         dir: ent.dir,
         toggle: ent.toggle,
+        flip: ent.flip,
       })
     }
   }
@@ -1280,6 +1294,7 @@ function pasteBlueprint(state: GameState, ox: number, oy: number): GameState {
     inventory = spend(inventory, { [piece.kind]: 1 })
     const ent = createEntity(piece.kind, x, y, piece.dir)
     if (piece.toggle !== undefined) ent.toggle = piece.toggle
+    if (piece.flip) ent.flip = true
     if (piece.kind === 'splitter' && ent.toggle === undefined) ent.toggle = 0
     // Pasted layouts are always blueprints - a drone builds them.
     ent.ghost = true
@@ -1306,11 +1321,37 @@ export function rotateEntityAt(state: GameState, x: number, y: number): GameStat
   if (!tile?.entityId) return rotatePlaceDir(state)
   const ent = state.entities[tile.entityId]
   if (!ent) return state
+  if (ent.kind === 'tree' || ent.kind === 'rock') return state
   return {
     ...state,
     entities: {
       ...state.entities,
       [ent.id]: { ...ent, dir: rotateDir(ent.dir) },
+    },
+  }
+}
+
+/** Drills: swap output square. Other buildings: turn 180. */
+export function flipEntityAt(state: GameState, x: number, y: number): GameState {
+  const tile = getTile(state.tiles, x, y)
+  if (!tile?.entityId) return flipPlaceDir(state)
+  const ent = state.entities[tile.entityId]
+  if (!ent) return state
+  if (ent.kind === 'tree' || ent.kind === 'rock') return state
+  if (isDrillKind(ent.kind)) {
+    return {
+      ...state,
+      entities: {
+        ...state.entities,
+        [ent.id]: { ...ent, flip: !ent.flip },
+      },
+    }
+  }
+  return {
+    ...state,
+    entities: {
+      ...state.entities,
+      [ent.id]: { ...ent, dir: OPPOSITE[ent.dir] },
     },
   }
 }

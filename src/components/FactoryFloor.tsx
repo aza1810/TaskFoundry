@@ -178,7 +178,7 @@ const LOGISTICS_TOOLS: Placeable[] = [
   'inserter',
   'longInserter',
 ]
-const EDIT_TOOLS: ToolId[] = ['remove', 'rotate', 'copy', 'paste']
+const EDIT_TOOLS: ToolId[] = ['remove', 'rotate', 'flip', 'copy', 'paste']
 
 const TOOL_TABS: { id: ToolTab; label: string }[] = [
   { id: 'build', label: 'Build' },
@@ -196,8 +196,14 @@ function tabTools(tab: ToolTab): ToolId[] {
 
 function isEditMetaTool(
   tool: ToolId | null,
-): tool is 'remove' | 'rotate' | 'copy' | 'paste' {
-  return tool === 'remove' || tool === 'rotate' || tool === 'copy' || tool === 'paste'
+): tool is 'remove' | 'rotate' | 'flip' | 'copy' | 'paste' {
+  return (
+    tool === 'remove' ||
+    tool === 'rotate' ||
+    tool === 'flip' ||
+    tool === 'copy' ||
+    tool === 'paste'
+  )
 }
 
 function dirArrow(dir: Entity['dir']): string {
@@ -299,6 +305,7 @@ function isUnlocked(tool: ToolId, researched: string[]): boolean {
   if (
     tool === 'remove' ||
     tool === 'rotate' ||
+    tool === 'flip' ||
     tool === 'copy' ||
     tool === 'paste' ||
     tool === 'drill' ||
@@ -384,12 +391,15 @@ export function FactoryFloor({
     state,
     place,
     rotateAt,
+    flipAt,
     selectTool,
     rotateDir,
+    flipDir,
     fuelDrills,
     fuelAt,
     selected,
     placeDir,
+    placeFlip,
   } = useGame()
   const { width, height, tiles, entities, copyCorner, blueprint } = state
   const inserterCd = inserterCooldownFor(
@@ -527,7 +537,8 @@ export function FactoryFloor({
     tool === 'rotate' ||
     tool === 'inserter' ||
     tool === 'longInserter' ||
-    tool === 'foundation'
+    tool === 'foundation' ||
+    tool === 'flip'
 
   const inspectEnt = useMemo(() => {
     if (!inspect) return null
@@ -699,11 +710,13 @@ export function FactoryFloor({
       gesture.current.lastCell = key
       const beforeId = state.tiles[idx(x, y)]?.entityId
       const beforeDir = beforeId ? state.entities[beforeId]?.dir : null
+      const beforeFlip = beforeId ? state.entities[beforeId]?.flip : null
       const beforeFound = Boolean(state.tiles[idx(x, y)]?.foundation)
       const preview = placeEntity(state, x, y)
       place(x, y)
       const afterId = preview.tiles[idx(x, y)]?.entityId
       const afterDir = afterId ? preview.entities[afterId]?.dir : null
+      const afterFlip = afterId ? preview.entities[afterId]?.flip : null
       const afterFound = Boolean(preview.tiles[idx(x, y)]?.foundation)
       const placed = Boolean(afterId && afterId !== beforeId)
       const removed = Boolean(beforeId && !afterId)
@@ -711,6 +724,9 @@ export function FactoryFloor({
       const unpaved = beforeFound && !afterFound
       const rotated = Boolean(
         beforeId && afterId && beforeId === afterId && beforeDir !== afterDir,
+      )
+      const flipped = Boolean(
+        beforeId && afterId && beforeId === afterId && beforeFlip !== afterFlip,
       )
 
       if (selected === 'remove') {
@@ -745,6 +761,18 @@ export function FactoryFloor({
         return
       }
 
+      if (selected === 'flip') {
+        if (flipped || rotated) {
+          setFlash(key)
+          window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
+          buzz(8)
+          spawnFloater(x, y, 'flip', 'place')
+        } else {
+          buzz(4)
+        }
+        return
+      }
+
       if (selected && !isEditMetaTool(selected)) {
         if (placed || paved) {
           setFlash(key)
@@ -759,7 +787,7 @@ export function FactoryFloor({
       }
 
       // copy / paste / other meta - still flash on any entity change
-      if (placed || removed || rotated || preview.blueprint !== state.blueprint) {
+      if (placed || removed || rotated || flipped || preview.blueprint !== state.blueprint) {
         setFlash(key)
         window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
         buzz(8)
@@ -1044,11 +1072,13 @@ export function FactoryFloor({
       ? 'Demolish'
       : selected === 'rotate'
         ? 'Rotate'
-        : selected === 'copy'
-          ? 'Copy'
-          : selected === 'paste'
-            ? 'Paste'
-            : PLACEABLE_META[selected].label
+        : selected === 'flip'
+          ? 'Flip'
+          : selected === 'copy'
+            ? 'Copy'
+            : selected === 'paste'
+              ? 'Paste'
+              : PLACEABLE_META[selected].label
 
   const selectedToolCount =
     selected && !isEditMetaTool(selected)
@@ -1070,7 +1100,11 @@ export function FactoryFloor({
           ? dragBuild
             ? 'Drag to rotate a path · tap to rotate one'
             : 'Tap to rotate · drag pans'
-          : selected === 'copy'
+          : selected === 'flip'
+            ? dragBuild
+              ? 'Drag to flip a path · tap to flip one'
+              : 'Tap to flip · drag pans'
+            : selected === 'copy'
             ? 'Tap two corners · drag to pan'
             : selected === 'paste'
               ? 'Tap origin · drag to pan'
@@ -1092,7 +1126,11 @@ export function FactoryFloor({
       ? 'Hold-drag clears a path'
       : selected === 'rotate'
         ? 'Or use the yellow arrow FAB'
-        : selected === 'copy'
+        : selected === 'flip'
+          ? 'Drills swap dump square; others turn 180'
+          : selected === 'drill' || selected === 'electricDrill'
+            ? 'Rotate turns; Flip picks the dump square'
+          : selected === 'copy'
           ? 'Second tap finishes the box'
           : selected === 'paste'
             ? state.blueprint
@@ -1144,13 +1182,13 @@ export function FactoryFloor({
 
     for (const e of Object.values(entities)) {
       if (e.ghost || !isDrillKind(e.kind)) continue
-      for (const cell of drillOutputCells(e.kind, e.x, e.y, e.dir)) {
+      for (const cell of drillOutputCells(e.kind, e.x, e.y, e.dir, e.flip === true)) {
         mark(drop, cell)
       }
     }
 
     if (hover && (selected === 'drill' || selected === 'electricDrill')) {
-      for (const cell of drillOutputCells(selected, hover.x, hover.y, hoverDir)) {
+      for (const cell of drillOutputCells(selected, hover.x, hover.y, hoverDir, placeFlip)) {
         mark(drop, cell)
       }
     }
@@ -1166,7 +1204,7 @@ export function FactoryFloor({
     }
 
     return { pickup, drop }
-  }, [entities, width, height, hover, selected, hoverDir, active])
+  }, [entities, width, height, hover, selected, hoverDir, placeFlip, active])
 
   const beltBends = useMemo(() => {
     if (!active) return EMPTY_BENDS
@@ -1505,6 +1543,7 @@ export function FactoryFloor({
                           progress={ent.progress}
                           cooldown={inserterCd}
                           turn={beltBend?.turn}
+                          flip={ent.flip}
                         />
                       </span>
                     )}
@@ -1530,7 +1569,11 @@ export function FactoryFloor({
                         {selected === 'foundation' ? (
                           <FoundationSprite />
                         ) : isEntityPlaceable(selected) ? (
-                          <EntitySprite kind={selected} dir={hoverDir} />
+                          <EntitySprite
+                            kind={selected}
+                            dir={hoverDir}
+                            flip={placeFlip}
+                          />
                         ) : null}
                       </span>
                     )}
@@ -1546,6 +1589,7 @@ export function FactoryFloor({
                           kind={bpGhost.kind}
                           dir={bpGhost.dir}
                           toggle={bpGhost.toggle}
+                          flip={bpGhost.flip}
                         />
                       </span>
                     )}
@@ -1682,6 +1726,24 @@ export function FactoryFloor({
               {dirArrow(placeDir)}
             </button>
           )}
+          {(selected === 'drill' || selected === 'electricDrill') && (
+            <button
+              type="button"
+              className={`fab-btn fab-flip${placeFlip ? ' is-on' : ''}`}
+              onClick={() => {
+                flipDir()
+                buzz(6)
+              }}
+              aria-label="Flip output square"
+              title={
+                placeFlip
+                  ? 'Dump: other facing square'
+                  : 'Dump: primary facing square'
+              }
+            >
+              {placeDir === 'N' || placeDir === 'S' ? '↔' : '↕'}
+            </button>
+          )}
           <button type="button" className="fab-btn" onClick={recenter} aria-label="Recenter">
             ⌖
           </button>
@@ -1738,11 +1800,13 @@ export function FactoryFloor({
                       ? 'Demolish'
                       : tool === 'rotate'
                         ? 'Rotate'
-                        : tool === 'copy'
-                          ? 'Copy'
-                          : tool === 'paste'
-                            ? 'Paste'
-                            : PLACEABLE_META[tool].label
+                        : tool === 'flip'
+                          ? 'Flip'
+                          : tool === 'copy'
+                            ? 'Copy'
+                            : tool === 'paste'
+                              ? 'Paste'
+                              : PLACEABLE_META[tool].label
                   const count = isEditMetaTool(tool)
                     ? tool === 'paste' && state.blueprint
                       ? state.blueprint.length
@@ -1880,6 +1944,7 @@ export function FactoryFloor({
                     if (next) {
                       selectTool(next)
                       setRailOpen(true)
+                      setInspect(null)
                     }
                   }}
                 >
@@ -1944,14 +2009,50 @@ export function FactoryFloor({
                   <strong>Empty ground</strong>
                 )}
               </div>
-              <button
-                type="button"
-                className="inspect-card-close"
-                onClick={() => closeInspect()}
-                aria-label="Close"
-              >
-                ×
-              </button>
+              <div className="inspect-card-head-actions">
+                {inspectEnt &&
+                  inspectEnt.kind !== 'tree' &&
+                  inspectEnt.kind !== 'rock' && (
+                    <>
+                      <button
+                        type="button"
+                        className="inspect-card-tool"
+                        onClick={() => {
+                          rotateAt(inspect.x, inspect.y)
+                          buzz(8)
+                        }}
+                        aria-label="Rotate"
+                        title="Rotate"
+                      >
+                        Turn
+                      </button>
+                      <button
+                        type="button"
+                        className="inspect-card-tool"
+                        onClick={() => {
+                          flipAt(inspect.x, inspect.y)
+                          buzz(8)
+                        }}
+                        aria-label="Flip"
+                        title={
+                          isDrillKind(inspectEnt.kind)
+                            ? 'Swap dump square'
+                            : 'Turn 180'
+                        }
+                      >
+                        Flip
+                      </button>
+                    </>
+                  )}
+                <button
+                  type="button"
+                  className="inspect-card-close"
+                  onClick={() => closeInspect()}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {inspectEnt ? (
@@ -1960,7 +2061,7 @@ export function FactoryFloor({
                   {PLACEABLE_META[inspectEnt.kind as Placeable]?.hint ??
                     (inspectEnt.kind === 'assembler'
                       ? 'Crafts gears from iron plates.'
-                      : 'Rotate to turn; Demolish to remove.')}
+                      : 'Use Turn or Flip in the header; Demolish to remove.')}
                 </p>
                 {(() => {
                   const status = machineStatus(inspectEnt, inspectTile, state)
@@ -1997,16 +2098,6 @@ export function FactoryFloor({
                     </div>
                   )}
                 <div className="inspect-card-actions">
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    onClick={() => {
-                      rotateAt(inspect.x, inspect.y)
-                      buzz(8)
-                    }}
-                  >
-                    Rotate
-                  </button>
                   {isFurnaceKind(inspectEnt.kind) && (
                     <button
                       type="button"

@@ -237,7 +237,7 @@ export function tutorialCoachHint(
     return 'Tap or hold-drag to paint belts. They carry items the way the chevrons point.'
   }
   if (next.id === 'drill') {
-    return 'Drills only go on ore. Aim the orange port at empty ground for the belt.'
+    return 'Drills only go on ore. Aim the orange port at one belt square. Flip picks the other square.'
   }
   if (next.id === 'chest1') {
     return 'Place the chest on the glowing ghost. Belts cannot dump into it. Use an inserter.'
@@ -437,7 +437,13 @@ export function suggestPlaceDir(
         const nEnt = entityAt(state, x - dx * i, y - dy * i)
         if (!nEnt) continue
         if (isDrillKind(nEnt.kind)) {
-          const drops = drillOutputCells(nEnt.kind, nEnt.x, nEnt.y, nEnt.dir)
+          const drops = drillOutputCells(
+            nEnt.kind,
+            nEnt.x,
+            nEnt.y,
+            nEnt.dir,
+            nEnt.flip === true,
+          )
           if (drops.some((c) => c.x === x && c.y === y)) return nEnt.dir
           if (nEnt.dir === dir) return nEnt.dir
         }
@@ -448,7 +454,7 @@ export function suggestPlaceDir(
   }
 
   if (tool === 'drill' || tool === 'electricDrill') {
-    const outs = drillOutputCells(tool, x, y, state.placeDir)
+    const outs = drillOutputCells(tool, x, y, state.placeDir, state.placeFlip)
     const openOrSink = (cell: { x: number; y: number }) => {
       if (!inBounds(cell.x, cell.y, state.width, state.height)) return false
       const front = entityAt(state, cell.x, cell.y)
@@ -504,6 +510,7 @@ export function placeFailReason(
     !tool ||
     tool === 'remove' ||
     tool === 'rotate' ||
+    tool === 'flip' ||
     tool === 'copy' ||
     tool === 'paste'
   ) {

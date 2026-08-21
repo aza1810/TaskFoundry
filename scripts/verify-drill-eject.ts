@@ -1,6 +1,6 @@
 /**
- * 2x2 drills must dump ore onto belts in front of the orange port,
- * including old 1-tile lines left over from 1x1 drills.
+ * 2x2 drills dump onto exactly one facing-edge tile (the orange port).
+ * Default is the primary / "top" square; flip picks the other square.
  */
 import {
   drillDropCells,
@@ -11,7 +11,7 @@ import {
 import { createEntity } from '../src/game/grid.ts'
 import { createInitialState } from '../src/game/logic.ts'
 import { simTick } from '../src/game/sim.ts'
-import type { Entity, GameState } from '../src/game/types.ts'
+import type { Dir, Entity, GameState } from '../src/game/types.ts'
 
 function fail(msg: string): never {
   throw new Error(msg)
@@ -19,6 +19,14 @@ function fail(msg: string): never {
 
 function assert(cond: unknown, msg: string): void {
   if (!cond) fail(msg)
+}
+
+function sameCell(
+  a: { x: number; y: number },
+  x: number,
+  y: number,
+): boolean {
+  return a.x === x && a.y === y
 }
 
 function clearCells(state: GameState, cells: { x: number; y: number }[]): GameState {
@@ -42,29 +50,43 @@ function stamp(state: GameState, ent: Entity, cells: { x: number; y: number }[])
   return { ...state, tiles, entities: { ...state.entities, [ent.id]: ent } }
 }
 
-const outs = drillOutputCells('drill', 2, 4, 'E')
+const at = (x: number, y: number, dir: Dir, flip = false) =>
+  drillOutputCells('drill', x, y, dir, flip)
+
+const eDefault = at(2, 4, 'E')
+assert(eDefault.length === 1, 'E dump is a single tile')
+assert(sameCell(eDefault[0], 4, 4), 'E default dumps the top cell (4,4)')
 assert(
-  outs.some((c) => c.x === 4 && c.y === 4),
-  'E-facing 2x2 drill should drop onto (4,4)',
+  sameCell(at(2, 4, 'E', true)[0], 4, 5),
+  'E flipped dumps the bottom cell (4,5)',
 )
 assert(
-  drillDropCells('drill', 2, 4, 'E').some((c) => c.x === 3 && c.y === 4),
-  'legacy drop cell (3,4) should still be accepted',
+  !drillDropCells('drill', 2, 4, 'E').some((c) => c.x === 3 && c.y === 4),
+  'interior neighbor is not a dump tile',
 )
+
+assert(sameCell(at(2, 4, 'S')[0], 3, 6), 'S default dumps the east cell')
+assert(sameCell(at(2, 4, 'S', true)[0], 2, 6), 'S flipped dumps the west cell')
+assert(sameCell(at(2, 4, 'W')[0], 1, 5), 'W default dumps the south cell')
+assert(sameCell(at(2, 4, 'W', true)[0], 1, 4), 'W flipped dumps the north cell')
+assert(sameCell(at(2, 4, 'N')[0], 2, 3), 'N default dumps the west cell')
+assert(sameCell(at(2, 4, 'N', true)[0], 3, 3), 'N flipped dumps the east cell')
 
 function ejectCase(
   label: string,
-  drillCells: { x: number; y: number }[],
   beltPos: { x: number; y: number },
+  flip = false,
 ): void {
+  const drillCells = footprintCells('drill', 2, 4)
   let state = createInitialState()
   state = clearCells(state, [
     ...drillCells,
     beltPos,
     { x: beltPos.x + 1, y: beltPos.y },
   ])
-  const drill = createEntity('drill', drillCells[0].x, drillCells[0].y, 'E')
+  const drill = createEntity('drill', 2, 4, 'E')
   drill.store = { ironOre: 3 }
+  if (flip) drill.flip = true
   const belt = createEntity('belt', beltPos.x, beltPos.y, 'E')
   state = stamp(state, drill, drillCells)
   state = stamp(state, belt, [beltPos])
@@ -75,16 +97,23 @@ function ejectCase(
   assert(left === 2, `${label}: drill should have 2 ore left, got ${left}`)
 }
 
-ejectCase(
-  '2x2 facing belt on output edge',
-  footprintCells('drill', 2, 4),
-  { x: 4, y: 4 },
-)
+ejectCase('2x2 default dumps onto the top east belt', { x: 4, y: 4 })
+ejectCase('2x2 flipped dumps onto the bottom east belt', { x: 4, y: 5 }, true)
 
-ejectCase(
-  'legacy 1x1 occupancy with belt one tile in front',
-  [{ x: 2, y: 4 }],
-  { x: 3, y: 4 },
-)
+{
+  const drillCells = footprintCells('drill', 2, 4)
+  let state = createInitialState()
+  state = clearCells(state, [...drillCells, { x: 4, y: 5 }])
+  const drill = createEntity('drill', 2, 4, 'E')
+  drill.store = { ironOre: 3 }
+  const belt = createEntity('belt', 4, 5, 'E')
+  state = stamp(state, drill, drillCells)
+  state = stamp(state, belt, [{ x: 4, y: 5 }])
+  state = simTick(state, 0.2)
+  assert(
+    !state.entities[belt.id]?.cargo,
+    'unflipped drill must not dump onto the other facing square',
+  )
+}
 
-console.log('OK: 2x2 and legacy drills eject onto belts')
+console.log('OK: drills dump onto one rotatable / flippable belt square')

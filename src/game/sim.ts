@@ -314,7 +314,7 @@ function tryDrillEject(
   drill: Entity,
 ): boolean {
   let dest: Entity | null = null
-  for (const o of drillDropCells(drill.kind, drill.x, drill.y, drill.dir)) {
+  for (const o of drillDropCells(drill.kind, drill.x, drill.y, drill.dir, drill.flip === true)) {
     if (!inBounds(o.x, o.y)) continue
     const t = getTile(state.tiles, o.x, o.y)
     if (!t?.entityId) continue

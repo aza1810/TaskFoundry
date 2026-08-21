@@ -86,6 +86,8 @@ export interface Entity {
   cargo: BeltCargo | null
   /** Splitter output toggle / UG belt: 0=entrance, 1=exit */
   toggle?: number
+  /** 2x2 drills: which facing-edge tile dumps ore (false = primary / "top"). */
+  flip?: boolean
   /** True while this is an unbuilt construction site awaiting a drone. */
   ghost?: boolean
   /** Drone build progress 0..1 while a ghost is being assembled (or a tree cut). */
@@ -167,7 +169,7 @@ export type EntityPlaceable = Extract<
 
 export type Placeable = EntityPlaceable | 'foundation'
 
-export type ToolId = Placeable | 'remove' | 'copy' | 'paste' | 'rotate'
+export type ToolId = Placeable | 'remove' | 'copy' | 'paste' | 'rotate' | 'flip'
 
 export interface BlueprintEntity {
   kind: EntityPlaceable
@@ -175,6 +177,7 @@ export interface BlueprintEntity {
   dy: number
   dir: Dir
   toggle?: number
+  flip?: boolean
 }
 
 export interface CraftJob {
@@ -260,6 +263,8 @@ export interface GameState {
   mineCycles: number
   selected: ToolId | null
   placeDir: Dir
+  /** Drill output lane while placing (false = primary / top of the facing edge). */
+  placeFlip: boolean
   lastTick: number
   totalHabitsCompleted: number
   unlockedToast: string | null

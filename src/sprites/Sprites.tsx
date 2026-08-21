@@ -242,9 +242,21 @@ export function BeltSprite({
   )
 }
 
-export function DrillSprite({ dir, active, electric }: { dir: Dir; active?: boolean; electric?: boolean }) {
+export function DrillSprite({
+  dir,
+  active,
+  electric,
+  flip,
+}: {
+  dir: Dir
+  active?: boolean
+  electric?: boolean
+  flip?: boolean
+}) {
   const body = electric ? '#3d7a52' : '#5a554c'
   const accent = electric ? '#7dff9a' : '#c47a12'
+  // Local art faces east. Port sits on one of the two east cells (top vs bottom).
+  const portY = flip ? 48 : 16
   return (
     <svg
       className={`sprite sprite-drill ${active ? 'is-active' : ''}`}
@@ -252,24 +264,27 @@ export function DrillSprite({ dir, active, electric }: { dir: Dir; active?: bool
       aria-hidden
     >
       <g style={{ transform: `rotate(${ROT[dir]}deg)`, transformOrigin: '32px 32px' }}>
-        <rect x="8" y="18" width="48" height="36" rx="3" fill={body} stroke="#2a2620" strokeWidth="2" />
-        <rect x="12" y="22" width="20" height="14" fill="#3d3830" />
-        <rect x="34" y="22" width="18" height="28" fill={electric ? '#4a9a6a' : '#6b655c'} stroke="#2a2620" strokeWidth="1" />
+        <rect x="6" y="6" width="52" height="52" rx="3" fill={body} stroke="#2a2620" strokeWidth="2" />
+        <rect x="10" y="10" width="22" height="18" fill="#3d3830" />
+        <rect x="34" y="10" width="18" height="44" fill={electric ? '#4a9a6a' : '#6b655c'} stroke="#2a2620" strokeWidth="1" />
         <circle
           className="drill-bit"
-          cx="22"
-          cy="48"
-          r="7"
+          cx="20"
+          cy="40"
+          r="8"
           fill="#8a8478"
           stroke="#1a1612"
           strokeWidth="2"
         />
-        <circle cx="22" cy="48" r="3" fill="#1a1612" />
-        <rect x="44" y="28" width="18" height="8" fill={accent} stroke="#1a1612" strokeWidth="1" />
-        <polygon points="62,32 50,24 50,40" fill={accent} />
-        <rect x="14" y="12" width="12" height="8" fill="#3d3830" stroke="#1a1612" strokeWidth="1" />
-        {active && <circle cx="50" cy="14" r="3" fill={accent} className="drill-lamp" />}
-        {electric && <path d="M28 8 L32 16 L29 16 L34 26 L30 18 L33 18 Z" fill="#f0e060" />}
+        <circle cx="20" cy="40" r="3.2" fill="#1a1612" />
+        <rect x="44" y={portY - 6} width="16" height="12" fill={accent} stroke="#1a1612" strokeWidth="1" />
+        <polygon
+          points={`62,${portY} 50,${portY - 8} 50,${portY + 8}`}
+          fill={accent}
+        />
+        <rect x="12" y="8" width="12" height="8" fill="#3d3830" stroke="#1a1612" strokeWidth="1" />
+        {active && <circle cx="50" cy="8" r="3" fill={accent} className="drill-lamp" />}
+        {electric && <path d="M26 8 L30 16 L27 16 L32 26 L28 18 L31 18 Z" fill="#f0e060" />}
       </g>
     </svg>
   )
@@ -861,6 +876,7 @@ export const EntitySprite = memo(function EntitySprite({
   progress = 0,
   cooldown,
   turn,
+  flip,
 }: {
   kind: EntityKind
   dir: Dir
@@ -872,6 +888,7 @@ export const EntitySprite = memo(function EntitySprite({
   progress?: number
   cooldown?: number
   turn?: BeltTurn | null
+  flip?: boolean
 }) {
   switch (kind) {
     case 'belt':
@@ -887,9 +904,9 @@ export const EntitySprite = memo(function EntitySprite({
         />
       )
     case 'drill':
-      return <DrillSprite dir={dir} active={active} />
+      return <DrillSprite dir={dir} active={active} flip={flip} />
     case 'electricDrill':
-      return <DrillSprite dir={dir} active={active} electric />
+      return <DrillSprite dir={dir} active={active} electric flip={flip} />
     case 'inserter':
       return (
         <InserterSprite dir={dir} progress={progress} cooldown={cooldown} />
@@ -942,7 +959,7 @@ export const FoundationSprite = memo(function FoundationSprite() {
 export function ToolIcon({
   kind,
 }: {
-  kind: EntityKind | 'foundation' | 'remove' | 'copy' | 'paste' | 'rotate'
+  kind: EntityKind | 'foundation' | 'remove' | 'copy' | 'paste' | 'rotate' | 'flip'
 }) {
   if (kind === 'foundation') {
     return (
@@ -988,6 +1005,29 @@ export function ToolIcon({
           strokeLinecap="round"
         />
         <polygon points="9,12 14,13.5 10.5,17.5" fill="#f0c060" />
+      </svg>
+    )
+  }
+  if (kind === 'flip') {
+    return (
+      <svg className="tool-icon" viewBox="0 0 32 32" aria-hidden>
+        <rect x="4" y="4" width="24" height="24" fill="#1a2430" stroke="#7ab0e0" strokeWidth="2" />
+        <path
+          d="M10 12 H20 M20 12 L16 8 M20 12 L16 16"
+          fill="none"
+          stroke="#a8d0f0"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M22 20 H12 M12 20 L16 16 M12 20 L16 24"
+          fill="none"
+          stroke="#a8d0f0"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     )
   }
