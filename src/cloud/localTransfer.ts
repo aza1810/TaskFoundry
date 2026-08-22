@@ -78,16 +78,12 @@ export function adoptRicherLocalSave(targetSaveKey: string): boolean {
 }
 
 export function exportSavePayload(state: GameState): string {
-  return JSON.stringify(
-    {
-      format: 'task-foundry-save',
-      version: 1,
-      exportedAt: Date.now(),
-      state: persistableState(state),
-    },
-    null,
-    2,
-  )
+  return JSON.stringify({
+    format: 'task-foundry-save',
+    version: 1,
+    exportedAt: Date.now(),
+    state: persistableState(state),
+  })
 }
 
 export function parseImportedSave(raw: string): GameState {

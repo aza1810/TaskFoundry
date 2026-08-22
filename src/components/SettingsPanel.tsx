@@ -42,6 +42,8 @@ export function SettingsPanel() {
     cloudSync,
     pullCloudSaveNow,
     exportSaveFile,
+    copySaveText,
+    copyFactorySnapshot,
     importSaveFile,
   } = useGame()
   const { session, signOut, cloudError, reconnectCloud } = useAuth()
@@ -117,6 +119,16 @@ export function SettingsPanel() {
       }
       const pullErr = await pullCloudSaveNow()
       setTransferMsg(pullErr ?? 'Cloud reconnected and save synced.')
+    } finally {
+      setSyncBusy(false)
+    }
+  }
+
+  const runTransfer = async (fn: () => Promise<string>) => {
+    setSyncBusy(true)
+    setTransferMsg(null)
+    try {
+      setTransferMsg(await fn())
     } finally {
       setSyncBusy(false)
     }
@@ -283,7 +295,11 @@ export function SettingsPanel() {
           <p className="settings-hint" role="status">
             {transferMsg}
           </p>
-        ) : null}
+        ) : (
+          <p className="settings-hint">
+            On a phone, Export save often cannot start a download. Use Copy save for the full JSON, or Copy factory snapshot for a short report you can paste here.
+          </p>
+        )}
         <div className="settings-actions">
           {googleCloud ? (
             <>
@@ -309,12 +325,25 @@ export function SettingsPanel() {
             type="button"
             className="ghost-btn"
             disabled={syncBusy}
-            onClick={() => {
-              exportSaveFile()
-              setTransferMsg('Save file downloaded. Import it on your other device if needed.')
-            }}
+            onClick={() => void runTransfer(exportSaveFile)}
           >
             Export save
+          </button>
+          <button
+            type="button"
+            className="ghost-btn"
+            disabled={syncBusy}
+            onClick={() => void runTransfer(copySaveText)}
+          >
+            Copy save
+          </button>
+          <button
+            type="button"
+            className="ghost-btn"
+            disabled={syncBusy}
+            onClick={() => void runTransfer(copyFactorySnapshot)}
+          >
+            Copy factory snapshot
           </button>
           <button
             type="button"

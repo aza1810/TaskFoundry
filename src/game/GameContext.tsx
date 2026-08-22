@@ -56,6 +56,8 @@ import {
   exportSavePayload,
   parseImportedSave,
 } from '../cloud/localTransfer'
+import { copyTextToClipboard, messageForOffer, offerSaveFile } from '../cloud/saveExport'
+import { factorySnapshot } from './factorySnapshot'
 
 type Action =
   | { type: 'TICK'; now: number }
@@ -189,7 +191,9 @@ interface GameContextValue {
   replayTutorial: () => void
   quickStartTutorial: () => void
   pullCloudSaveNow: () => Promise<string | null>
-  exportSaveFile: () => void
+  exportSaveFile: () => Promise<string>
+  copySaveText: () => Promise<string>
+  copyFactorySnapshot: () => Promise<string>
   importSaveFile: (file: File) => Promise<string | null>
   placeDir: Dir
   placeFlip: boolean
@@ -582,16 +586,39 @@ export function GameProvider({
     return null
   }, [enableCloudSync, saveKey, hydrateLoaded])
 
-  const exportSaveFile = useCallback(() => {
-    const blob = new Blob([exportSavePayload(stateRef.current)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `task-foundry-save-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+  const exportSaveFile = useCallback(async () => {
+    try {
+      const filename = `task-foundry-save-${new Date().toISOString().slice(0, 10)}.json`
+      const text = exportSavePayload(stateRef.current)
+      const result = await offerSaveFile(text, filename)
+      return messageForOffer(result)
+    } catch (err) {
+      return err instanceof Error ? err.message : 'Could not export save'
+    }
+  }, [])
+
+  const copySaveText = useCallback(async () => {
+    try {
+      const text = exportSavePayload(stateRef.current)
+      if (await copyTextToClipboard(text)) {
+        return 'Full save copied. Paste it into a note, or send it here if you want it inspected.'
+      }
+      return 'Could not copy the save. Try Export save, or a desktop browser.'
+    } catch (err) {
+      return err instanceof Error ? err.message : 'Could not copy save'
+    }
+  }, [])
+
+  const copyFactorySnapshot = useCallback(async () => {
+    try {
+      const text = factorySnapshot(stateRef.current)
+      if (await copyTextToClipboard(text)) {
+        return 'Factory snapshot copied. Paste that short report here if you want the line inspected.'
+      }
+      return text
+    } catch (err) {
+      return err instanceof Error ? err.message : 'Could not copy factory snapshot'
+    }
   }, [])
 
   const importSaveFile = useCallback(
@@ -655,6 +682,8 @@ export function GameProvider({
       quickStartTutorial,
       pullCloudSaveNow,
       exportSaveFile,
+      copySaveText,
+      copyFactorySnapshot,
       importSaveFile,
       placeDir: state.placeDir,
       placeFlip: state.placeFlip,
@@ -692,6 +721,8 @@ export function GameProvider({
       quickStartTutorial,
       pullCloudSaveNow,
       exportSaveFile,
+      copySaveText,
+      copyFactorySnapshot,
       importSaveFile,
     ],
   )
