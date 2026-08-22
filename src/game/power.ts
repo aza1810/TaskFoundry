@@ -22,10 +22,12 @@ export interface PowerNet {
 }
 
 /** Last flood-fill. Tiles are cloned on mine ticks, so do not key on array identity. */
-let cachedTiles: GameState['tiles'] | null = null
 let cachedFound = ''
 let cachedGen = ''
 let cachedNet: PowerNet | null = null
+/** Skip the foundation walk when the tiles array is the same object. */
+let walkedTiles: GameState['tiles'] | null = null
+let walkedFound = ''
 
 function generatorSig(state: GameState): string {
   let sig = ''
@@ -38,7 +40,7 @@ function generatorSig(state: GameState): string {
 
 /** Count + mix of foundation indexes. Cheap vs a 240x160 flood fill. */
 function foundationSig(tiles: GameState['tiles']): string {
-  if (tiles === cachedTiles && cachedFound) return cachedFound
+  if (tiles === walkedTiles && walkedFound) return walkedFound
   let n = 0
   let mix = 0
   for (let i = 0; i < tiles.length; i++) {
@@ -46,9 +48,9 @@ function foundationSig(tiles: GameState['tiles']): string {
     n += 1
     mix = (mix + (i + 1) * 2654435761) >>> 0
   }
-  cachedTiles = tiles
-  cachedFound = `${n}:${mix}`
-  return cachedFound
+  walkedTiles = tiles
+  walkedFound = `${n}:${mix}`
+  return walkedFound
 }
 
 /** Built (non-ghost) generators on the floor. */
@@ -141,7 +143,6 @@ export function powerNet(state: GameState): PowerNet {
   const found = foundationSig(state.tiles)
   if (cachedNet && cachedGen === gen && cachedFound === found) return cachedNet
   const net = computePowerNet(state)
-  cachedTiles = state.tiles
   cachedGen = gen
   cachedFound = found
   cachedNet = net
