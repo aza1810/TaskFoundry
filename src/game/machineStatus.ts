@@ -24,6 +24,16 @@ import {
 } from './power'
 import type { Entity, GameState, Tile } from './types'
 
+/** True when the floor tile needs a status CSS class (skip trees, belts, grass). */
+export function needsFloorStatus(ent: Entity | null | undefined): boolean {
+  if (!ent) return false
+  if (ent.ghost || ent.marked) return true
+  if (ent.kind === 'tree' || ent.kind === 'rock') return false
+  if (isBeltKind(ent.kind) || ent.kind === 'undergroundBelt') return false
+  if (ent.kind === 'generator' || ent.kind === 'roboport') return false
+  return true
+}
+
 export type MachineStatusTone = 'ok' | 'work' | 'warn' | 'idle'
 
 export interface MachineStatus {
@@ -37,8 +47,8 @@ export function machineStatus(
   ent: Entity,
   _tile: Tile | undefined,
   _state: GameState,
+  net = powerNet(_state),
 ): MachineStatus {
-  const net = powerNet(_state)
 
   if (ent.ghost) {
     const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)

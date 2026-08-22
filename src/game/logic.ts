@@ -905,6 +905,12 @@ export function tickDrones(state: GameState, dt: number): GameState {
     coal: canAcceptMaterial(state, 'coal'),
   }
   const jobs = Object.values(state.entities).filter((e) => isDroneJob(e, chestOk))
+  if (
+    jobs.length === 0 &&
+    state.drones.every((d) => d.state === 'idle')
+  ) {
+    return state
+  }
   const drones = state.drones.map((d) => ({ ...d }))
   // Jobs already claimed by a still-valid drone.
   const claimed = new Set<string>()

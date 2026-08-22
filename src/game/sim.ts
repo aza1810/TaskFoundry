@@ -389,8 +389,38 @@ function cloneSimEntities(src: GameState['entities']): Record<string, Entity> {
  * Drills also mine while you watch, as long as the battery has charge.
  * Steps still add extra cycles on top of this.
  */
+function hasLiveDrill(state: GameState): boolean {
+  for (const id in state.entities) {
+    const e = state.entities[id]
+    if (isDrillKind(e.kind) && machineIsLive(e)) return true
+  }
+  return false
+}
+
+/** True when belts, inserters, or machines still have work this tick. */
+export function factoryHasSimWork(state: GameState): boolean {
+  for (const id in state.entities) {
+    const e = state.entities[id]
+    if (e.kind === 'tree' || e.kind === 'rock') continue
+    if (!machineIsLive(e)) continue
+    if (e.cargo) return true
+    if (e.smelting) return true
+    if (e.progress > 0) return true
+    if (isDrillKind(e.kind)) return true
+    if (isInserterKind(e.kind)) return true
+    if (isFurnaceKind(e.kind)) {
+      if ((e.store.ironOre ?? 0) >= 1 || (e.store.copperOre ?? 0) >= 1) return true
+    }
+    if (e.kind === 'assembler' && (e.store.ironPlate ?? 0) >= ASSEMBLER_PLATES_PER_GEAR) {
+      return true
+    }
+  }
+  return false
+}
+
 export function tickBatteryMining(state: GameState, dt: number): GameState {
   if (dt <= 0 || state.power <= 0) return state
+  if (!hasLiveDrill(state)) return state
   let acc = (state.drillMineAcc ?? 0) + dt
   let next = state
   let cycles = 0
@@ -500,6 +530,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
 /** Continuous factory simulation: belts, inserters, furnaces, assemblers, drill eject */
 export function simTick(state: GameState, dt: number): GameState {
   if (dt <= 0) return state
+  if (!factoryHasSimWork(state)) return state
   const entities = cloneSimEntities(state.entities)
   const stats: FactoryStats = { ...state.stats }
   let moved = 0

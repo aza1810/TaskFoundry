@@ -7,6 +7,7 @@ import {
   useReducer,
   useRef,
   useState,
+  startTransition,
   type ReactNode,
 } from 'react'
 import {
@@ -306,7 +307,9 @@ export function GameProvider({
     if (enableCloudSync && !cloudBootDone) return
     dispatch({ type: 'TICK', now: Date.now() })
     const id = window.setInterval(() => {
-      dispatch({ type: 'TICK', now: Date.now() })
+      startTransition(() => {
+        dispatch({ type: 'TICK', now: Date.now() })
+      })
     }, 200)
     return () => window.clearInterval(id)
   }, [enableCloudSync, cloudBootDone])

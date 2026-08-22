@@ -63,8 +63,12 @@ export function measureAppHeight(): number {
   )
 }
 
+let lastPx = ''
+
 export function applyAppHeight(h: number): void {
   const px = `${Math.max(1, Math.round(h))}px`
+  if (px === lastPx) return
+  lastPx = px
   const root = document.documentElement
   root.style.setProperty('--app-height', px)
   root.style.height = px
@@ -82,14 +86,18 @@ export function applyAppHeight(h: number): void {
 
 export function syncAppHeight(): number {
   const h = Math.round(measureAppHeight())
+  const width = window.innerWidth || lastInnerWidth
+  if (h === lastApplied && width === lastInnerWidth && lastPx) return h
   lastApplied = h
-  lastInnerWidth = window.innerWidth || lastInnerWidth
+  lastInnerWidth = width
   applyAppHeight(h)
   return h
 }
 
 function bump(): void {
-  syncAppHeight()
+  const before = lastApplied
+  const h = syncAppHeight()
+  if (h === before) return
   requestAnimationFrame(() => {
     syncAppHeight()
   })
@@ -112,13 +120,14 @@ export function initAppHeight(): () => void {
     bumpLater()
   }
 
+  const onFocus = () => bump()
+
   window.addEventListener('resize', onResize)
   window.addEventListener('orientationchange', onResize)
   window.addEventListener('pageshow', onVisible)
-  window.addEventListener('focus', onVisible)
+  window.addEventListener('focus', onFocus)
   document.addEventListener('visibilitychange', onVisible)
   window.visualViewport?.addEventListener('resize', onResize)
-  window.visualViewport?.addEventListener('scroll', onResize)
 
   let removeNative: (() => void) | undefined
   if (Capacitor.isNativePlatform()) {
@@ -136,10 +145,9 @@ export function initAppHeight(): () => void {
     window.removeEventListener('resize', onResize)
     window.removeEventListener('orientationchange', onResize)
     window.removeEventListener('pageshow', onVisible)
-    window.removeEventListener('focus', onVisible)
+    window.removeEventListener('focus', onFocus)
     document.removeEventListener('visibilitychange', onVisible)
     window.visualViewport?.removeEventListener('resize', onResize)
-    window.visualViewport?.removeEventListener('scroll', onResize)
     removeNative?.()
   }
 }

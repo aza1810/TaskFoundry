@@ -52,4 +52,10 @@ assert(
 )
 assert(css.includes('--app-height'), 'CSS should read --app-height from JS')
 
+const heightSrc = readFileSync(new URL('../src/ui/syncAppHeight.ts', import.meta.url), 'utf8')
+assert(
+  !/visualViewport\?\.addEventListener\('scroll'/.test(heightSrc),
+  'visualViewport scroll must not rewrite the shell height',
+)
+
 console.log('verify-app-height: ok')

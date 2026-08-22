@@ -21,7 +21,11 @@ export interface PowerNet {
   genCells: { x: number; y: number }[]
 }
 
-const netCache = new WeakMap<GameState['tiles'], { sig: string; net: PowerNet }>()
+/** Last flood-fill. Tiles are cloned on mine ticks, so do not key on array identity. */
+let cachedTiles: GameState['tiles'] | null = null
+let cachedFound = ''
+let cachedGen = ''
+let cachedNet: PowerNet | null = null
 
 function generatorSig(state: GameState): string {
   let sig = ''
@@ -30,6 +34,21 @@ function generatorSig(state: GameState): string {
     sig += `${e.id}:${e.x},${e.y};`
   }
   return sig
+}
+
+/** Count + mix of foundation indexes. Cheap vs a 240x160 flood fill. */
+function foundationSig(tiles: GameState['tiles']): string {
+  if (tiles === cachedTiles && cachedFound) return cachedFound
+  let n = 0
+  let mix = 0
+  for (let i = 0; i < tiles.length; i++) {
+    if (!tiles[i].foundation) continue
+    n += 1
+    mix = (mix + (i + 1) * 2654435761) >>> 0
+  }
+  cachedTiles = tiles
+  cachedFound = `${n}:${mix}`
+  return cachedFound
 }
 
 /** Built (non-ghost) generators on the floor. */
@@ -118,11 +137,14 @@ function computePowerNet(state: GameState): PowerNet {
 
 /** Flood-fill 4-connected Foundations that touch a generator (on or adjacent). */
 export function powerNet(state: GameState): PowerNet {
-  const sig = generatorSig(state)
-  const hit = netCache.get(state.tiles)
-  if (hit && hit.sig === sig) return hit.net
+  const gen = generatorSig(state)
+  const found = foundationSig(state.tiles)
+  if (cachedNet && cachedGen === gen && cachedFound === found) return cachedNet
   const net = computePowerNet(state)
-  netCache.set(state.tiles, { sig, net })
+  cachedTiles = state.tiles
+  cachedGen = gen
+  cachedFound = found
+  cachedNet = net
   return net
 }
 
