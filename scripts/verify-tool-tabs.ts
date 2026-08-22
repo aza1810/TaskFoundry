@@ -6,6 +6,7 @@ import {
   FLOOR_TOOLS,
   LOGISTICS_TOOLS,
   PRODUCTION_TOOLS,
+  TOOL_TABS,
   tabForTool,
   tabTools,
 } from '../src/game/toolTabs.ts'
@@ -48,6 +49,14 @@ assert(tabForTool('drill') === 'production', 'drill maps to production')
 assert(tabForTool('belt') === 'logistics', 'belt maps to logistics')
 assert(tabForTool('remove') === 'edit', 'remove maps to edit')
 assert(tabTools('floor')[0] === 'foundation', 'floor tools start with foundation')
+assert(
+  TOOL_TABS.find((t) => t.id === 'production')?.label === 'Production',
+  'production tab uses the full name',
+)
+assert(
+  TOOL_TABS.find((t) => t.id === 'logistics')?.label === 'Logistics',
+  'logistics tab uses the full name',
+)
 assert(EDIT_TOOLS.includes('rotate'), 'edit still has rotate')
 
 /** Tapping an already-selected tool keeps it armed (never Hand). */

@@ -54,7 +54,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'placeRoboport',
     title: 'Deploy a roboport first',
-    body: 'Everything starts with the roboport. Open Prod, pick Roboport, and place the 3x3 hub on the clear grass near the iron patch - it deploys a construction drone. That drone builds every blueprint you place, chops marked trees for wood, and excavates marked rocks for stone. Nothing gets built without a roboport.',
+    body: 'Everything starts with the roboport. Open Production, pick Roboport, and place the 3x3 hub on the clear grass near the iron patch - it deploys a construction drone. That drone builds every blueprint you place, chops marked trees for wood, and excavates marked rocks for stone. Nothing gets built without a roboport.',
     mode: 'coach',
     tab: 'factory',
     action: 'Place a roboport on open ground',

@@ -4710,9 +4710,10 @@ html[data-theme='light'] .machine-progress-track {
 }
 
 .build-rail-modes {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.2rem;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0.18rem;
   padding: 0.28rem;
   border: 1px solid rgba(90, 76, 48, 0.85);
   border-radius: 13px;
@@ -4728,14 +4729,13 @@ html[data-theme='light'] .machine-progress-track {
   background: transparent;
   color: var(--text-ghost);
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  padding: 0.5rem 0.08rem;
+  padding: 0.5rem 0.4rem;
   border-radius: 9px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
   white-space: nowrap;
   transition:
     background 0.12s ease,

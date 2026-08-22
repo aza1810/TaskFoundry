@@ -30,8 +30,8 @@ export const FLOOR_TOOLS: Placeable[] = ['foundation']
 export const EDIT_TOOLS: ToolId[] = ['remove', 'rotate', 'flip', 'copy', 'paste']
 
 export const TOOL_TABS: { id: ToolTab; label: string; title: string }[] = [
-  { id: 'production', label: 'Prod', title: 'Production: drills, furnaces, assemblers' },
-  { id: 'logistics', label: 'Logs', title: 'Logistics: belts, inserters, splitters' },
+  { id: 'production', label: 'Production', title: 'Production: drills, furnaces, assemblers' },
+  { id: 'logistics', label: 'Logistics', title: 'Logistics: belts, inserters, splitters' },
   { id: 'floor', label: 'Floor', title: 'Floor: paint Foundation' },
   { id: 'edit', label: 'Edit', title: 'Edit: demolish, rotate, copy' },
 ]
