@@ -115,30 +115,32 @@ function cell(x: number, y: number): { x: number; y: number } {
   assert(!isolated.floor[idx(10, 2)], 'isolated foundation far from a generator is unpowered')
 }
 
-// Belts only run on powered floor
+// Belts run without Foundation or stored power
 {
   let state = createInitialState()
-  state = clearCells(state, [cell(2, 4), cell(3, 4), cell(4, 4)])
+  state = clearCells(state, [cell(2, 4), cell(3, 4), cell(4, 4), cell(5, 4)])
   const gen = createEntity('generator', 2, 4, 'E')
-  const beltOff = createEntity('belt', 5, 4, 'E')
-  beltOff.cargo = { item: 'ironOre', progress: 0 }
+  const beltGrass = createEntity('belt', 5, 4, 'E')
+  beltGrass.cargo = { item: 'ironOre', progress: 0 }
   const beltOn = createEntity('belt', 3, 4, 'E')
   beltOn.cargo = { item: 'ironOre', progress: 0 }
+  const inserter = createEntity('inserter', 4, 4, 'E')
   state = stamp(state, gen, [cell(2, 4)])
-  state = stamp(state, beltOff, [cell(5, 4)])
+  state = stamp(state, beltGrass, [cell(5, 4)])
   state = stamp(state, beltOn, [cell(3, 4)])
-  state = pave(state, [cell(3, 4)])
-  state = { ...state, power: 500 }
+  state = stamp(state, inserter, [cell(4, 4)])
+  state = pave(state, [cell(3, 4), cell(4, 4)])
+  state = { ...state, power: 0 }
 
-  assert(!entityHasPower(beltOff, state), 'belt on grass should be unpowered')
-  assert(entityOnPoweredFloor(beltOn, state), 'belt on connected floor should be powered')
+  assert(entityHasPower(beltGrass, state), 'belt on grass should still have power (belts are free)')
+  assert(entityOnPoweredFloor(beltOn, state), 'belt on connected floor should sit on powered floor')
+  assert(powerDemand(state) > 0, 'HUD demand should count the powered inserter, not belts')
 
   const after = simTick(state, 0.5)
-  const offProg = after.entities[beltOff.id]?.cargo?.progress ?? 0
+  const grassProg = after.entities[beltGrass.id]?.cargo?.progress ?? 0
   const onProg = after.entities[beltOn.id]?.cargo?.progress ?? 0
-  assert(offProg === 0, `unpowered belt should freeze, got progress ${offProg}`)
-  assert(onProg > 0, `powered belt should move cargo, got progress ${onProg}`)
-  assert(powerDemand(state) > 0, 'HUD demand should count the connected belt')
+  assert(grassProg > 0, `belt on grass should move cargo, got progress ${grassProg}`)
+  assert(onProg > 0, `belt on floor should move cargo, got progress ${onProg}`)
 }
 
 // Assembler needs powered floor

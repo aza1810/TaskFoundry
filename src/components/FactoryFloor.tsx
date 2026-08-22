@@ -2207,7 +2207,7 @@ export function FactoryFloor({
                 <p className="inspect-card-desc">
                   {inspectTile.foundation
                     ? tileIsPoweredFloor(state, inspect.x, inspect.y, floorNet)
-                      ? 'Foundation - powered. Belts, inserters, and assemblers on this tile can run.'
+                      ? 'Foundation - powered. Inserters, assemblers, and splitters on this tile can run. Belts run anywhere.'
                       : 'Foundation - no generator connected. Place a generator on or next to this floor, or paint a path to one.'
                     : inspectTile.ore === 'ironOre'
                     ? 'Brown iron patch. Place a burner or electric drill here to mine it with steps.'
@@ -2215,7 +2215,7 @@ export function FactoryFloor({
                       ? 'Copper patch. Drill here to mine copper ore for plates and wiring crafts.'
                       : inspectTile.ore === 'coal'
                         ? 'Coal seam. Mine it for fuel - burner drills and furnaces need coal.'
-                        : 'Open ground. Paint Foundation here so machines can take power from a generator.'}
+                        : 'Open ground. Paint Foundation here so inserters and assemblers can take power from a generator. Belts do not need Foundation.'}
                 </p>
                 <p className="inspect-card-meta">
                   ({inspect.x},{inspect.y})

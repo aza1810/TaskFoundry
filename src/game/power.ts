@@ -54,7 +54,7 @@ export function machineDraw(kind: EntityKind): number {
   return POWER_DRAW[kind] ?? 0
 }
 
-/** Belts, inserters, assemblers, splitters: must sit on a powered Foundation. */
+/** Inserters, assemblers, and splitters must sit on a powered Foundation. Belts never draw power. */
 export function needsFoundationPower(kind: EntityKind): boolean {
   return (POWER_DRAW[kind] ?? 0) > 0
 }

@@ -27,6 +27,7 @@ import {
   mineCells,
   isBeltKind,
   isDrillKind,
+  sizeOf,
   isFurnaceKind,
   isInserterKind,
   rotateDir,
@@ -215,6 +216,26 @@ export function findUgPartner(
   return null
 }
 
+/** Resolve the machine on a tile. Prefer entityId, then a footprint scan if the link is stale. */
+function entityAtCell(
+  state: GameState,
+  entities: Record<string, Entity>,
+  x: number,
+  y: number,
+): Entity | null {
+  const tile = getTile(state.tiles, x, y)
+  if (tile?.entityId) {
+    const hit = entities[tile.entityId]
+    if (hit) return hit
+  }
+  for (const e of Object.values(entities)) {
+    if (e.kind === 'tree' || e.kind === 'rock') continue
+    const { w, h } = sizeOf(e.kind)
+    if (x >= e.x && x < e.x + w && y >= e.y && y < e.y + h) return e
+  }
+  return null
+}
+
 function tryAcceptItem(entity: Entity, item: ItemId): boolean {
   if (isBeltKind(entity.kind) || entity.kind === 'splitter') {
     if (entity.cargo) return false
@@ -316,9 +337,7 @@ function tryDrillEject(
   let dest: Entity | null = null
   for (const o of drillDropCells(drill.kind, drill.x, drill.y, drill.dir, drill.flip === true)) {
     if (!inBounds(o.x, o.y)) continue
-    const t = getTile(state.tiles, o.x, o.y)
-    if (!t?.entityId) continue
-    const cand = entities[t.entityId]
+    const cand = entityAtCell(state, entities, o.x, o.y)
     if (!cand || cand.ghost) continue
     if (cand.id === drill.id) continue
     if (
@@ -468,7 +487,8 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Power grid: electric machines draw from the battery; a brownout
   //     (not enough stored power) slows every electric machine this tick.
-  //     Unconnected machines (no powered Foundation) do not draw or run. ---
+  //     Unconnected machines (no powered Foundation) do not draw or run.
+  //     Belts never draw and keep moving even when the battery is empty. ---
   let demand = 0
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
@@ -583,11 +603,10 @@ export function simTick(state: GameState, dt: number): GameState {
   })
 
   for (const e of beltOrder) {
-    if (!entityHasPower(e, state, net)) continue
     if (!e.cargo) continue
     e.cargo.progress = Math.min(
       1,
-      e.cargo.progress + beltSpeedFor(e.kind) * bonuses.beltSpeedMult * dt * powerRatio,
+      e.cargo.progress + beltSpeedFor(e.kind) * bonuses.beltSpeedMult * dt,
     )
     if (e.cargo.progress < 1) continue
 
@@ -605,10 +624,9 @@ export function simTick(state: GameState, dt: number): GameState {
   for (const e of Object.values(entities)) {
     if (e.ghost) continue
     if (e.kind !== 'undergroundBelt' || !e.cargo) continue
-    if (!entityHasPower(e, state, net)) continue
     e.cargo.progress = Math.min(
       1,
-      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt * powerRatio,
+      e.cargo.progress + beltSpeedFor('belt') * bonuses.beltSpeedMult * dt,
     )
     if (e.cargo.progress < 1) continue
 

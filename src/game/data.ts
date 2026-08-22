@@ -91,27 +91,27 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto a belt in front of the orange port. Flip picks the other square if that one is empty. Needs a generator or powered Foundation within 5 tiles.',
+    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto a belt in front of the orange port. Flip picks the other square if that one is empty. Needs a generator or powered Foundation within 5 tiles to mine. Belts themselves need no power.',
   },
   electricDrill: {
     label: 'Electric Drill',
     inventoryKey: 'electricDrill',
-    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle. Drops onto a belt in front of the orange port. Flip picks the other square. Needs a generator or powered Foundation within 5 tiles.',
+    hint: '2x2, mines a 3x3 patch, no coal. Two ore per cycle. Drops onto a belt in front of the orange port. Flip picks the other square. Needs a generator or powered Foundation within 5 tiles to mine. Belts themselves need no power.',
   },
   belt: {
     label: 'Transport Belt',
     inventoryKey: 'belt',
-    hint: 'Moves items in the facing direction. Needs Foundation connected to a generator.',
+    hint: 'Moves items in the facing direction. No power or Foundation needed.',
   },
   fastBelt: {
     label: 'Fast Belt',
     inventoryKey: 'fastBelt',
-    hint: 'About 2x yellow belt speed. Needs Foundation connected to a generator.',
+    hint: 'About 2x yellow belt speed. No power or Foundation needed.',
   },
   undergroundBelt: {
     label: 'Underground Belt',
     inventoryKey: 'undergroundBelt',
-    hint: 'Entrance tunnels to an exit up to 6 tiles ahead (same facing). Needs Foundation connected to a generator.',
+    hint: 'Entrance tunnels to an exit up to 6 tiles ahead (same facing). No power or Foundation needed.',
   },
   inserter: {
     label: 'Inserter',
@@ -161,7 +161,7 @@ export const PLACEABLE_META: Record<
   foundation: {
     label: 'Foundation',
     inventoryKey: 'foundation',
-    hint: 'Paint a concrete floor. Belts, inserters, and assemblers only run on Foundation connected to a generator. Drills can tap a generator or powered floor within 5 tiles.',
+    hint: 'Paint a concrete floor. Inserters, assemblers, and splitters only run on Foundation connected to a generator. Belts run on any tile. Drills can tap a generator or powered floor within 5 tiles.',
   },
 }
 
@@ -440,9 +440,9 @@ export const DRILL_POWER_RANGE = 5
 export const POWER_DRAW: Record<EntityKind, number> = {
   drill: 0,
   electricDrill: 0,
-  belt: 0.3,
-  fastBelt: 0.6,
-  undergroundBelt: 0.3,
+  belt: 0,
+  fastBelt: 0,
+  undergroundBelt: 0,
   inserter: 0.8,
   longInserter: 1.2,
   furnace: 0,

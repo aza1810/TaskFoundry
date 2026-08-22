@@ -116,6 +116,27 @@ ejectCase('flipped port square', { x: 4, y: 5 }, true)
 {
   const drillCells = footprintCells('drill', 2, 4)
   let state = createInitialState()
+  state = clearCells(state, [...drillCells, { x: 4, y: 4 }, { x: 5, y: 4 }])
+  const drill = createEntity('drill', 2, 4, 'E')
+  drill.store = { ironOre: 3 }
+  const belt = createEntity('belt', 4, 4, 'E')
+  const next = createEntity('belt', 5, 4, 'E')
+  state = stamp(state, drill, drillCells)
+  state = stamp(state, belt, [{ x: 4, y: 4 }])
+  state = stamp(state, next, [{ x: 5, y: 4 }])
+  state = { ...state, power: 0 }
+  state = simTick(state, 1.2)
+  assert(
+    state.entities[next.id]?.cargo?.item === 'ironOre' ||
+      (state.entities[belt.id]?.cargo?.item === 'ironOre' &&
+        (state.entities[belt.id]?.cargo?.progress ?? 0) > 0),
+    'grass belts with an empty battery should still take and move drill ore',
+  )
+}
+
+{
+  const drillCells = footprintCells('drill', 2, 4)
+  let state = createInitialState()
   state = clearCells(state, [...drillCells, { x: 4, y: 4 }, { x: 4, y: 5 }])
   const drill = createEntity('drill', 2, 4, 'E')
   drill.store = { ironOre: 3 }

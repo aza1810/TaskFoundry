@@ -47,7 +47,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'welcome',
     title: 'Welcome to Task Foundry',
-    body: 'You start with nothing and build up from scratch. Drones do the work: place a Roboport and its drones build every blueprint you lay down, chop any tree you mark into wood, and excavate rocks for stone (with a little iron and rare coal). Paint Foundation under belts, inserters, and assemblers so a generator can power them. Drills can tap a generator or powered floor within 5 tiles. Your real-world steps charge the grid.',
+    body: 'You start with nothing and build up from scratch. Drones do the work: place a Roboport and its drones build every blueprint you lay down, chop any tree you mark into wood, and excavate rocks for stone (with a little iron and rare coal). Paint Foundation under inserters, assemblers, and splitters so a generator can power them. Belts run without power. Drills can tap a generator or powered floor within 5 tiles. Your real-world steps charge the grid.',
     mode: 'modal',
     unlockTabs: ['factory'],
   },
@@ -78,7 +78,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'oreToChest',
     title: 'Belt ore into a chest',
-    body: 'Follow the glowing ghosts. Belts carry ore. An inserter pulls off the belt into your first chest. That chest is the warehouse. Paint Foundation under the belts and inserter, then put a generator next to that floor (or within 5 tiles of the drill).',
+    body: 'Follow the glowing ghosts. Belts carry ore and do not need power. An inserter pulls off the belt into your first chest. That chest is the warehouse. Paint Foundation under the inserter, then put a generator next to that floor (or within 5 tiles of the drill).',
     mode: 'coach',
     tab: 'factory',
     action: 'Belt, chest, then inserter into the chest',

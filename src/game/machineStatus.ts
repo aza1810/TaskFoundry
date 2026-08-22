@@ -12,6 +12,7 @@ import {
   isFurnaceKind,
   mineCells,
   rockVariant,
+  sizeOf,
   treeVariant,
 } from './data'
 import { MACHINE_CAP } from './sim'
@@ -125,7 +126,17 @@ export function machineStatus(
     for (const o of drillDropCells(ent.kind, ent.x, ent.y, ent.dir, ent.flip === true)) {
       if (!inBounds(o.x, o.y, _state.width, _state.height)) continue
       const t = _state.tiles[idx(o.x, o.y)]
-      const cand = t?.entityId ? _state.entities[t.entityId] : null
+      let cand = t?.entityId ? _state.entities[t.entityId] : null
+      if (!cand) {
+        for (const e of Object.values(_state.entities)) {
+          if (e.kind === 'tree' || e.kind === 'rock') continue
+          const { w, h } = sizeOf(e.kind)
+          if (o.x >= e.x && o.x < e.x + w && o.y >= e.y && o.y < e.y + h) {
+            cand = e
+            break
+          }
+        }
+      }
       if (!cand || cand.id === ent.id) continue
       const sink =
         isBeltKind(cand.kind) ||
@@ -226,12 +237,14 @@ export function machineStatus(
     }
   }
 
-  if (
-    ent.kind === 'belt' ||
-    ent.kind === 'fastBelt' ||
-    ent.kind === 'splitter' ||
-    ent.kind === 'undergroundBelt'
-  ) {
+  if (ent.kind === 'belt' || ent.kind === 'fastBelt' || ent.kind === 'undergroundBelt') {
+    return {
+      label: ent.cargo ? `Carrying ${ent.cargo.item}` : 'Empty',
+      tone: ent.cargo ? 'work' : 'idle',
+    }
+  }
+
+  if (ent.kind === 'splitter') {
     if (!entityOnPoweredFloor(ent, _state, net)) {
       return {
         label: 'No power - pave with Foundation',

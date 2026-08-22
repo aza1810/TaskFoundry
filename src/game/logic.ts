@@ -229,7 +229,7 @@ function emptyBaseState(tiles: GameState['tiles'] = []): GameState {
     lastTick: Date.now(),
     totalHabitsCompleted: 0,
     unlockedToast:
-      'Welcome! Place a roboport, pave Foundation so belts can run, put a generator near your drill (5-tile range), then walk - your steps charge the grid.',
+      'Welcome! Place a roboport, put a generator near your drill (5-tile range), drop belts (no power needed), then walk - your steps charge the grid.',
     offlineReport: null,
     stats: emptyStats(),
     completedGoals: [],
