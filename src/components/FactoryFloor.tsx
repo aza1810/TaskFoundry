@@ -71,6 +71,13 @@ import {
   tutorialToolsFor,
 } from '../game/tutorialGuide'
 import {
+  TOOL_TABS,
+  isEditMetaTool,
+  tabForTool,
+  tabTools,
+  type ToolTab,
+} from '../game/toolTabs'
+import {
   DroneSprite,
   EntitySprite,
   FoundationSprite,
@@ -166,8 +173,6 @@ type Highlight =
   | 'walkSteps'
   | 'habit'
   | null
-type ToolTab = 'build' | 'logistics' | 'edit'
-
 type Floater = {
   id: number
   x: number
@@ -176,55 +181,6 @@ type Floater = {
   tone: 'ore' | 'place' | 'good' | 'warn'
   /** When set, the floater shows this resource's icon (e.g. mined ore). */
   item?: ItemId
-}
-
-// Machines & storage - things that make or hold resources.
-const BUILD_TOOLS: Placeable[] = [
-  'foundation',
-  'generator',
-  'roboport',
-  'drill',
-  'electricDrill',
-  'furnace',
-  'steelFurnace',
-  'assembler',
-  'chest',
-]
-// Logistics - everything that moves items around (belts, inserters, splitters).
-const LOGISTICS_TOOLS: Placeable[] = [
-  'belt',
-  'fastBelt',
-  'undergroundBelt',
-  'splitter',
-  'inserter',
-  'longInserter',
-]
-const EDIT_TOOLS: ToolId[] = ['remove', 'rotate', 'flip', 'copy', 'paste']
-
-const TOOL_TABS: { id: ToolTab; label: string }[] = [
-  { id: 'build', label: 'Build' },
-  { id: 'logistics', label: 'Logistics' },
-  { id: 'edit', label: 'Edit' },
-]
-
-function tabTools(tab: ToolTab): ToolId[] {
-  return tab === 'build'
-    ? BUILD_TOOLS
-    : tab === 'logistics'
-      ? LOGISTICS_TOOLS
-      : EDIT_TOOLS
-}
-
-function isEditMetaTool(
-  tool: ToolId | null,
-): tool is 'remove' | 'rotate' | 'flip' | 'copy' | 'paste' {
-  return (
-    tool === 'remove' ||
-    tool === 'rotate' ||
-    tool === 'flip' ||
-    tool === 'copy' ||
-    tool === 'paste'
-  )
 }
 
 function dirArrow(dir: Entity['dir']): string {
@@ -463,7 +419,8 @@ export function FactoryFloor({
     return map
   }, [planGhosts])
 
-  const [toolTab, setToolTab] = useState<ToolTab>('build')
+  const [toolTab, setToolTab] = useState<ToolTab>('production')
+  const lastToolByTab = useRef<Partial<Record<ToolTab, ToolId>>>({})
   const [zoom, setZoom] = useState(0.85)
   const [pan, setPan] = useState({ x: 12, y: 48 })
   const [viewSize, setViewSize] = useState({ width: 1024, height: 768 })
@@ -653,7 +610,7 @@ export function FactoryFloor({
       highlight === 'chestTool' ||
       highlight === 'furnaceTool'
     ) {
-      setToolTab('build')
+      setToolTab('production')
       setRailOpen(true)
     }
     if (highlight === 'inserterTool') {
@@ -661,6 +618,14 @@ export function FactoryFloor({
       setRailOpen(true)
     }
   }, [highlight])
+
+  useEffect(() => {
+    if (!selected) return
+    const tab = tabForTool(selected)
+    if (!tab) return
+    lastToolByTab.current[tab] = selected
+    setToolTab(tab)
+  }, [selected])
 
   const clampCamera = useCallback((p: { x: number; y: number }) => {
     const cam = cameraRef.current
@@ -1839,7 +1804,19 @@ export function FactoryFloor({
             </div>
           )}
           {railOpen && selected && (
-            <div className="build-rail-tray" role="toolbar" aria-label="Build tools">
+            <div
+              className="build-rail-tray"
+              role="toolbar"
+              aria-label={
+                toolTab === 'production'
+                  ? 'Production tools'
+                  : toolTab === 'logistics'
+                    ? 'Logistics tools'
+                    : toolTab === 'floor'
+                      ? 'Floor tools'
+                      : 'Edit tools'
+              }
+            >
               <div className="build-rail-tools">
                 {toolsForTab.map((tool) => {
                   const unlocked = isUnlocked(tool, state.researched)
@@ -1888,7 +1865,7 @@ export function FactoryFloor({
                         .join(' ')}
                       onClick={() => {
                         if (!unlocked) return
-                        selectTool(selected === tool ? null : tool)
+                        selectTool(tool)
                         setInspect(null)
                         buzz(6)
                       }}
@@ -1978,18 +1955,27 @@ export function FactoryFloor({
             >
               Hand
             </button>
-            {TOOL_TABS.map(({ id, label }) => {
+            {TOOL_TABS.map(({ id, label, title }) => {
               const list = tabTools(id)
-              const tabActive = toolTab === id && !!selected && list.includes(selected)
+              const tabActive = !!selected && list.includes(selected)
               return (
                 <button
                   key={id}
                   type="button"
                   className={`rail-mode ${tabActive ? 'is-active' : ''}`}
+                  title={title}
+                  aria-label={title}
                   onClick={() => {
                     setToolTab(id)
-                    const next = pickTool(list)
+                    const remembered = lastToolByTab.current[id]
+                    const next =
+                      remembered && list.includes(remembered)
+                        ? remembered
+                        : selected && list.includes(selected)
+                          ? selected
+                          : pickTool(list)
                     if (next) {
+                      lastToolByTab.current[id] = next
                       selectTool(next)
                       setRailOpen(true)
                       setInspect(null)
@@ -2242,7 +2228,7 @@ export function FactoryFloor({
                       onClick={() => {
                         selectTool('drill')
                         setRailOpen(true)
-                        setToolTab('build')
+                        setToolTab('production')
                         setInspect(null)
                         buzz(6)
                       }}
@@ -2257,7 +2243,7 @@ export function FactoryFloor({
                           onClick={() => {
                             selectTool('electricDrill')
                             setRailOpen(true)
-                            setToolTab('build')
+                            setToolTab('production')
                             setInspect(null)
                             buzz(6)
                           }}
@@ -2266,6 +2252,22 @@ export function FactoryFloor({
                         </button>
                       )}
                     </>
+                  )}
+                  {!inspectTile.foundation && (
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      disabled={(state.inventory.foundation ?? 0) < 1}
+                      onClick={() => {
+                        selectTool('foundation')
+                        setRailOpen(true)
+                        setToolTab('floor')
+                        setInspect(null)
+                        buzz(6)
+                      }}
+                    >
+                      Paint floor
+                    </button>
                   )}
                   {inspectTile.foundation && (
                     <button

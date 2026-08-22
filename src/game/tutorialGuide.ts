@@ -21,6 +21,7 @@ import {
   type TutorialStepDef,
   type TutorialStepId,
 } from './tutorial'
+import type { ToolTab } from './toolTabs'
 import type { Dir, Entity, GameState, EntityPlaceable, ToolId } from './types'
 
 export interface TutorialCheckStatus {
@@ -374,7 +375,7 @@ export function tutorialFocusCell(
 
 export function tutorialToolsFor(
   step: TutorialStepDef | null,
-  tab: 'build' | 'logistics' | 'edit',
+  tab: ToolTab,
   full: ToolId[],
 ): ToolId[] {
   if (!step || step.mode !== 'coach') return full
