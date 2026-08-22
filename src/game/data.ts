@@ -649,11 +649,28 @@ export function inStarterPad(x: number, y: number): boolean {
   )
 }
 
-/** Tile footprint (width x height, anchored at the entity's top-left x/y). */
+/** Tile footprint (width x height). Stored origin is the top-left cell. */
 export function sizeOf(kind: EntityKind): { w: number; h: number } {
   if (kind === 'roboport') return { w: 3, h: 3 }
   if (kind === 'drill' || kind === 'electricDrill') return { w: 2, h: 2 }
   return { w: 1, h: 1 }
+}
+
+/**
+ * Map a tap/hover tile to the stored top-left origin.
+ * Odd-sized buildings (3x3 roboport) center on the tap. Even sizes stay
+ * top-left because they have no single middle tile.
+ */
+export function placeOriginFromTap(
+  kind: EntityKind,
+  tapX: number,
+  tapY: number,
+): { x: number; y: number } {
+  const { w, h } = sizeOf(kind)
+  return {
+    x: tapX - Math.floor((w - 1) / 2),
+    y: tapY - Math.floor((h - 1) / 2),
+  }
 }
 
 /** Center tile of a building, used as the drone pad. */

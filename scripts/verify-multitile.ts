@@ -8,6 +8,7 @@ import {
   inBounds,
   inStarterPad,
   mineCells,
+  placeOriginFromTap,
   sizeOf,
 } from '../src/game/data.ts'
 import { createEntity } from '../src/game/grid.ts'
@@ -48,6 +49,25 @@ const drillSize = sizeOf('drill')
 assert(drillSize.w === 2 && drillSize.h === 2, 'drill should be 2x2')
 assert(mineCells(0, 0).length === 9, 'drill mine area should be 3x3')
 assert(footprintCells('roboport', 0, 0).length === 9, 'roboport footprint 9 tiles')
+const roboOrigin = placeOriginFromTap('roboport', 10, 8)
+assert(roboOrigin.x === 9 && roboOrigin.y === 7, '3x3 roboport tap is the center tile')
+const roboCells = footprintCells('roboport', roboOrigin.x, roboOrigin.y)
+assert(
+  roboCells.some((c) => c.x === 10 && c.y === 8),
+  'tapped tile stays inside the 3x3',
+)
+assert(
+  roboCells.some((c) => c.x === 9 && c.y === 7),
+  '3x3 extends one tile up-left of the tap',
+)
+assert(
+  !roboCells.some((c) => c.x === 12 && c.y === 10),
+  '3x3 does not grow two tiles down-right of the tap',
+)
+const drillOrigin = placeOriginFromTap('drill', 4, 5)
+assert(drillOrigin.x === 4 && drillOrigin.y === 5, '2x2 drill tap stays top-left')
+const chestOrigin = placeOriginFromTap('chest', 3, 3)
+assert(chestOrigin.x === 3 && chestOrigin.y === 3, '1x1 tap is itself')
 
 let state = createInitialState()
 

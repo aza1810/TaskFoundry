@@ -27,6 +27,7 @@ import {
   STARTER_PAD,
   treeVariant,
   footprintCells,
+  placeOriginFromTap,
   drillOutputCells,
   storeTotal,
   xpForLevel,
@@ -444,22 +445,28 @@ export function FactoryFloor({
     setInspect(null)
   }, [])
 
+  const placeOrigin = useMemo(() => {
+    if (!hover || !selected || isEditMetaTool(selected)) return null
+    if (!isEntityPlaceable(selected)) return { x: hover.x, y: hover.y }
+    return placeOriginFromTap(selected, hover.x, hover.y)
+  }, [hover, selected])
+
   const hoverDir =
-    hover && selected && !isEditMetaTool(selected)
-      ? suggestPlaceDir(state, selected, hover.x, hover.y)
+    placeOrigin && selected && !isEditMetaTool(selected)
+      ? suggestPlaceDir(state, selected, placeOrigin.x, placeOrigin.y)
       : placeDir
 
   const hoverFootprint = useMemo(() => {
-    if (!hover || !selected || isEditMetaTool(selected)) return null
+    if (!hover || !selected || isEditMetaTool(selected) || !placeOrigin) return null
     const cells = isEntityPlaceable(selected)
-      ? footprintCells(selected, hover.x, hover.y)
+      ? footprintCells(selected, placeOrigin.x, placeOrigin.y)
       : [{ x: hover.x, y: hover.y }]
-    const valid = canPlaceAt(selected, hover.x, hover.y, state)
+    const valid = canPlaceAt(selected, placeOrigin.x, placeOrigin.y, state)
     return {
       valid,
       keys: new Set(cells.map((c) => `${c.x},${c.y}`)),
     }
-  }, [hover, selected, state])
+  }, [hover, selected, state, placeOrigin])
 
   const pickTool = useCallback(
     (list: ToolId[]) => {
@@ -697,12 +704,16 @@ export function FactoryFloor({
       const key = `${x},${y}`
       if (gesture.current.lastCell === key) return
       gesture.current.lastCell = key
+      const origin =
+        selected && isEntityPlaceable(selected)
+          ? placeOriginFromTap(selected, x, y)
+          : { x, y }
       const beforeId = state.tiles[idx(x, y)]?.entityId
       const beforeDir = beforeId ? state.entities[beforeId]?.dir : null
       const beforeFlip = beforeId ? state.entities[beforeId]?.flip : null
       const beforeFound = Boolean(state.tiles[idx(x, y)]?.foundation)
-      const preview = placeEntity(state, x, y)
-      place(x, y)
+      const preview = placeEntity(state, origin.x, origin.y)
+      place(origin.x, origin.y)
       const afterId = preview.tiles[idx(x, y)]?.entityId
       const afterDir = afterId ? preview.entities[afterId]?.dir : null
       const afterFlip = afterId ? preview.entities[afterId]?.flip : null
@@ -1432,9 +1443,15 @@ export function FactoryFloor({
                 const isCopyCorner =
                   copyCorner?.x === x && copyCorner?.y === y && selected === 'copy'
                 const bpGhost = pastePreview?.find((p) => p.x === x && p.y === y)
-                const valid = canPlaceAt(selected, x, y, state)
+                const valid = placeOrigin
+                  ? canPlaceAt(selected, placeOrigin.x, placeOrigin.y, state)
+                  : canPlaceAt(selected, x, y, state)
                 const showGhost =
-                  isHover && !!selected && !isEditMetaTool(selected)
+                  !!placeOrigin &&
+                  placeOrigin.x === x &&
+                  placeOrigin.y === y &&
+                  !!selected &&
+                  !isEditMetaTool(selected)
 
                 const isGhost = Boolean(ent?.ghost)
                 const isMarkedTree =
