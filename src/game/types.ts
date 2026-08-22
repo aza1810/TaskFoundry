@@ -305,6 +305,8 @@ export interface GameState {
   rocksSeeded: boolean
   /** Stored electrical energy. Steps charge it; electric machines drain it. */
   power: number
+  /** Accrued time toward the next automatic drill cycle. */
+  drillMineAcc?: number
 }
 
 export type TabId =

@@ -91,7 +91,7 @@ export const PLACEABLE_META: Record<
   drill: {
     label: 'Burner Drill',
     inventoryKey: 'drill',
-    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto a belt in front of the orange port. Flip picks the other square if that one is empty. Needs a generator or powered Foundation within 5 tiles to mine. Belts themselves need no power.',
+    hint: '2x2 building that mines a 3x3 ore patch. Drops ore onto a belt in front of the orange port. Flip picks the other square if that one is empty. Needs a generator or powered Foundation within 5 tiles. Spends stored power to mine; walk to charge the grid. Belts themselves need no power.',
   },
   electricDrill: {
     label: 'Electric Drill',
@@ -430,6 +430,8 @@ export const BASE_POWER_CAP = 500
 export const GEN_CAPACITY = 800
 /** Power stored per step with zero generators; scaled by (1 + generators). */
 export const POWER_PER_STEP = 6
+/** Seconds between automatic mine cycles while a drill has stored power. */
+export const DRILL_CYCLE_SECONDS = 0.75
 /** Power a burner drill spends per mining cycle. */
 export const DRILL_POWER_PER_CYCLE = 2
 /** Power an electric drill spends per mining cycle (it mines more per cycle). */

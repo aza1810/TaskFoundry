@@ -5,6 +5,7 @@ import {
   CHEST_SLOT_COUNT,
   CHEST_STACK_SIZE,
   DIR_DELTA,
+  DRILL_CYCLE_SECONDS,
   DRILL_POWER_PER_CYCLE,
   ELECTRIC_DRILL_POWER_PER_CYCLE,
   ELECTRIC_DRILL_YIELD,
@@ -381,6 +382,27 @@ function cloneSimEntities(src: GameState['entities']): Record<string, Entity> {
     }
   }
   return entities
+}
+
+/**
+ * Drills also mine while you watch, as long as the battery has charge.
+ * Steps still add extra cycles on top of this.
+ */
+export function tickBatteryMining(state: GameState, dt: number): GameState {
+  if (dt <= 0 || state.power <= 0) return state
+  let acc = (state.drillMineAcc ?? 0) + dt
+  let next = state
+  let cycles = 0
+  while (acc >= DRILL_CYCLE_SECONDS) {
+    acc -= DRILL_CYCLE_SECONDS
+    const after = runMineCycles(next, 1)
+    if (after.mineCycles === next.mineCycles) break
+    next = after
+    cycles += 1
+    if (cycles > 8) break
+  }
+  if (next === state && acc === (state.drillMineAcc ?? 0)) return state
+  return { ...next, drillMineAcc: acc }
 }
 
 /** One mining cycle per drill per step - each cycle spends stored power. */

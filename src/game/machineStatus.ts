@@ -165,7 +165,10 @@ export function machineStatus(
       return { label: 'Output full - clear the belt', tone: 'warn', floorClass: 'is-blocked' }
     }
     return {
-      label: ent.kind === 'electricDrill' ? 'Mining (electric)' : 'Mining (powered)',
+      label:
+        ent.kind === 'electricDrill'
+          ? 'Mining (electric) - spends stored power'
+          : 'Mining (powered) - spends stored power',
       tone: 'work',
     }
   }

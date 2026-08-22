@@ -90,7 +90,7 @@ import {
   toggleFocusSkill,
   contractComplete,
 } from './contracts'
-import { findUgPartner, runMineCycles, simTick } from './sim'
+import { findUgPartner, runMineCycles, simTick, tickBatteryMining } from './sim'
 import { powerCapacity, powerPerStep } from './power'
 import type {
   BlueprintEntity,
@@ -637,6 +637,7 @@ export function tickState(state: GameState, now = Date.now()): GameState {
   let left = dt
   while (left > 0) {
     const step = Math.min(stepSize, left)
+    next = tickBatteryMining(next, step)
     next = simTick(next, step)
     next = tickHandCraft(next, step)
     next = tickDrones(next, step)

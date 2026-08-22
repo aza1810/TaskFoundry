@@ -94,7 +94,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: 'logSteps',
     title: 'Walk to power the drill',
-    body: 'Every step charges your power grid. Powered drills mine ore if a generator or powered Foundation is within 5 tiles. Sync Health / Health Connect, or start the pedometer and take a short walk until ore reaches the chest.',
+    body: 'Every step charges your power grid. A powered drill spends that stored power to mine while you watch, and each step adds extra cycles. Sync Health / Health Connect, or start the pedometer and take a short walk so the battery stays up and ore keeps reaching the chest.',
     mode: 'coach',
     tab: 'steps',
     action: 'Sync health or walk at least 10 steps',
