@@ -3558,12 +3558,13 @@ html[data-theme='light'] .ghost-btn.is-danger {
 }
 
 .game-res-name {
-  font-size: 0.48rem;
+  display: block;
+  font-size: 0.62rem;
   font-weight: 700;
-  line-height: 1.05;
+  line-height: 1.1;
   text-align: center;
-  max-width: 3.6rem;
-  color: #d4cbb8;
+  max-width: 4.2rem;
+  color: #f3ead8;
 }
 
 .game-res.is-pulse {

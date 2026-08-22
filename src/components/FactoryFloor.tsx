@@ -1296,7 +1296,7 @@ export function FactoryFloor({
               >
                 <ItemSprite item={id} />
                 <span className="game-res-name">{ITEM_META[id].label}</span>
-                <em>{formatNum(n)}</em>
+                <em className="game-res-count">{formatNum(n)}</em>
               </span>
             )
           })}
