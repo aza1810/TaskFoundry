@@ -5,6 +5,7 @@
 import {
   CHEST_SLOT_COUNT,
   CHEST_STACK_SIZE,
+  PACK_STACK_SIZE,
   asItemCount,
   gain,
   spend,
@@ -189,13 +190,39 @@ export function depositStock(
     inventory = gain(inventory, overflow)
   }
 
-  return { ...state, entities, inventory }
+  return { ...state, entities, inventory: capWarehousePack(inventory) }
+}
+
+/** Room left in the personal pack for one warehouse material. */
+export function packRoom(state: GameState, item: ItemId): number {
+  if (!isWarehouseItem(item)) return 0
+  const have = asItemCount(state.inventory[item] ?? 0)
+  return Math.max(0, PACK_STACK_SIZE - have)
+}
+
+/** Cap pack materials at one stack each so the UI stays a reserved buffer. */
+export function capWarehousePack(inventory: Inventory): Inventory {
+  const next = { ...inventory }
+  let changed = false
+  for (const id of WAREHOUSE_ITEMS) {
+    const n = asItemCount(next[id] ?? 0)
+    if (n > PACK_STACK_SIZE) {
+      next[id] = PACK_STACK_SIZE
+      changed = true
+    }
+  }
+  return changed ? next : inventory
+}
+
+/** Chests or the reserved pack stack can take one more of `item`. */
+export function canAcceptMaterial(state: GameState, item: ItemId): boolean {
+  return canChestsAccept(state, item) || packRoom(state, item) > 0
 }
 
 /** True if at least one floor chest can accept one more of `item`. */
 export function canChestsAccept(state: GameState, item: ItemId): boolean {
   for (const e of Object.values(state.entities)) {
-    if (e.kind !== 'chest' || e.ghost) continue
+    if (e.kind !== 'chest' || e.ghost || e.marked) continue
     const have = asItemCount(e.store[item] ?? 0)
     if (have > 0) {
       if (have < CHEST_STACK_SIZE) return true
@@ -219,7 +246,7 @@ export function depositToChests(
   let changed = false
   for (const [id, e] of Object.entries(state.entities)) {
     if (left <= 0) break
-    if (e.kind !== 'chest' || e.ghost) continue
+    if (e.kind !== 'chest' || e.ghost || e.marked) continue
     const store = { ...e.store }
     const put = putInChestStore(store, item, left)
     if (put > 0) {
@@ -245,7 +272,7 @@ export function sweepPackToChests(state: GameState): GameState {
     if (have <= 0) continue
     for (const [id, e] of Object.entries(entities)) {
       if (have <= 0) break
-      if (e.kind !== 'chest' || e.ghost) continue
+      if (e.kind !== 'chest' || e.ghost || e.marked) continue
       const store = { ...e.store }
       const put = putInChestStore(store, item, have)
       if (put > 0) {

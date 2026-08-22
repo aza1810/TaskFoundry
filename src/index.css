@@ -2821,8 +2821,18 @@ html[data-theme='light'] .ghost-btn.is-danger {
 
 .store-tag {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   gap: 1px;
+}
+
+.store-tag-name {
+  font-size: 0.42rem;
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: center;
+  color: #efe6d4;
+  text-shadow: 0 1px 2px #000;
 }
 
 .store-tag-icon {
@@ -2858,6 +2868,12 @@ html[data-theme='light'] .ghost-btn.is-danger {
 .inspect-store .store-tag em {
   font-size: 0.8rem;
   color: var(--text-chrome-bright);
+  text-shadow: none;
+}
+
+.inspect-store .store-tag-name {
+  font-size: 0.58rem;
+  color: var(--text-chrome);
   text-shadow: none;
 }
 
@@ -3525,14 +3541,29 @@ html[data-theme='light'] .ghost-btn.is-danger {
 
 .game-res {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.08rem;
   flex: 0 0 auto;
-  padding: 0.12rem 0.32rem 0.12rem 0.2rem;
+  min-width: 3.1rem;
+  padding: 0.16rem 0.22rem 0.14rem;
   background: rgba(20, 24, 16, 0.9);
   border: 1px solid #2a3220;
   border-left: 3px solid var(--res, #f0a020);
   border-radius: 5px;
+}
+
+.game-res.is-zero {
+  opacity: 0.45;
+}
+
+.game-res-name {
+  font-size: 0.48rem;
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: center;
+  max-width: 3.6rem;
+  color: #d4cbb8;
 }
 
 .game-res.is-pulse {

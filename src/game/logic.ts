@@ -38,6 +38,7 @@ import {
   asItemCount,
   BASE_POWER_CAP,
   canAfford,
+  isDeconstructing,
   FUEL_VALUE,
   fuelUnits,
   FURNACE_FUEL_CAP,
@@ -64,9 +65,9 @@ import {
 } from './grid'
 import {
   canAffordStock,
-  canChestsAccept,
+  canAcceptMaterial,
+  capWarehousePack,
   depositStock,
-  depositToChests,
   isWarehouseItem,
   scrubChestsToWarehouse,
   spendStock,
@@ -332,7 +333,9 @@ export function loadState(accountSaveKey?: string): GameState {
       version: GAME_VERSION,
       width: GRID_W,
       height: GRID_H,
-      inventory: sanitizeInventory({ ...EMPTY_INVENTORY(), ...parsed.inventory }),
+      inventory: capWarehousePack(
+        sanitizeInventory({ ...EMPTY_INVENTORY(), ...parsed.inventory }),
+      ),
       stats: { ...emptyStats(), ...parsed.stats },
       tiles,
       entities: parsed.entities ?? {},
@@ -368,7 +371,10 @@ export function loadState(accountSaveKey?: string): GameState {
       treesSeeded: parsed.treesSeeded === true,
       rocksSeeded: parsed.rocksSeeded === true,
     }
-    next = { ...next, inventory: sanitizeInventory(next.inventory) }
+    next = {
+      ...next,
+      inventory: capWarehousePack(sanitizeInventory(next.inventory)),
+    }
     if (parsed.version < 10) next = migrateToFoundations(next)
     if (typeof next.placeFlip !== 'boolean') next = { ...next, placeFlip: false }
     next = stampFootprints(next)
@@ -700,7 +706,7 @@ export function setPlaceDir(state: GameState, dir: Dir): GameState {
 /** A built (non-ghost) roboport exists, so new placements become drone jobs. */
 function hasActiveRoboport(state: GameState): boolean {
   return Object.values(state.entities).some(
-    (e) => e.kind === 'roboport' && !e.ghost,
+    (e) => e.kind === 'roboport' && !e.ghost && !e.marked,
   )
 }
 
@@ -807,26 +813,58 @@ function finishGhost(state: GameState, id: string): GameState {
   return next
 }
 
-/** A drone finished chopping a tree: clear the tile and stack wood in a chest. */
+/** Refund a built or ghost building into the pack, plus any store/cargo. */
+function scrapEntity(state: GameState, id: string): GameState {
+  const ent = state.entities[id]
+  if (!ent || ent.kind === 'tree' || ent.kind === 'rock') return state
+  const tiles = state.tiles.map((t) => ({ ...t }))
+  const entities = { ...state.entities }
+  delete entities[ent.id]
+  for (const c of footprintCells(ent.kind, ent.x, ent.y)) {
+    if (inBounds(c.x, c.y)) tiles[idx(c.x, c.y)].entityId = null
+  }
+  const invKey = ent.kind as Placeable
+  const drones = state.drones.map((d) =>
+    d.targetId === ent.id
+      ? { ...d, targetId: null, buildProgress: 0, state: 'returning' as const }
+      : d,
+  )
+  let next: GameState = {
+    ...state,
+    tiles,
+    entities,
+    drones,
+    inventory: gain(state.inventory, { [invKey]: 1 }),
+  }
+  const loot: Partial<Inventory> = { ...(ent.store as Partial<Inventory>) }
+  if (ent.cargo) {
+    loot[ent.cargo.item] = asItemCount(loot[ent.cargo.item] ?? 0) + 1
+  }
+  next = depositStock(next, loot)
+  if (ent.kind === 'roboport') next = reconcileDrones(next)
+  return claimGoals(next)
+}
+
+/** A drone finished chopping a tree: clear the tile and stack wood. */
 function fellTree(state: GameState, id: string): GameState {
   const tree = state.entities[id]
   if (!tree || tree.kind !== 'tree') return state
   const def = treeVariant(tree.variant)
-  // Requires a chest with space - otherwise leave the tree standing to retry.
-  if (!canChestsAccept(state, 'wood')) return state
+  // Needs chest or pack space - otherwise leave the tree standing to retry.
+  if (!canAcceptMaterial(state, 'wood')) return state
   const entities = { ...state.entities }
   delete entities[id]
   const tiles = state.tiles.map((t) => ({ ...t }))
   tiles[idx(tree.x, tree.y)].entityId = null
-  return depositToChests({ ...state, entities, tiles }, 'wood', def.wood)
+  return depositStock({ ...state, entities, tiles }, { wood: def.wood })
 }
 
-/** A drone finished a rock: clear the tile and stack stone / ore in chests. */
+/** A drone finished a rock: clear the tile and stack stone / ore. */
 function excavateRock(state: GameState, id: string): GameState {
   const rock = state.entities[id]
   if (!rock || rock.kind !== 'rock') return state
   const def = rockVariant(rock.variant)
-  if (!canChestsAccept(state, def.primary)) return state
+  if (!canAcceptMaterial(state, def.primary)) return state
   const entities = { ...state.entities }
   delete entities[id]
   const tiles = state.tiles.map((t) => ({ ...t }))
@@ -834,18 +872,19 @@ function excavateRock(state: GameState, id: string): GameState {
   let next: GameState = { ...state, entities, tiles }
   for (const drop of def.drops) {
     if (drop.chance != null && Math.random() >= drop.chance) continue
-    next = depositToChests(next, drop.item, drop.amount)
+    next = depositStock(next, { [drop.item]: drop.amount })
   }
   return next
 }
 
-/** A ghost to build, or a marked tree/rock a drone can harvest (needs chest space). */
+/** A ghost to build, a marked scrap job, or a marked tree/rock harvest. */
 function isDroneJob(
   ent: Entity | undefined,
   chestOk: Partial<Record<ItemId, boolean>>,
 ): boolean {
   if (!ent) return false
   if (ent.ghost) return true
+  if (isDeconstructing(ent)) return true
   if (ent.kind === 'tree') return Boolean(ent.marked) && chestOk.wood === true
   if (ent.kind === 'rock') {
     const primary = rockVariant(ent.variant).primary
@@ -859,11 +898,11 @@ export function tickDrones(state: GameState, dt: number): GameState {
   if (dt <= 0 || state.drones.length === 0) return state
 
   const chestOk: Partial<Record<ItemId, boolean>> = {
-    wood: canChestsAccept(state, 'wood'),
-    stone: canChestsAccept(state, 'stone'),
-    ironOre: canChestsAccept(state, 'ironOre'),
-    copperOre: canChestsAccept(state, 'copperOre'),
-    coal: canChestsAccept(state, 'coal'),
+    wood: canAcceptMaterial(state, 'wood'),
+    stone: canAcceptMaterial(state, 'stone'),
+    ironOre: canAcceptMaterial(state, 'ironOre'),
+    copperOre: canAcceptMaterial(state, 'copperOre'),
+    coal: canAcceptMaterial(state, 'coal'),
   }
   const jobs = Object.values(state.entities).filter((e) => isDroneJob(e, chestOk))
   const drones = state.drones.map((d) => ({ ...d }))
@@ -987,6 +1026,10 @@ export function tickDrones(state: GameState, dt: number): GameState {
       const def = rockVariant(done.variant)
       next = excavateRock(next, id)
       lastLabel = `a ${def.label.toLowerCase()}`
+    } else if (done && isDeconstructing(done)) {
+      const name = PLACEABLE_META[done.kind as Placeable]?.label ?? 'building'
+      next = scrapEntity(next, id)
+      lastLabel = `scrapping ${name}`
     } else {
       next = finishGhost(next, id)
       lastLabel = PLACEABLE_META[done?.kind as Placeable]?.label ?? 'building'
@@ -1063,12 +1106,12 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
           unlockedToast: isRock ? 'Excavation cancelled' : 'Cut order cancelled',
         }
       }
-      if (!canChestsAccept(state, item)) {
+      if (!canAcceptMaterial(state, item)) {
         return {
           ...state,
           unlockedToast: isRock
-            ? `Place a chest with a free slot so drones can stack the ${ITEM_META[item].label.toLowerCase()}`
-            : 'Place a chest with a free slot so drones can stack the wood',
+            ? `Pack and chests are full of ${ITEM_META[item].label.toLowerCase()}`
+            : 'Pack and chests are full of wood',
         }
       }
       entities[ent.id] = { ...ent, marked: true }
@@ -1086,30 +1129,46 @@ export function placeEntity(state: GameState, x: number, y: number): GameState {
       }
     }
 
-    const entities = { ...state.entities }
-    delete entities[ent.id]
-    // Free every tile the (possibly multi-tile) building occupied.
-    for (const c of footprintCells(ent.kind, ent.x, ent.y)) {
-      if (inBounds(c.x, c.y)) tiles[idx(c.x, c.y)].entityId = null
+    // Unbuilt ghosts never existed: cancel and refund now.
+    if (ent.ghost) {
+      return {
+        ...scrapEntity(state, ent.id),
+        unlockedToast: `${PLACEABLE_META[ent.kind as Placeable]?.label ?? 'Blueprint'} cancelled`,
+      }
     }
 
-    const invKey = ent.kind as Placeable
-    let inventory = gain(state.inventory, { [invKey]: 1 })
-    inventory = gain(inventory, ent.store as Partial<typeof inventory>)
-    if (ent.cargo) {
-      inventory = gain(inventory, { [ent.cargo.item]: 1 } as Partial<typeof inventory>)
+    if (ent.marked) {
+      const entities = { ...state.entities }
+      entities[ent.id] = { ...ent, marked: false, buildProgress: 0 }
+      const drones = state.drones.map((d) =>
+        d.targetId === ent.id
+          ? { ...d, targetId: null, buildProgress: 0, state: 'returning' as const }
+          : d,
+      )
+      return {
+        ...state,
+        entities,
+        drones,
+        unlockedToast: 'Demolition cancelled',
+      }
     }
 
-    // Release any drone building this tile so it does not get stranded.
-    const drones = state.drones.map((d) =>
-      d.targetId === ent.id
-        ? { ...d, targetId: null, buildProgress: 0, state: 'returning' as const }
-        : d,
-    )
-    let next: GameState = { ...state, tiles, entities, inventory, drones }
-    // Removing a roboport retires its drones.
-    if (ent.kind === 'roboport') next = reconcileDrones(next)
-    return claimGoals(next)
+    if (hasActiveRoboport(state)) {
+      const entities = { ...state.entities }
+      entities[ent.id] = { ...ent, marked: true, buildProgress: 0 }
+      const botName = PLACEABLE_META[ent.kind as Placeable]?.label ?? 'building'
+      return {
+        ...state,
+        entities,
+        unlockedToast: `${botName} marked - a drone will demolish it`,
+      }
+    }
+
+    // No roboport left to fly a scrap job. Hand-remove so you cannot get stuck.
+    return {
+      ...scrapEntity(state, ent.id),
+      unlockedToast: 'No drone - scrapped by hand',
+    }
   }
 
   if (tool === 'foundation') {

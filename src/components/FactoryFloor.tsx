@@ -223,6 +223,7 @@ function StoreTags({ store }: { store: Entity['store'] }) {
           <span className="store-tag-icon">
             <ItemSprite item={id} />
           </span>
+          <span className="store-tag-name">{ITEM_META[id].label}</span>
           <em>{formatNum(n)}</em>
         </span>
       ))}
@@ -731,13 +732,29 @@ export function FactoryFloor({
 
       if (selected === 'remove') {
         const beforeEnt = beforeId ? state.entities[beforeId] : null
-        if (beforeEnt?.kind === 'tree') {
-          // Toggle a drone cut order rather than instant-removing.
-          const afterEnt = afterId ? preview.entities[afterId] : null
-          const nowMarked = Boolean(afterEnt?.marked)
-          buzz(6)
-          spawnFloater(x, y, nowMarked ? 'cut' : 'keep', nowMarked ? 'place' : 'warn')
-        } else if (removed || unpaved) {
+        const afterEnt = afterId ? preview.entities[afterId] : null
+        if (beforeEnt && afterEnt && beforeEnt.id === afterEnt.id) {
+          const nowMarked = Boolean(afterEnt.marked)
+          const wasMarked = Boolean(beforeEnt.marked)
+          if (nowMarked !== wasMarked) {
+            buzz(6)
+            const label =
+              beforeEnt.kind === 'tree'
+                ? nowMarked
+                  ? 'cut'
+                  : 'keep'
+                : beforeEnt.kind === 'rock'
+                  ? nowMarked
+                    ? 'dig'
+                    : 'keep'
+                  : nowMarked
+                    ? 'scrap'
+                    : 'keep'
+            spawnFloater(x, y, label, nowMarked ? 'place' : 'warn')
+            return
+          }
+        }
+        if (removed || unpaved) {
           setFlash(key)
           window.setTimeout(() => setFlash((f) => (f === key ? null : f)), 180)
           buzz(8)
@@ -1261,21 +1278,24 @@ export function FactoryFloor({
           </button>
         </div>
 
-        <div className="game-hud-resources" aria-label="Chest warehouse">
-          <span className="game-hud-wh-label" title="Materials stored in floor chests">
-            Chests
+        <div className="game-hud-resources" aria-label="Materials">
+          <span
+            className="game-hud-wh-label"
+            title="Pack holds one stack of each material. Chests hold extra."
+          >
+            Materials
           </span>
           {HUD_RESOURCES.map((id) => {
             const n = warehouseHudAmount(state, id)
-            if (n <= 0 && id !== 'ironOre' && id !== 'coal' && id !== 'ironPlate') return null
             return (
               <span
                 key={id}
-                className={`game-res${resPulse[id] ? ' is-pulse' : ''}`}
+                className={`game-res${resPulse[id] ? ' is-pulse' : ''}${n <= 0 ? ' is-zero' : ''}`}
                 style={{ '--res': ITEM_META[id].color } as CSSProperties}
-                title={`${ITEM_META[id].label} in floor chests`}
+                title={`${ITEM_META[id].label}: pack holds up to 100, chests hold more`}
               >
                 <ItemSprite item={id} />
+                <span className="game-res-name">{ITEM_META[id].label}</span>
                 <em>{formatNum(n)}</em>
               </span>
             )
@@ -1454,9 +1474,7 @@ export function FactoryFloor({
                   !isEditMetaTool(selected)
 
                 const isGhost = Boolean(ent?.ghost)
-                const isMarkedTree =
-                  (ent?.kind === 'tree' || ent?.kind === 'rock') &&
-                  Boolean(ent.marked)
+                const isMarkedTree = Boolean(ent?.marked)
                 const lit = Boolean(
                   ent &&
                     !isGhost &&
@@ -1656,7 +1674,7 @@ export function FactoryFloor({
                       />
                     )}
 
-                    {drawEnt && ent && (isGhost || isMarkedTree || (ent.kind === 'rock' && ent.marked)) && (
+                    {drawEnt && ent && (isGhost || Boolean(ent.marked)) && (
                       <span
                         className="build-bar"
                         style={{
@@ -2201,7 +2219,11 @@ export function FactoryFloor({
                       buzz(15)
                     }}
                   >
-                    Demolish
+                    {inspectEnt.marked
+                      ? 'Cancel scrap'
+                      : inspectEnt.ghost
+                        ? 'Cancel ghost'
+                        : 'Demolish'}
                   </button>
                 </div>
               </>

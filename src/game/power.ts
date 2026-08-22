@@ -10,6 +10,7 @@ import {
   idx,
   inBounds,
   isDrillKind,
+  machineIsLive,
 } from './data'
 import type { Entity, EntityKind, GameState } from './types'
 
@@ -25,7 +26,7 @@ const netCache = new WeakMap<GameState['tiles'], { sig: string; net: PowerNet }>
 function generatorSig(state: GameState): string {
   let sig = ''
   for (const e of Object.values(state.entities)) {
-    if (e.kind !== 'generator' || e.ghost) continue
+    if (e.kind !== 'generator' || !machineIsLive(e)) continue
     sig += `${e.id}:${e.x},${e.y};`
   }
   return sig
@@ -35,7 +36,7 @@ function generatorSig(state: GameState): string {
 export function generatorCount(state: GameState): number {
   let n = 0
   for (const e of Object.values(state.entities)) {
-    if (e.kind === 'generator' && !e.ghost) n += 1
+    if (e.kind === 'generator' && machineIsLive(e)) n += 1
   }
   return n
 }
@@ -79,7 +80,7 @@ function computePowerNet(state: GameState): PowerNet {
   }
 
   for (const e of Object.values(state.entities)) {
-    if (e.kind !== 'generator' || e.ghost) continue
+    if (e.kind !== 'generator' || !machineIsLive(e)) continue
     for (const c of footprintCells(e.kind, e.x, e.y)) {
       genCells.push(c)
       trySeed(c.x, c.y)
@@ -191,7 +192,7 @@ export function entityHasPower(
   state: GameState,
   net = powerNet(state),
 ): boolean {
-  if (ent.ghost) return false
+  if (!machineIsLive(ent)) return false
   if (isDrillKind(ent.kind)) return drillHasRemotePower(ent, state, net)
   if (needsFoundationPower(ent.kind)) return entityOnPoweredFloor(ent, state, net)
   return true
@@ -205,7 +206,7 @@ export function powerDemand(state: GameState): number {
   const net = powerNet(state)
   let d = 0
   for (const e of Object.values(state.entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     const draw = POWER_DRAW[e.kind] ?? 0
     if (draw <= 0) continue
     if (!entityHasPower(e, state, net)) continue

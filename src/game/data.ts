@@ -1,5 +1,6 @@
 import type {
   Dir,
+  Entity,
   EntityKind,
   EntityPlaceable,
   Habit,
@@ -151,7 +152,7 @@ export const PLACEABLE_META: Record<
   roboport: {
     label: 'Roboport',
     inventoryKey: 'roboport',
-    hint: '3x3 drone hub. Place it first: its drone builds every blueprint and excavates marked trees and rocks.',
+    hint: '3x3 drone hub. Place it first: its drone builds every blueprint, demolishes marked buildings, and excavates marked trees and rocks.',
   },
   generator: {
     label: 'Generator',
@@ -404,6 +405,8 @@ export const ASSEMBLER_SLOT_CAP = 12
 export const CHEST_SLOT_COUNT = 4
 /** Max count per item type in a chest slot. */
 export const CHEST_STACK_SIZE = 100
+/** Personal pack holds one stack of each material so scrap cannot soft-lock craft. */
+export const PACK_STACK_SIZE = CHEST_STACK_SIZE
 /** Floor chests allowed at the start, before storage research. */
 export const BASE_MAX_CHESTS = 2
 /** After placing a furnace (goal). Same as the starting cap; kept for older saves. */
@@ -987,6 +990,21 @@ export function isInserterKind(kind: EntityKind): boolean {
 
 export function isDrillKind(kind: EntityKind): boolean {
   return kind === 'drill' || kind === 'electricDrill'
+}
+
+/** Built machine flagged for a drone to scrap (not a tree/rock harvest). */
+export function isDeconstructing(
+  ent: Pick<Entity, 'kind' | 'marked'> | null | undefined,
+): boolean {
+  if (!ent?.marked) return false
+  return ent.kind !== 'tree' && ent.kind !== 'rock'
+}
+
+/** True when a machine should run, power the floor, or count as built. */
+export function machineIsLive(
+  ent: Pick<Entity, 'kind' | 'ghost' | 'marked'> | null | undefined,
+): boolean {
+  return !!ent && !ent.ghost && !isDeconstructing(ent)
 }
 
 /** True for buildings that occupy tiles (not Foundation floor). */

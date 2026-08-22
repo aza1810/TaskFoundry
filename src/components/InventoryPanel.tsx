@@ -88,8 +88,9 @@ export function InventoryPanel() {
       <div className="panel-head">
         <h2>Warehouse</h2>
         <p>
-          Materials live in floor chests ({chestCount} placed). Totals below are summed
-          across every chest. Buildings stay in your pack ready to place.
+          Your pack holds one stack (100) of each material so scrap cannot lock
+          you out of crafting. Chests ({chestCount} placed) hold extra. Buildings
+          stay in your pack ready to place.
         </p>
         <p className="panel-stat">
           {formatNum(matTotal)} across chests · {formatNum(buildTotal)} buildings

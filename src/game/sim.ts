@@ -31,6 +31,7 @@ import {
   sizeOf,
   isFurnaceKind,
   isInserterKind,
+  machineIsLive,
   rotateDir,
 } from './data'
 import { isWarehouseItem } from './chestInventory'
@@ -172,7 +173,7 @@ function neighborAt(
   const tile = getTile(state.tiles, nx, ny)
   const found = tile?.entityId ? state.entities[tile.entityId] ?? null : null
   // Unbuilt construction sites are inert - never a valid source/sink.
-  const entity = found && found.ghost ? null : found
+  const entity = found && !machineIsLive(found) ? null : found
   return { x: nx, y: ny, entity, tile }
 }
 
@@ -206,7 +207,7 @@ export function findUgPartner(
     const e = entities[tile.entityId]
     if (
       e &&
-      !e.ghost &&
+      machineIsLive(e) &&
       e.kind === 'undergroundBelt' &&
       e.dir === ug.dir &&
       (e.toggle ?? 0) === lookingFor
@@ -339,7 +340,7 @@ function tryDrillEject(
   for (const o of drillDropCells(drill.kind, drill.x, drill.y, drill.dir, drill.flip === true)) {
     if (!inBounds(o.x, o.y)) continue
     const cand = entityAtCell(state, entities, o.x, o.y)
-    if (!cand || cand.ghost) continue
+    if (!cand || !machineIsLive(cand)) continue
     if (cand.id === drill.id) continue
     if (
       isBeltKind(cand.kind) ||
@@ -432,7 +433,7 @@ export function runMineCycles(state: GameState, cycles: number): GameState {
   for (let c = 0; c < cycles; c++) {
     for (const id of Object.keys(entities)) {
       const e = entities[id]
-      if (e.ghost) continue
+      if (!machineIsLive(e)) continue
       if (!isDrillKind(e.kind)) continue
       if (!entityHasPower(e, state, net)) continue
 
@@ -513,7 +514,7 @@ export function simTick(state: GameState, dt: number): GameState {
   //     Belts never draw and keep moving even when the battery is empty. ---
   let demand = 0
   for (const e of Object.values(entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     const draw = POWER_DRAW[e.kind] ?? 0
     if (draw <= 0) continue
     if (!entityHasPower(e, state, net)) continue
@@ -535,14 +536,14 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Drill auto-eject ---
   for (const e of Object.values(entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     if (!isDrillKind(e.kind)) continue
     if (tryDrillEject(state, entities, e)) moved += 1
   }
 
   // --- Furnaces (stone + steel) ---
   for (const e of Object.values(entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     if (!isFurnaceKind(e.kind)) continue
     const cap = MACHINE_CAP[e.kind] ?? 12
     const seconds = furnaceSecondsFor(e.kind) / bonuses.furnaceSpeedMult
@@ -587,7 +588,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Assemblers: 2 iron plate → 1 gear ---
   for (const e of Object.values(entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     if (e.kind !== 'assembler') continue
     if (!entityHasPower(e, state, net)) continue
     const seconds = ASSEMBLER_SECONDS / bonuses.assemblerSpeedMult
@@ -616,7 +617,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Belts ---
   const beltOrder = Object.values(entities).filter(
-    (e) => !e.ghost && isBeltKind(e.kind),
+    (e) => machineIsLive(e) && isBeltKind(e.kind),
   )
   beltOrder.sort((a, b) => {
     const da = DIR_DELTA[a.dir]
@@ -644,7 +645,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Underground belts: entrance teleports to exit, exit ejects forward ---
   for (const e of Object.values(entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     if (e.kind !== 'undergroundBelt' || !e.cargo) continue
     e.cargo.progress = Math.min(
       1,
@@ -670,7 +671,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // Splitters: alternate forward vs right output
   for (const e of Object.values(entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     if (e.kind !== 'splitter' || !e.cargo) continue
     if (!entityHasPower(e, state, net)) continue
     e.cargo.progress = Math.min(
@@ -701,7 +702,7 @@ export function simTick(state: GameState, dt: number): GameState {
 
   // --- Inserters ---
   for (const e of Object.values(entities)) {
-    if (e.ghost) continue
+    if (!machineIsLive(e)) continue
     if (!isInserterKind(e.kind)) continue
     if (!entityHasPower(e, state, net)) continue
     if (powerRatio <= 0) continue

@@ -194,12 +194,12 @@ export const GOALS: GoalDef[] = [
 
 export const TIPS = [
   'Drills can dump straight into a chest they face - belts still need an inserter.',
-  'Hold on a tile, then drag to paint belts. Edit → Demolish clears buildings.',
+  'Hold on a tile, then drag to paint belts. Edit → Demolish marks buildings for a drone to scrap.',
   'Inserters pull from behind and push forward - green arrow shows drop direction.',
   'Route drill → chest for ore, or drill → belt → inserter → chest for longer lines.',
   'Belts never dump into chests - always bridge with an inserter.',
   'You can place two chests from the start: ore in, plates out.',
-  'Chests hold 4 stacks of 100. Offline haul only counts what lands in a chest.',
+  'Chests hold 4 stacks of 100. Your pack also keeps one stack of each material.',
   'When you leave, steps keep drills running - come back to stockpiled chests.',
   'Research Factory storage to place more than two chests.',
   'Assemblers turn iron plates into gears while you walk.',

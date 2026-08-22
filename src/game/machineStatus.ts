@@ -9,6 +9,7 @@ import {
   inBounds,
   isBeltKind,
   isDrillKind,
+  isDeconstructing,
   isFurnaceKind,
   mineCells,
   rockVariant,
@@ -43,6 +44,15 @@ export function machineStatus(
     const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
     return {
       label: pct > 0 ? `Under construction ${pct}%` : 'Awaiting construction drone',
+      tone: pct > 0 ? 'work' : 'idle',
+      floorClass: 'is-waiting',
+    }
+  }
+
+  if (isDeconstructing(ent)) {
+    const pct = Math.round(Math.min(1, Math.max(0, ent.buildProgress ?? 0)) * 100)
+    return {
+      label: pct > 0 ? `Drone demolishing ${pct}%` : 'Marked for demolition - waiting for a drone',
       tone: pct > 0 ? 'work' : 'idle',
       floorClass: 'is-waiting',
     }
